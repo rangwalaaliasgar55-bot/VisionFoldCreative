@@ -42,24 +42,24 @@ export const ContactPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen text-slate-100 pb-24 bg-[#08090d]">
+    <div className="min-h-screen text-slate-100 pb-20 bg-[#08090d] font-sans">
       {/* Title */}
-      <section className="pt-20 pb-12 px-4 sm:px-6 lg:px-8 max-w-4xl mx-auto text-center">
+      <section className="pt-16 pb-12 px-4 sm:px-6 lg:px-8 max-w-4xl mx-auto text-center">
         <VisionFoldLogo size="lg" variant="full" className="mx-auto mb-6" />
 
         <h1 className="text-3xl sm:text-5xl font-black text-white uppercase tracking-tight">
           Let's Build Something <span className="text-amber-400">Unforgettable</span>
         </h1>
-        <p className="text-xl text-slate-300 mt-4 font-light leading-relaxed">
+        <p className="text-base sm:text-lg text-slate-300 mt-4 font-light leading-relaxed">
           Send us your raw footage concepts or project inquiry below.
         </p>
       </section>
 
-      <section className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 grid md:grid-cols-12 gap-10">
+      <section className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 grid md:grid-cols-12 gap-8">
         {/* Contact Info Sidebar */}
         <div className="md:col-span-5 space-y-6">
-          <div className="bg-[#0e1017] border border-[#1e2333] rounded-3xl p-8 shadow-2xl">
-            <h2 className="text-xl font-bold text-white uppercase tracking-tight mb-6">Direct Studio Contact</h2>
+          <div className="bg-[#0b0d13] border border-[#1a1d28] rounded-2xl p-8 shadow-xl">
+            <h2 className="text-lg font-bold text-white uppercase tracking-tight mb-6">Direct Studio Contact</h2>
 
             <div className="space-y-6 text-xs font-mono">
               <div>
@@ -68,9 +68,9 @@ export const ContactPage: React.FC = () => {
                 </span>
                 <a
                   href="mailto:visionfoldcreative@gmail.com"
-                  className="flex items-center gap-2 text-amber-400 font-bold hover:underline text-sm"
+                  className="flex items-center gap-2 text-amber-400 font-bold hover:underline text-xs"
                 >
-                  <Mail className="w-4 h-4 shrink-0 text-amber-400" />
+                  <Mail className="w-3.5 h-3.5 shrink-0 text-amber-400" />
                   visionfoldcreative@gmail.com
                 </a>
               </div>
@@ -83,11 +83,11 @@ export const ContactPage: React.FC = () => {
                   href="https://wa.me/917725004639"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 font-bold hover:bg-emerald-500/20 transition-all text-xs"
+                  className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 font-bold hover:bg-emerald-500/20 transition-all text-xs"
                 >
-                  <MessageSquare className="w-4 h-4 shrink-0" />
+                  <MessageSquare className="w-3.5 h-3.5 shrink-0" />
                   WhatsApp: +91 7725004639
-                  <ExternalLink className="w-3.5 h-3.5 ml-1" />
+                  <ExternalLink className="w-3 h-3 ml-1" />
                 </a>
               </div>
 
@@ -95,7 +95,7 @@ export const ContactPage: React.FC = () => {
                 <span className="text-[10px] font-bold uppercase text-slate-400 block mb-1 tracking-widest">
                   EDITING LEAD
                 </span>
-                <p className="text-slate-200 font-bold text-sm">
+                <p className="text-slate-200 font-bold text-xs">
                   Aliasgar (Owner & Lead Editor)
                 </p>
                 <p className="text-slate-400 mt-1">2+ years turning raw footage into results.</p>
@@ -103,23 +103,23 @@ export const ContactPage: React.FC = () => {
             </div>
           </div>
 
-          <div className="p-6 rounded-3xl bg-[#0e1017] border border-[#1e2333] text-xs font-mono text-slate-400 space-y-2 shadow-xl">
+          <div className="p-6 rounded-2xl bg-[#0b0d13] border border-[#1a1d28] text-xs font-mono text-slate-400 space-y-2 shadow-xl">
             <p className="font-bold text-slate-200 uppercase">Turnaround Commitment</p>
-            <p className="font-light">
+            <p className="font-light leading-relaxed">
               All project inquiries receive a direct response within 12 hours. For instantaneous consultation, reach Aliasgar directly via WhatsApp.
             </p>
           </div>
         </div>
 
         {/* Form Container */}
-        <div className="md:col-span-7 bg-[#0e1017] border border-[#1e2333] rounded-3xl p-8 sm:p-10 shadow-2xl">
+        <div className="md:col-span-7 bg-[#0b0d13] border border-[#1a1d28] rounded-2xl p-8 sm:p-10 shadow-xl">
           {submitted ? (
             <div className="text-center py-12 space-y-4">
-              <div className="w-16 h-16 rounded-2xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 flex items-center justify-center mx-auto">
-                <CheckCircle2 className="w-10 h-10" />
+              <div className="w-12 h-12 rounded-xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 flex items-center justify-center mx-auto">
+                <CheckCircle2 className="w-6 h-6" />
               </div>
               <h3 className="text-2xl font-black text-white uppercase tracking-tight">Inquiry Received!</h3>
-              <p className="text-slate-300 max-w-md mx-auto text-sm font-light">
+              <p className="text-slate-300 max-w-md mx-auto text-xs font-light leading-relaxed">
                 Thank you for reaching out to Vision Fold Creative. Aliasgar will review your project requirements and respond via email or WhatsApp shortly.
               </p>
               <button
@@ -129,17 +129,17 @@ export const ContactPage: React.FC = () => {
                   setEmail('');
                   setMessage('');
                 }}
-                className="mt-4 px-6 py-3 rounded-2xl bg-[#121520] text-slate-200 border border-[#222736] hover:bg-[#1a1e2d] font-mono text-xs font-bold uppercase"
+                className="mt-4 px-5 py-2.5 rounded-xl bg-[#10121a] text-slate-200 border border-[#181b26] hover:bg-[#141722] font-mono text-xs font-bold uppercase"
               >
                 Send Another Message
               </button>
             </div>
           ) : (
             <form onSubmit={handleSubmit} className="space-y-5">
-              <h2 className="text-xl font-black text-white uppercase tracking-tight mb-2">Project Brief</h2>
+              <h2 className="text-lg font-black text-white uppercase tracking-tight mb-2">Project Brief</h2>
 
               {error && (
-                <div className="p-3.5 rounded-2xl bg-red-500/10 border border-red-500/30 text-red-400 text-xs font-mono flex items-center gap-2">
+                <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 text-xs font-mono flex items-center gap-2">
                   <AlertCircle className="w-4 h-4 shrink-0" />
                   <span>{error}</span>
                 </div>
@@ -156,7 +156,7 @@ export const ContactPage: React.FC = () => {
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     placeholder="e.g. Vikram Mehta"
-                    className="w-full px-4 py-3 bg-[#121520] border border-[#222736] rounded-2xl text-slate-100 placeholder-slate-500 text-xs font-mono focus:border-amber-400 focus:outline-none"
+                    className="w-full px-4 py-3 bg-[#10121a] border border-[#181b26] rounded-xl text-slate-100 placeholder-slate-600 text-xs font-mono focus:border-amber-400 focus:outline-none"
                   />
                 </div>
 
@@ -170,7 +170,7 @@ export const ContactPage: React.FC = () => {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="vikram@company.com"
-                    className="w-full px-4 py-3 bg-[#121520] border border-[#222736] rounded-2xl text-slate-100 placeholder-slate-500 text-xs font-mono focus:border-amber-400 focus:outline-none"
+                    className="w-full px-4 py-3 bg-[#10121a] border border-[#181b26] rounded-xl text-slate-100 placeholder-slate-600 text-xs font-mono focus:border-amber-400 focus:outline-none"
                   />
                 </div>
               </div>
@@ -186,7 +186,7 @@ export const ContactPage: React.FC = () => {
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
                     placeholder="+91 9876543210"
-                    className="w-full px-4 py-3 bg-[#121520] border border-[#222736] rounded-2xl text-slate-100 placeholder-slate-500 text-xs font-mono focus:border-amber-400 focus:outline-none"
+                    className="w-full px-4 py-3 bg-[#10121a] border border-[#181b26] rounded-xl text-slate-100 placeholder-slate-600 text-xs font-mono focus:border-amber-400 focus:outline-none"
                   />
                 </div>
 
@@ -199,7 +199,7 @@ export const ContactPage: React.FC = () => {
                     value={company}
                     onChange={(e) => setCompany(e.target.value)}
                     placeholder="e.g. Mehta Media"
-                    className="w-full px-4 py-3 bg-[#121520] border border-[#222736] rounded-2xl text-slate-100 placeholder-slate-500 text-xs font-mono focus:border-amber-400 focus:outline-none"
+                    className="w-full px-4 py-3 bg-[#10121a] border border-[#181b26] rounded-xl text-slate-100 placeholder-slate-600 text-xs font-mono focus:border-amber-400 focus:outline-none"
                   />
                 </div>
               </div>
@@ -212,7 +212,7 @@ export const ContactPage: React.FC = () => {
                   <select
                     value={projectType}
                     onChange={(e) => setProjectType(e.target.value)}
-                    className="w-full px-4 py-3 bg-[#121520] border border-[#222736] rounded-2xl text-slate-100 text-xs font-mono focus:border-amber-400 focus:outline-none"
+                    className="w-full px-4 py-3 bg-[#10121a] border border-[#181b26] rounded-xl text-slate-100 text-xs font-mono focus:border-amber-400 focus:outline-none"
                   >
                     <option value="Short Form">Short Form (Reels/Shorts/TikTok)</option>
                     <option value="Long Form">Long Form (YouTube/Docu/Interview)</option>
@@ -228,7 +228,7 @@ export const ContactPage: React.FC = () => {
                   <select
                     value={budgetRange}
                     onChange={(e) => setBudgetRange(e.target.value)}
-                    className="w-full px-4 py-3 bg-[#121520] border border-[#222736] rounded-2xl text-slate-100 text-xs font-mono focus:border-amber-400 focus:outline-none"
+                    className="w-full px-4 py-3 bg-[#10121a] border border-[#181b26] rounded-xl text-slate-100 text-xs font-mono focus:border-amber-400 focus:outline-none"
                   >
                     <option value="₹5,000 - ₹10,000">₹5,000 - ₹10,000</option>
                     <option value="₹10,000 - ₹25,000">₹10,000 - ₹25,000</option>
@@ -248,14 +248,14 @@ export const ContactPage: React.FC = () => {
                   value={message}
                   onChange={(e) => setMessage(e.target.value)}
                   placeholder="Describe your footage length, target platform, desired style, or share Google Drive / Dropbox raw video links..."
-                  className="w-full px-4 py-3 bg-[#121520] border border-[#222736] rounded-2xl text-slate-100 placeholder-slate-500 text-xs font-mono focus:border-amber-400 focus:outline-none resize-none"
+                  className="w-full px-4 py-3 bg-[#10121a] border border-[#181b26] rounded-xl text-slate-100 placeholder-slate-600 text-xs font-mono focus:border-amber-400 focus:outline-none resize-none"
                 />
               </div>
 
               <button
                 type="submit"
                 disabled={submitting}
-                className="w-full py-4 px-6 bg-amber-400 hover:bg-amber-300 text-slate-950 font-bold rounded-2xl transition-all shadow-xl shadow-amber-500/20 flex items-center justify-center gap-2 uppercase text-xs tracking-widest disabled:opacity-50"
+                className="w-full py-3.5 px-6 bg-amber-400 hover:bg-amber-300 text-slate-950 font-mono font-bold rounded-xl transition-all shadow-md flex items-center justify-center gap-2 uppercase text-xs tracking-widest disabled:opacity-50"
               >
                 {submitting ? 'Sending Brief...' : 'Send Inquiry To Aliasgar'}
                 <Send className="w-4 h-4" />

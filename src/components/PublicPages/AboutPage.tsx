@@ -6,7 +6,6 @@ import {
   Award,
   Sparkles,
   ArrowRight,
-  Box,
 } from 'lucide-react';
 import { api } from '../../lib/api';
 import { VisionFoldLogo } from '../VisionFoldLogo';
@@ -125,52 +124,52 @@ export const AboutPage: React.FC<AboutPageProps> = ({ onNavigate }) => {
   ];
 
   return (
-    <div className="min-h-screen text-slate-100 pb-24 bg-[#08090d]">
+    <div className="min-h-screen text-slate-100 pb-20 bg-[#08090d] font-sans">
       {/* Header */}
-      <section className="pt-20 pb-12 px-4 sm:px-6 lg:px-8 max-w-5xl mx-auto text-center">
+      <section className="pt-16 pb-12 px-4 sm:px-6 lg:px-8 max-w-5xl mx-auto text-center">
         <VisionFoldLogo size="lg" variant="full" className="mx-auto mb-6" />
 
-        <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-[#121520] border border-amber-500/30 text-amber-400 text-xs font-mono font-bold uppercase tracking-wider mb-6">
-          <Award className="w-4 h-4" />
+        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-md bg-amber-400/10 border border-amber-400/20 text-amber-400 text-xs font-mono font-bold uppercase tracking-wider mb-6">
+          <Award className="w-3.5 h-3.5" />
           <span>2+ Years Experience</span>
         </div>
 
         <h1 className="text-3xl sm:text-5xl font-black text-white uppercase tracking-tight">
           {title}
         </h1>
-        <p className="text-xl text-slate-300 mt-4 max-w-2xl mx-auto font-light leading-relaxed">{subline}</p>
+        <p className="text-base sm:text-lg text-slate-300 mt-4 max-w-2xl mx-auto font-light leading-relaxed">{subline}</p>
       </section>
 
       {/* About Me Bio */}
       <section className="py-8 px-4 sm:px-6 lg:px-8 max-w-4xl mx-auto">
-        <div className="bg-[#0e1017] border border-[#1e2333] rounded-3xl p-8 sm:p-12 relative overflow-hidden shadow-2xl">
-          <h2 className="text-xs font-mono font-bold text-amber-400 uppercase tracking-widest mb-3 flex items-center gap-2">
+        <div className="bg-[#0b0d13] border border-[#1a1d28] rounded-2xl p-8 sm:p-10 shadow-xl">
+          <h2 className="text-[11px] font-mono font-bold text-amber-400 uppercase tracking-widest mb-3 flex items-center gap-2">
             <User className="w-4 h-4" />
             <span>ABOUT ALIASGAR &bull; FOUNDER OF VISIONFOLD</span>
           </h2>
-          <p className="text-slate-200 text-lg leading-relaxed font-light">{aboutMeText}</p>
+          <p className="text-slate-200 text-base leading-relaxed font-light">{aboutMeText}</p>
         </div>
       </section>
 
       {/* Editing Style */}
       <section className="py-12 px-4 sm:px-6 lg:px-8 max-w-6xl mx-auto">
-        <h2 className="text-3xl font-black text-white mb-8 text-center uppercase tracking-tight">
+        <h2 className="text-2xl sm:text-4xl font-black text-white mb-8 text-center uppercase tracking-tight">
           Editing <span className="text-amber-400">Philosophy</span>
         </h2>
 
         {/* Story-Driven */}
-        <div className="bg-[#0e1017] border border-[#1e2333] rounded-3xl p-8 mb-8 shadow-2xl">
-          <h3 className="text-2xl font-bold text-amber-400 mb-2">Story-Driven Editing</h3>
-          <p className="text-lg text-slate-200 font-light italic mb-6">
+        <div className="bg-[#0b0d13] border border-[#1a1d28] rounded-2xl p-8 mb-8 shadow-xl">
+          <h3 className="text-xl font-bold text-amber-400 mb-2">Story-Driven Editing</h3>
+          <p className="text-base text-slate-200 font-light italic mb-6">
             "{storyStyle.headline}"
           </p>
           <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-3">
             {storyStyle.bullets?.map((b: string, idx: number) => (
               <div
                 key={idx}
-                className="flex items-center gap-2.5 p-3.5 rounded-2xl bg-[#121520] border border-[#222736] text-slate-200 text-xs font-mono"
+                className="flex items-center gap-2.5 p-3 rounded-xl bg-[#10121a] border border-[#181b26] text-slate-200 text-xs font-mono"
               >
-                <CheckCircle2 className="w-4 h-4 text-amber-400 shrink-0" />
+                <CheckCircle2 className="w-3.5 h-3.5 text-amber-400 shrink-0" />
                 <span>{b}</span>
               </div>
             ))}
@@ -178,10 +177,10 @@ export const AboutPage: React.FC<AboutPageProps> = ({ onNavigate }) => {
         </div>
 
         {/* Short Form vs Long Form */}
-        <div className="grid md:grid-cols-2 gap-8">
-          <div className="bg-[#0e1017] border border-[#1e2333] rounded-3xl p-8 shadow-2xl">
-            <h3 className="text-2xl font-bold text-white mb-2">{shortFormStyle.headline}</h3>
-            <p className="text-xs text-amber-400 font-mono mb-6 uppercase tracking-wider">
+        <div className="grid md:grid-cols-2 gap-6">
+          <div className="bg-[#0b0d13] border border-[#1a1d28] rounded-2xl p-8 shadow-xl">
+            <h3 className="text-xl font-bold text-white mb-2">{shortFormStyle.headline}</h3>
+            <p className="text-[11px] text-amber-400 font-mono mb-6 uppercase tracking-wider">
               {shortFormStyle.platforms}
             </p>
             <div className="space-y-3">
@@ -194,9 +193,9 @@ export const AboutPage: React.FC<AboutPageProps> = ({ onNavigate }) => {
             </div>
           </div>
 
-          <div className="bg-[#0e1017] border border-[#1e2333] rounded-3xl p-8 shadow-2xl">
-            <h3 className="text-2xl font-bold text-white mb-2">{longFormStyle.headline}</h3>
-            <p className="text-xs text-amber-400 font-mono mb-6 uppercase tracking-wider">
+          <div className="bg-[#0b0d13] border border-[#1a1d28] rounded-2xl p-8 shadow-xl">
+            <h3 className="text-xl font-bold text-white mb-2">{longFormStyle.headline}</h3>
+            <p className="text-[11px] text-amber-400 font-mono mb-6 uppercase tracking-wider">
               {longFormStyle.platforms}
             </p>
             <div className="space-y-3">
@@ -213,37 +212,37 @@ export const AboutPage: React.FC<AboutPageProps> = ({ onNavigate }) => {
 
       {/* Creative Process */}
       <section className="py-12 px-4 sm:px-6 lg:px-8 max-w-6xl mx-auto">
-        <h2 className="text-3xl font-black text-white mb-10 text-center uppercase tracking-tight">
+        <h2 className="text-2xl sm:text-4xl font-black text-white mb-10 text-center uppercase tracking-tight">
           Creative <span className="text-amber-400">Process</span>
         </h2>
         <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
           {creativeProcess.map((stepItem: any, idx: number) => (
             <div
               key={idx}
-              className="bg-[#0e1017] border border-[#1e2333] rounded-3xl p-6 relative overflow-hidden shadow-2xl"
+              className="bg-[#0b0d13] border border-[#1a1d28] rounded-2xl p-6 shadow-xl"
             >
-              <div className="w-10 h-10 rounded-2xl bg-amber-500/10 text-amber-400 flex items-center justify-center font-mono font-bold text-sm mb-4 border border-amber-500/20">
+              <div className="w-8 h-8 rounded-lg bg-amber-400/10 text-amber-400 flex items-center justify-center font-mono font-bold text-xs mb-4 border border-amber-400/20">
                 0{stepItem.step || idx + 1}
               </div>
-              <h3 className="text-lg font-bold text-white mb-2">{stepItem.name}</h3>
+              <h3 className="text-base font-bold text-white mb-2">{stepItem.name}</h3>
               <p className="text-xs text-slate-300 leading-relaxed font-light">{stepItem.details}</p>
             </div>
           ))}
         </div>
       </section>
 
-      {/* Tools & Why Work With Me */}
-      <section className="py-12 px-4 sm:px-6 lg:px-8 max-w-6xl mx-auto grid md:grid-cols-2 gap-8">
-        <div className="bg-[#0e1017] border border-[#1e2333] rounded-3xl p-8 shadow-2xl">
-          <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
-            <Wrench className="w-5 h-5 text-amber-400" />
+      {/* Tech Stack & Why Work With Me */}
+      <section className="py-12 px-4 sm:px-6 lg:px-8 max-w-6xl mx-auto grid md:grid-cols-2 gap-6">
+        <div className="bg-[#0b0d13] border border-[#1a1d28] rounded-2xl p-8 shadow-xl">
+          <h3 className="text-lg font-bold text-white mb-6 flex items-center gap-2">
+            <Wrench className="w-4 h-4 text-amber-400" />
             <span>Editing Tech Stack</span>
           </h3>
-          <div className="flex flex-wrap gap-3">
+          <div className="flex flex-wrap gap-2.5">
             {tools.map((t: string, idx: number) => (
               <span
                 key={idx}
-                className="px-4 py-2 rounded-xl bg-[#121520] border border-[#222736] text-amber-400 text-xs font-mono font-bold"
+                className="px-3.5 py-1.5 rounded-lg bg-[#10121a] border border-[#181b26] text-amber-400 text-xs font-mono font-bold"
               >
                 {t}
               </span>
@@ -251,15 +250,15 @@ export const AboutPage: React.FC<AboutPageProps> = ({ onNavigate }) => {
           </div>
         </div>
 
-        <div className="bg-[#0e1017] border border-[#1e2333] rounded-3xl p-8 shadow-2xl">
-          <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
-            <Sparkles className="w-5 h-5 text-amber-400" />
+        <div className="bg-[#0b0d13] border border-[#1a1d28] rounded-2xl p-8 shadow-xl">
+          <h3 className="text-lg font-bold text-white mb-6 flex items-center gap-2">
+            <Sparkles className="w-4 h-4 text-amber-400" />
             <span>Why Creators Choose VisionFold</span>
           </h3>
           <div className="space-y-3">
             {whyWorkWithMe.map((reason: string, idx: number) => (
               <div key={idx} className="flex items-center gap-3 text-slate-200 text-xs font-mono">
-                <CheckCircle2 className="w-4 h-4 text-amber-400 shrink-0" />
+                <CheckCircle2 className="w-3.5 h-3.5 text-amber-400 shrink-0" />
                 <span>{reason}</span>
               </div>
             ))}
@@ -269,16 +268,16 @@ export const AboutPage: React.FC<AboutPageProps> = ({ onNavigate }) => {
 
       {/* CTA */}
       <section className="py-12 px-4 sm:px-6 lg:px-8 max-w-4xl mx-auto text-center">
-        <div className="bg-[#0e1017] border border-[#1e2333] rounded-3xl p-8 sm:p-12 shadow-2xl">
-          <h3 className="text-xs font-mono uppercase font-bold text-amber-400 tracking-widest mb-3">
+        <div className="bg-[#0b0d13] border border-[#1a1d28] rounded-2xl p-8 sm:p-10 shadow-xl">
+          <h3 className="text-[11px] font-mono uppercase font-bold text-amber-400 tracking-widest mb-3">
             READY TO COLLABORATE?
           </h3>
-          <p className="text-xl text-white font-light italic leading-relaxed mb-6">
+          <p className="text-lg text-white font-light italic leading-relaxed mb-6">
             Let's shape your footage into high-converting, viral-ready video content.
           </p>
           <button
             onClick={() => onNavigate('contact')}
-            className="px-8 py-4 rounded-2xl bg-amber-400 text-slate-950 font-bold uppercase text-xs tracking-widest hover:bg-amber-300 transition-all inline-flex items-center gap-2 shadow-xl shadow-amber-500/20"
+            className="px-7 py-3.5 rounded-xl bg-amber-400 text-slate-950 font-mono font-bold uppercase text-xs tracking-widest hover:bg-amber-300 transition-all inline-flex items-center gap-2 shadow-md"
           >
             <span>Connect With Aliasgar</span>
             <ArrowRight className="w-4 h-4" />
