@@ -86,3 +86,11 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
   font-feature-settings: "tnum";
   font-variant-numeric: tabular-nums;
 }
+
+@theme {
+  --animate-shimmer: shimmer 2s linear infinite;
+  @keyframes shimmer {
+    from { background-position: 200% 0; }
+    to { background-position: -200% 0; }
+  }
+}
