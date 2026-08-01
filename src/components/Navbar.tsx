@@ -1,0 +1,108 @@
+import React, { useState } from 'react';
+import { Menu, X, ArrowRight } from 'lucide-react';
+import { VisionFoldLogo } from './VisionFoldLogo';
+
+interface NavbarProps {
+  currentPage: string;
+  onNavigate: (page: string) => void;
+}
+
+export const Navbar: React.FC<NavbarProps> = ({ currentPage, onNavigate }) => {
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  const navItems = [
+    { id: 'home', label: 'Home' },
+    { id: 'portfolio', label: 'Showreel & Work' },
+    { id: 'services', label: 'Services & Rates' },
+    { id: 'about', label: 'Studio & Process' },
+    { id: 'contact', label: 'Contact' },
+  ];
+
+  const handleNavClick = (id: string) => {
+    onNavigate(id);
+    setMobileMenuOpen(false);
+  };
+
+  return (
+    <header className="sticky top-0 z-50 bg-[#08090d]/90 backdrop-blur-xl border-b border-[#1c202e] transition-all">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
+        {/* Official VisionFold Studio Brand Logo */}
+        <button
+          onClick={() => handleNavClick('home')}
+          className="group focus:outline-none flex items-center"
+        >
+          <VisionFoldLogo size="md" variant="full" />
+        </button>
+
+        {/* Desktop Nav Links */}
+        <nav className="hidden md:flex items-center gap-1.5 bg-[#0e1017]/80 p-1.5 rounded-2xl border border-[#1e2333]">
+          {navItems.map((item) => {
+            const isActive = currentPage === item.id;
+            return (
+              <button
+                key={item.id}
+                onClick={() => handleNavClick(item.id)}
+                className={`px-4 py-2 rounded-xl text-xs font-bold tracking-wider uppercase transition-all duration-200 relative ${
+                  isActive
+                    ? 'text-slate-950 bg-amber-400 font-extrabold shadow-lg shadow-amber-500/20'
+                    : 'text-slate-300 hover:text-white hover:bg-[#161a26]'
+                }`}
+              >
+                {item.label}
+              </button>
+            );
+          })}
+        </nav>
+
+        {/* Primary CTA - Start Project (No public admin buttons) */}
+        <div className="hidden md:flex items-center gap-3">
+          <button
+            onClick={() => handleNavClick('contact')}
+            className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest bg-gradient-to-r from-amber-500 to-amber-400 text-slate-950 hover:brightness-110 transition-all shadow-lg shadow-amber-500/20 group"
+          >
+            <span>Start Project</span>
+            <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
+          </button>
+        </div>
+
+        {/* Mobile Hamburger */}
+        <button
+          onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+          className="md:hidden p-2.5 text-slate-300 hover:text-white rounded-xl bg-[#121520] border border-[#222736]"
+          aria-label="Toggle Menu"
+        >
+          {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+        </button>
+      </div>
+
+      {/* Mobile Menu */}
+      {mobileMenuOpen && (
+        <div className="md:hidden bg-[#08090c] border-b border-[#222736] px-4 pt-3 pb-6 space-y-2 animate-fade-in">
+          {navItems.map((item) => (
+            <button
+              key={item.id}
+              onClick={() => handleNavClick(item.id)}
+              className={`w-full text-left px-4 py-3 rounded-xl text-sm font-bold uppercase tracking-wider transition-colors ${
+                currentPage === item.id
+                  ? 'bg-amber-500/10 text-amber-400 border border-amber-500/30'
+                  : 'text-slate-300 hover:bg-[#121520]'
+              }`}
+            >
+              {item.label}
+            </button>
+          ))}
+
+          <div className="pt-3 border-t border-[#222736]">
+            <button
+              onClick={() => handleNavClick('contact')}
+              className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-amber-400 text-slate-950 font-black uppercase text-xs tracking-widest shadow-lg"
+            >
+              <span>Start Project</span>
+              <ArrowRight className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      )}
+    </header>
+  );
+};

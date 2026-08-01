@@ -1,0 +1,79 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --bg-dark: #08090c;
+    --surface-dark: #11131a;
+    --surface-card: #161922;
+    --border-color: #222736;
+    --accent-fold: #f59e0b;
+    --accent-indigo: #6366f1;
+    --text-primary: #f8fafc;
+    --text-muted: #94a3b8;
+  }
+
+  body {
+    background-color: var(--bg-dark);
+    color: var(--text-primary);
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+    overflow-x: hidden;
+  }
+}
+
+/* Signature Fold Motif Divider */
+.fold-crease-divider {
+  position: relative;
+  height: 2px;
+  background: linear-gradient(90deg, transparent 0%, rgba(245, 158, 11, 0.4) 30%, rgba(99, 102, 241, 0.5) 70%, transparent 100%);
+  margin: 3rem 0;
+}
+
+.fold-crease-divider::after {
+  content: '';
+  position: absolute;
+  top: -4px;
+  left: 50%;
+  transform: translateX(-50%) rotate(45deg);
+  width: 10px;
+  height: 10px;
+  background-color: var(--bg-dark);
+  border: 1px solid var(--accent-fold);
+}
+
+/* Subtle corner fold card accent */
+.fold-card {
+  position: relative;
+  background-color: var(--surface-card);
+  border: 1px solid var(--border-color);
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.fold-card:hover {
+  border-color: rgba(245, 158, 11, 0.4);
+  transform: translateY(-2px);
+  box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.5);
+}
+
+.fold-corner-accent {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 0;
+  height: 0;
+  border-style: solid;
+  border-width: 0 18px 18px 0;
+  border-color: transparent var(--accent-fold) transparent transparent;
+  opacity: 0.8;
+}
+
+/* Smooth Focus States */
+button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-visible {
+  outline: 2px solid var(--accent-fold);
+  outline-offset: 2px;
+}
+
+/* Currency formatting helper class */
+.inr-price {
+  font-feature-settings: "tnum";
+  font-variant-numeric: tabular-nums;
+}

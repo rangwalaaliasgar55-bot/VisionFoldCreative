@@ -1,0 +1,6 @@
+{
+  "name": "Vision Fold Creative",
+  "description": "Video editing agency owned by Aliasgar — turning raw footage into retention-focused visual experiences and growth results.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
