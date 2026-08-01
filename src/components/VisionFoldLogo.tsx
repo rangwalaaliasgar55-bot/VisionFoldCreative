@@ -26,40 +26,40 @@ export const VisionFoldLogo: React.FC<VisionFoldLogoProps> = ({
   const subColor = color === 'dark' ? 'text-slate-600' : 'text-slate-300';
   const accentColor = color === 'amber' ? 'text-amber-400' : 'text-slate-100';
 
-  // VF Emblem Vector SVG (Exact 1:1 Monogram with filmstrip perforations)
+  // VF Emblem Vector SVG (Exact 1:1 Monogram with filmstrip perforations matching official brand image)
   const LogoMark = (
     <svg
-      viewBox="0 0 160 110"
+      viewBox="0 0 200 130"
       className={`${selectedSize.icon} shrink-0 transition-transform duration-300 group-hover:scale-105`}
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
       aria-label="Vision Fold Logo Emblem"
     >
-      {/* Filmstrip Perforations on Left Arm of V */}
+      {/* Filmstrip Perforations alongside outer left edge of V */}
       <g opacity="0.95">
-        <rect x="22" y="22" width="4" height="10" rx="1" fill="currentColor" transform="rotate(-23 22 22)" className={color === 'dark' ? 'fill-slate-900' : 'fill-white'} />
-        <rect x="33" y="44" width="4" height="10" rx="1" fill="currentColor" transform="rotate(-23 33 44)" className={color === 'dark' ? 'fill-slate-900' : 'fill-white'} />
-        <rect x="44" y="66" width="4" height="10" rx="1" fill="currentColor" transform="rotate(-23 44 66)" className={color === 'dark' ? 'fill-slate-900' : 'fill-white'} />
-        <rect x="55" y="88" width="4" height="10" rx="1" fill="currentColor" transform="rotate(-23 55 88)" className={color === 'dark' ? 'fill-slate-900' : 'fill-white'} />
+        <rect x="34" y="20" width="4.5" height="11" rx="1" fill="currentColor" transform="rotate(-26 34 20)" className={color === 'dark' ? 'fill-slate-900' : 'fill-white'} />
+        <rect x="45" y="42" width="4.5" height="11" rx="1" fill="currentColor" transform="rotate(-26 45 42)" className={color === 'dark' ? 'fill-slate-900' : 'fill-white'} />
+        <rect x="56" y="64" width="4.5" height="11" rx="1" fill="currentColor" transform="rotate(-26 56 64)" className={color === 'dark' ? 'fill-slate-900' : 'fill-white'} />
+        <rect x="67" y="86" width="4.5" height="11" rx="1" fill="currentColor" transform="rotate(-26 67 86)" className={color === 'dark' ? 'fill-slate-900' : 'fill-white'} />
       </g>
 
-      {/* V Left Leg */}
+      {/* V Left Arm */}
       <path
-        d="M 36 20 L 72 95 L 84 95 L 50 20 Z"
+        d="M 50 18 L 91 108 L 107 108 L 66 18 Z"
         fill="currentColor"
         className={color === 'dark' ? 'fill-slate-900' : 'fill-white'}
       />
 
-      {/* V Right Leg curving smoothly into F top horizontal fold */}
+      {/* V Right Arm flowing into F Top Fold */}
       <path
-        d="M 72 95 L 102 38 C 106 30 114 24 125 24 L 148 24 L 148 34 L 125 34 C 118 34 113 38 110 44 L 84 95 Z"
+        d="M 91 108 L 126 40 C 131 29 141 21 156 21 L 180 21 C 187 21 189 25 185 29 L 179 35 C 175 39 167 41 157 41 L 146 41 C 138 41 132 45 128 53 L 107 108 Z"
         fill="currentColor"
         className={color === 'dark' ? 'fill-slate-900' : 'fill-white'}
       />
 
       {/* F Middle Bar */}
       <path
-        d="M 100 52 L 138 52 L 138 62 L 95 62 Z"
+        d="M 122 56 L 170 56 C 174 56 176 59 173 62 L 168 68 C 165 71 160 72 154 72 L 116 72 Z"
         fill="currentColor"
         className={color === 'dark' ? 'fill-slate-900' : 'fill-white'}
       />
@@ -71,26 +71,22 @@ export const VisionFoldLogo: React.FC<VisionFoldLogoProps> = ({
   }
 
   if (variant === 'full') {
-    // Stacked full logo (as shown in official brand asset: Emblem -> VISION FOLD -> CREATIVE STUDIO -> EDIT . CREATE . INSPIRE)
+    // Stacked full logo matching the exact brand asset uploaded by the user:
     return (
       <div className={`flex flex-col items-center text-center select-none ${className}`}>
         {LogoMark}
-        <div className="mt-3 space-y-1">
+        <div className="mt-3 space-y-1.5">
           <h1 className={`font-black uppercase font-sans ${textColor} ${selectedSize.title}`}>
             VISIONFOLD
           </h1>
 
           <div className="flex items-center justify-center gap-3 my-1">
-            <span className="h-[1px] w-6 bg-slate-500/40" />
-            <span className={`font-semibold uppercase tracking-[0.25em] ${subColor} ${selectedSize.sub}`}>
+            <span className="h-[1px] w-8 bg-brand-muted/30" />
+            <span className={`font-semibold uppercase tracking-[0.3em] ${subColor} ${selectedSize.sub}`}>
               CREATIVE STUDIO
             </span>
-            <span className="h-[1px] w-6 bg-slate-500/40" />
+            <span className="h-[1px] w-8 bg-brand-muted/30" />
           </div>
-
-          <p className="text-[9px] font-mono tracking-[0.35em] text-amber-400/90 uppercase pt-0.5">
-            EDIT &bull; CREATE &bull; INSPIRE
-          </p>
         </div>
       </div>
     );
@@ -102,10 +98,10 @@ export const VisionFoldLogo: React.FC<VisionFoldLogoProps> = ({
       {LogoMark}
       <div className="flex flex-col justify-center">
         <span className={`font-black uppercase font-sans ${textColor} ${selectedSize.title}`}>
-          VISION<span className={accentColor}>FOLD</span>
+          VISIONFOLD
         </span>
         <div className="flex items-center gap-1.5 mt-0.5">
-          <span className="h-[1px] w-2 bg-amber-400/50" />
+          <span className="h-[1px] w-2 bg-brand-accent/50" />
           <span className={`font-bold uppercase ${subColor} ${selectedSize.sub}`}>
             CREATIVE STUDIO
           </span>
