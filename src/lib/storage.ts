@@ -16,7 +16,14 @@ export class LocalDiskStorageProvider implements StorageProvider {
   private baseUrl: string;
 
   constructor() {
-    this.uploadDir = path.join(process.cwd(), 'public', 'uploads');
+    // process.cwd() is read-only on Vercel outside of local dev/build; only
+    // /tmp is writable at runtime there, and it does not persist between
+    // invocations. This keeps uploads from crashing the function, but files
+    // saved this way will disappear — swap in S3StorageProvider/R2StorageProvider
+    // (stubs below) before relying on uploads in a serverless deployment.
+    this.uploadDir = process.env.VERCEL
+      ? path.join('/tmp', 'uploads')
+      : path.join(process.cwd(), 'public', 'uploads');
     this.baseUrl = '/uploads';
     if (!fs.existsSync(this.uploadDir)) {
       fs.mkdirSync(this.uploadDir, { recursive: true });

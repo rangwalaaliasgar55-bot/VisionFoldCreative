@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 
 interface AdminMetrics {
   retentionSplit: string;
@@ -15,11 +15,14 @@ interface AdminAddonRates {
 
 interface AdminContextType {
   baselineRate: number;
-  setBaselineRate: (rate: number) => void;
   addonRates: AdminAddonRates;
-  setAddonRates: (rates: AdminAddonRates) => void;
   metrics: AdminMetrics;
-  setMetrics: (metrics: AdminMetrics) => void;
+  /** Applies settings locally (optimistic UI) and caches them for instant
+   * paint next visit. Does NOT write to the server — the caller (AdminModal)
+   * is responsible for persisting via PUT /api/settings first, then calling
+   * this with the confirmed response so every visitor's estimator stays in
+   * sync, not just the admin's own browser. */
+  applySettings: (settings: { baselineRate: number; addonRates: AdminAddonRates; metrics: AdminMetrics }) => void;
 }
 
 const defaultMetrics: AdminMetrics = {
@@ -37,58 +40,63 @@ const defaultAddons: AdminAddonRates = {
 
 const AdminContext = createContext<AdminContextType>({
   baselineRate: 700,
-  setBaselineRate: () => {},
   addonRates: defaultAddons,
-  setAddonRates: () => {},
   metrics: defaultMetrics,
-  setMetrics: () => {},
+  applySettings: () => {},
 });
+
+const CACHE_KEY = 'visionfold_settings_cache';
 
 export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [baselineRate, setBaselineRateState] = useState(700);
   const [addonRates, setAddonRatesState] = useState<AdminAddonRates>(defaultAddons);
   const [metrics, setMetricsState] = useState<AdminMetrics>(defaultMetrics);
 
+  const applySettings = useCallback(
+    (settings: { baselineRate: number; addonRates: AdminAddonRates; metrics: AdminMetrics }) => {
+      setBaselineRateState(settings.baselineRate);
+      setAddonRatesState(settings.addonRates);
+      setMetricsState(settings.metrics);
+      try {
+        localStorage.setItem(CACHE_KEY, JSON.stringify(settings));
+      } catch {
+        // localStorage can throw in private-browsing/storage-full edge cases; safe to ignore, it's only a cache.
+      }
+    },
+    []
+  );
+
   useEffect(() => {
-    const savedRate = localStorage.getItem('visionfold_baseline_rate');
-    if (savedRate) setBaselineRateState(parseInt(savedRate));
-    
-    const savedAddons = localStorage.getItem('visionfold_addon_rates');
-    if (savedAddons) {
-      try {
-        setAddonRatesState(JSON.parse(savedAddons));
-      } catch (e) {
-        console.error('Error parsing addons');
+    // Paint instantly from the last-known cache (if any) so there's no
+    // flash of default pricing while the network request is in flight.
+    try {
+      const cached = localStorage.getItem(CACHE_KEY);
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        setBaselineRateState(parsed.baselineRate);
+        setAddonRatesState(parsed.addonRates);
+        setMetricsState(parsed.metrics);
       }
+    } catch {
+      // ignore corrupt cache
     }
 
-    const savedMetrics = localStorage.getItem('visionfold_metrics');
-    if (savedMetrics) {
-      try {
-        setMetricsState(JSON.parse(savedMetrics));
-      } catch (e) {
-        console.error('Error parsing metrics');
-      }
-    }
-  }, []);
-
-  const setBaselineRate = (rate: number) => {
-    setBaselineRateState(rate);
-    localStorage.setItem('visionfold_baseline_rate', rate.toString());
-  };
-
-  const setAddonRates = (rates: AdminAddonRates) => {
-    setAddonRatesState(rates);
-    localStorage.setItem('visionfold_addon_rates', JSON.stringify(rates));
-  };
-
-  const setMetrics = (newMetrics: AdminMetrics) => {
-    setMetricsState(newMetrics);
-    localStorage.setItem('visionfold_metrics', JSON.stringify(newMetrics));
-  };
+    // These pricing figures and result metrics are shown to every visitor,
+    // so they're fetched from the shared backend (not just this browser's
+    // localStorage) — this is what makes admin edits actually visible to
+    // the public site instead of only the admin's own device.
+    fetch('/api/settings')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((settings) => {
+        if (settings) applySettings(settings);
+      })
+      .catch(() => {
+        // Network/API unavailable — fall back silently to cache/defaults already applied above.
+      });
+  }, [applySettings]);
 
   return (
-    <AdminContext.Provider value={{ baselineRate, setBaselineRate, addonRates, setAddonRates, metrics, setMetrics }}>
+    <AdminContext.Provider value={{ baselineRate, addonRates, metrics, applySettings }}>
       {children}
     </AdminContext.Provider>
   );

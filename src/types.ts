@@ -108,6 +108,22 @@ export interface Expense {
   createdAt: string;
 }
 
+export interface SiteSettings {
+  baselineRate: number;
+  addonRates: {
+    render4k: number;
+    multiFormat: number;
+    customSound: number;
+  };
+  metrics: {
+    retentionSplit: string;
+    card1Metric: string;
+    card2Metric: string;
+    card3Metric: string;
+  };
+  updatedAt: string;
+}
+
 export interface AuthState {
   user: User | null;
   token: string | null;

@@ -10,10 +10,30 @@ import {
   Revision,
   Invoice,
   Expense,
+  SiteSettings,
 } from '../types';
 
-const DATA_DIR = path.join(process.cwd(), 'data');
+// On Vercel (and most serverless platforms) the deployment bundle is
+// read-only outside of /tmp, and /tmp itself is wiped between cold starts /
+// separate function instances. A JSON-file "database" therefore cannot
+// reliably persist writes in that environment.
+//
+// We still point at a writable directory so the app doesn't crash, but this
+// is NOT durable storage on Vercel — treat any writes (new messages,
+// portfolio edits, settings changes) as ephemeral until this is swapped for
+// a real database (Postgres/Supabase/Turso etc).
+const isServerless = !!process.env.VERCEL;
+const DATA_DIR = isServerless ? path.join('/tmp', 'data') : path.join(process.cwd(), 'data');
 const DB_FILE = path.join(DATA_DIR, 'db.json');
+
+if (isServerless) {
+  // eslint-disable-next-line no-console
+  console.warn(
+    '[db] Running on Vercel with the JSON file store — writes will NOT persist ' +
+      'across deployments or cold starts. Replace src/lib/db.ts with a real ' +
+      'database before relying on admin edits / inquiries being saved long-term.'
+  );
+}
 
 interface Schema {
   users: User[];
@@ -24,11 +44,22 @@ interface Schema {
   revisions: Revision[];
   invoices: Invoice[];
   expenses: Expense[];
+  settings: SiteSettings;
 }
 
 function getDefaultDB(): Schema {
   const salt = bcrypt.genSaltSync(10);
-  const hashedPassword = bcrypt.hashSync('admin123password', salt);
+
+  const initialAdminPassword = process.env.ADMIN_INITIAL_PASSWORD;
+  if (!initialAdminPassword) {
+    // eslint-disable-next-line no-console
+    console.warn(
+      '[db] ADMIN_INITIAL_PASSWORD is not set — using an insecure default admin ' +
+        'password. Set ADMIN_INITIAL_PASSWORD in your environment before going ' +
+        'to production, then log in and change it.'
+    );
+  }
+  const hashedPassword = bcrypt.hashSync(initialAdminPassword || 'admin123password', salt);
   const clientHashedPassword = bcrypt.hashSync('client123password', salt);
 
   const adminUser: User = {
@@ -668,6 +699,22 @@ function getDefaultDB(): Schema {
     },
   ];
 
+  const settings: SiteSettings = {
+    baselineRate: 700,
+    addonRates: {
+      render4k: 100,
+      multiFormat: 150,
+      customSound: 200,
+    },
+    metrics: {
+      retentionSplit: '+320% Watch Time',
+      card1Metric: '+192% Avg Watch Duration',
+      card2Metric: '3.8M Views • 14k+ Saves',
+      card3Metric: 'Featured on ArchDaily',
+    },
+    updatedAt: new Date().toISOString(),
+  };
+
   // Map hashed passwords to user credentials store
   return {
     users: [
@@ -681,6 +728,7 @@ function getDefaultDB(): Schema {
     revisions,
     invoices,
     expenses,
+    settings,
   };
 }
 
@@ -695,6 +743,11 @@ export class DBManager {
       try {
         const fileData = fs.readFileSync(DB_FILE, 'utf-8');
         this.db = JSON.parse(fileData);
+        if (!this.db.settings) {
+          // Migrate DB files written before `settings` existed.
+          this.db.settings = getDefaultDB().settings;
+          this.save();
+        }
       } catch (err) {
         console.error('Error reading db.json, re-initializing default DB:', err);
         this.db = getDefaultDB();
@@ -935,6 +988,23 @@ export class DBManager {
     this.db.invoices[idx] = { ...this.db.invoices[idx], ...updates };
     this.save();
     return this.db.invoices[idx];
+  }
+
+  // Settings (baseline/addon pricing + homepage metrics shown to all visitors)
+  getSettings(): SiteSettings {
+    return this.db.settings;
+  }
+
+  updateSettings(updates: Partial<Omit<SiteSettings, 'updatedAt'>>): SiteSettings {
+    this.db.settings = {
+      ...this.db.settings,
+      ...updates,
+      addonRates: { ...this.db.settings.addonRates, ...(updates.addonRates || {}) },
+      metrics: { ...this.db.settings.metrics, ...(updates.metrics || {}) },
+      updatedAt: new Date().toISOString(),
+    };
+    this.save();
+    return this.db.settings;
   }
 
   // Expenses

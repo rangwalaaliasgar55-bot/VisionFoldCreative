@@ -1,11 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, lazy, Suspense } from 'react';
 import { Navbar } from './components/Navbar';
 import { Footer } from './components/Footer';
 import { HomePage } from './components/PublicPages/HomePage';
 import { FloatingWhatsApp } from './components/FloatingWhatsApp';
 import { SfxProvider } from './context/SfxContext';
 import { AdminProvider } from './context/AdminContext';
-import { AdminModal } from './components/AdminModal';
+
+const AdminModal = lazy(() => import('./components/AdminModal').then((m) => ({ default: m.AdminModal })));
 
 const MainContent: React.FC = () => {
   const [currentPage, setCurrentPage] = useState<string>('home');
@@ -35,7 +36,11 @@ const MainContent: React.FC = () => {
       </main>
       <FloatingWhatsApp />
       <Footer onAdminClick={() => setAdminModalOpen(true)} />
-      <AdminModal isOpen={adminModalOpen} onClose={() => setAdminModalOpen(false)} />
+      {adminModalOpen && (
+        <Suspense fallback={null}>
+          <AdminModal isOpen={adminModalOpen} onClose={() => setAdminModalOpen(false)} />
+        </Suspense>
+      )}
     </div>
   );
 };

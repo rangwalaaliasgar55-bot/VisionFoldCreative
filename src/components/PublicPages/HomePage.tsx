@@ -1,11 +1,19 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, lazy, Suspense } from 'react';
 import { useSfx } from '../../context/SfxContext';
 import { useAdmin } from '../../context/AdminContext';
-import { ThreeHero } from '../ThreeHero';
 import { SplitComparison } from '../SplitComparison';
 import { useScrollReveal } from '../../hooks/useScrollReveal';
 import { Play, Activity, ArrowRight, Video, Scissors, Film, MonitorPlay, Infinity as InfinityIcon } from 'lucide-react';
 import { SkeletonLoader } from '../SkeletonLoader';
+import { useLazyHero } from '../../hooks/useLazyHero';
+
+// react-three-fiber + drei + three are a large chunk (largely WebGL/3D math)
+// and were previously imported eagerly into the home page — meaning every
+// visitor downloaded and ran them even on mobile, where the hero is hidden
+// by CSS (`hidden md:block`) but was still being mounted and rendering every
+// frame in the background. Splitting it into its own chunk and gating when
+// it mounts fixes both the wasted download and the wasted GPU/battery.
+const ThreeHero = lazy(() => import('../ThreeHero').then((m) => ({ default: m.ThreeHero })));
 
 interface HomePageProps {
   onNavigate: (page: string) => void;
@@ -69,6 +77,7 @@ const VideoCard: React.FC<{ videoUrl: string; poster: string; title: string }> =
 export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
   const { playHover, playClick } = useSfx();
   const { baselineRate, metrics, addonRates } = useAdmin();
+  const showHero = useLazyHero();
   
   const [estimatorMinutes, setEstimatorMinutes] = useState<number>(3);
   const [wants4k, setWants4k] = useState(false);
@@ -91,7 +100,11 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
       
       {/* Hero Section */}
       <section className="relative min-h-[90vh] flex items-center justify-center pt-20 pb-32 overflow-hidden px-6">
-        <ThreeHero />
+        {showHero && (
+          <Suspense fallback={null}>
+            <ThreeHero />
+          </Suspense>
+        )}
         
         <div className="relative z-10 max-w-5xl mx-auto text-center flex flex-col items-center mt-12 md:mt-0 pointer-events-none">
           <div className="inline-flex items-center gap-2 px-3 py-1.5 border border-[#222226] bg-[#121215]/80 backdrop-blur-md rounded-full mb-8 pointer-events-auto">
