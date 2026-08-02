@@ -8,6 +8,7 @@ import { createServer as createViteServer } from 'vite';
 import { dbManager } from './src/lib/db';
 import { storageProvider } from './src/lib/storage';
 import { User, UserRole } from './src/types';
+import { generateText, generateFromPrompt } from './src/lib/openrouter';
 
 const PORT = 3000;
 const JWT_SECRET = process.env.JWT_SECRET || 'vision_fold_creative_jwt_secret_key_2026';
@@ -406,6 +407,26 @@ async function startServer() {
       res.json({ key, url });
     } catch (err: any) {
       res.status(500).json({ error: err.message || 'Failed to upload file' });
+    }
+  });
+
+  // --- AI ROUTE (OpenRouter) ---
+  app.post('/api/ai/generate', authenticateToken, async (req: AuthenticatedRequest, res) => {
+    try {
+      const { prompt, systemPrompt, messages, temperature, maxTokens, model } = req.body;
+
+      if (!prompt && !messages) {
+        return res.status(400).json({ error: 'Provide either "prompt" or "messages"' });
+      }
+
+      const text = messages
+        ? await generateText(messages, { temperature, maxTokens, model })
+        : await generateFromPrompt(prompt, systemPrompt, { temperature, maxTokens, model });
+
+      res.json({ text });
+    } catch (err: any) {
+      console.error('[AI ERROR]', err.message);
+      res.status(err.status || 500).json({ error: err.message || 'AI generation failed' });
     }
   });
 
