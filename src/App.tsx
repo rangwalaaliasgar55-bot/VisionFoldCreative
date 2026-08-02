@@ -5,28 +5,20 @@ import { HomePage } from './components/PublicPages/HomePage';
 import { FloatingWhatsApp } from './components/FloatingWhatsApp';
 import { SfxProvider } from './context/SfxContext';
 import { AdminProvider } from './context/AdminContext';
-import { AdminModal } from './components/AdminModal';
 import { ContentProvider, useContent } from './context/ContentContext';
+import { AdminApp } from './components/Admin/AdminApp';
 
 const MainContent: React.FC = () => {
   const { editMode, isAdmin, setEditMode } = useContent();
   const [currentPage, setCurrentPage] = useState<string>('home');
-  const [adminModalOpen, setAdminModalOpen] = useState(false);
-
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === 'a') {
-        e.preventDefault();
-        setAdminModalOpen(true);
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
 
   const handleNavigate = (page: string) => {
     setCurrentPage(page);
     window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const goToAdmin = () => {
+    window.location.href = '/admin';
   };
 
   return (
@@ -45,18 +37,36 @@ const MainContent: React.FC = () => {
         <HomePage onNavigate={handleNavigate} />
       </main>
       <FloatingWhatsApp />
-      <Footer onAdminClick={() => setAdminModalOpen(true)} />
-      <AdminModal isOpen={adminModalOpen} onClose={() => setAdminModalOpen(false)} />
+      <Footer onAdminClick={goToAdmin} />
     </div>
   );
 };
 
 export default function App() {
+  const [isAdminRoute, setIsAdminRoute] = useState(() => window.location.pathname.startsWith('/admin'));
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === 'a') {
+        e.preventDefault();
+        window.history.pushState({}, '', '/admin');
+        setIsAdminRoute(true);
+      }
+    };
+    const handlePopState = () => setIsAdminRoute(window.location.pathname.startsWith('/admin'));
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('popstate', handlePopState);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('popstate', handlePopState);
+    };
+  }, []);
+
   return (
     <AdminProvider>
       <ContentProvider>
         <SfxProvider>
-          <MainContent />
+          {isAdminRoute ? <AdminApp /> : <MainContent />}
         </SfxProvider>
       </ContentProvider>
     </AdminProvider>
