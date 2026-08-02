@@ -1,16 +1,27 @@
 import React from 'react';
+import { useContent } from '../context/ContentContext';
+import { EditableText } from './EditableText';
 
 interface FooterProps {
   onAdminClick: () => void;
 }
 
 export const Footer: React.FC<FooterProps> = ({ onAdminClick }) => {
+  const { isAdmin, editMode } = useContent();
+
   return (
-    <footer className="bg-[#0A0A0B] border-t border-[#222226] py-12 text-[#888891]">
-      <div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row justify-between items-center gap-6 text-[10px] uppercase tracking-widest font-bold">
-        <div>© 2026 VISIONFOLD CREATIVE STUDIO</div>
-        <div className="text-[#D4AF37]">RETENTION-FOCUSED VIDEO EDITING AGENCY OWNED BY ALIASGAR.</div>
-        <button onClick={onAdminClick} className="opacity-0 hover:opacity-100 focus:opacity-100 transition-opacity p-2 text-[#888891]">
+    <footer className="border-t border-[#222226] bg-[#0A0A0B] py-12 text-[#888891]">
+      <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-6 px-6 text-[10px] font-bold uppercase tracking-[0.2em] md:flex-row">
+        <div className="text-center md:text-left">
+          <EditableText page="global" sectionKey="footer_copyright" fallback="© 2026 VISIONFOLD CREATIVE STUDIO" className="text-sm tracking-[0.2em]" tagName="div" />
+        </div>
+        <div className="text-center text-[#D4AF37] md:text-right">
+          <EditableText page="global" sectionKey="footer_credits" fallback="RETENTION-FOCUSED VIDEO EDITING AGENCY OWNED BY ALIASGAR." className="text-sm tracking-[0.2em]" tagName="div" />
+        </div>
+        <button
+          onClick={onAdminClick}
+          className={`rounded-full border border-[#222226] px-3 py-2 text-[#888891] transition-colors hover:border-[#D4AF37] hover:text-[#EDEDED] ${isAdmin && editMode ? 'opacity-100' : 'opacity-70'}`}
+        >
           Studio Admin
         </button>
       </div>

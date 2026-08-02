@@ -6,8 +6,10 @@ import { FloatingWhatsApp } from './components/FloatingWhatsApp';
 import { SfxProvider } from './context/SfxContext';
 import { AdminProvider } from './context/AdminContext';
 import { AdminModal } from './components/AdminModal';
+import { ContentProvider, useContent } from './context/ContentContext';
 
 const MainContent: React.FC = () => {
+  const { editMode, isAdmin, setEditMode } = useContent();
   const [currentPage, setCurrentPage] = useState<string>('home');
   const [adminModalOpen, setAdminModalOpen] = useState(false);
 
@@ -29,6 +31,15 @@ const MainContent: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-[#0A0A0B] text-[#EDEDED] flex flex-col font-sans selection:bg-[#D4AF37] selection:text-[#0A0A0B]">
+      {isAdmin && editMode ? (
+        <button
+          type="button"
+          onClick={() => setEditMode(false)}
+          className="fixed right-4 top-4 z-[110] rounded-full border border-[#D4AF37]/40 bg-[#121215]/90 px-4 py-2 text-[10px] font-bold uppercase tracking-[0.2em] text-[#EDEDED] shadow-lg backdrop-blur"
+        >
+          Save & Exit Edit Mode
+        </button>
+      ) : null}
       <Navbar currentPage={currentPage} onNavigate={handleNavigate} />
       <main className="flex-1">
         <HomePage onNavigate={handleNavigate} />
@@ -43,9 +54,11 @@ const MainContent: React.FC = () => {
 export default function App() {
   return (
     <AdminProvider>
-      <SfxProvider>
-        <MainContent />
-      </SfxProvider>
+      <ContentProvider>
+        <SfxProvider>
+          <MainContent />
+        </SfxProvider>
+      </ContentProvider>
     </AdminProvider>
   );
 }

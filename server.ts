@@ -4,21 +4,123 @@ import fs from 'fs';
 import cookieParser from 'cookie-parser';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
+import { rateLimit } from 'express-rate-limit';
+import { z } from 'zod';
 import { createServer as createViteServer } from 'vite';
 import { dbManager } from './src/lib/db';
 import { storageProvider } from './src/lib/storage';
 import { User, UserRole } from './src/types';
 import { generateText, generateFromPrompt } from './src/lib/openrouter';
 
-const PORT = 3000;
-const JWT_SECRET = process.env.JWT_SECRET || 'vision_fold_creative_jwt_secret_key_2026';
+const PORT = Number(process.env.PORT || 3000);
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+const REQUIRED_JWT_SECRET = process.env.JWT_SECRET;
+const JWT_SECRET = REQUIRED_JWT_SECRET || (process.env.NODE_ENV === 'production' ? '' : 'vision_fold_creative_jwt_secret_key_2026');
+
+if (process.env.NODE_ENV === 'production' && !REQUIRED_JWT_SECRET) {
+  throw new Error('JWT_SECRET must be set in production.');
+}
 
 export interface AuthenticatedRequest extends Request {
   user?: User;
 }
 
+const messageSchema = z.object({
+  name: z.string().trim().min(1),
+  email: z.string().trim().email(),
+  phone: z.string().trim().min(1),
+  company: z.string().trim().optional().default(''),
+  projectType: z.string().trim().optional().default('Short Form'),
+  budgetRange: z.string().trim().optional().default('₹10,000 - ₹25,000'),
+  deadline: z.string().trim().optional().default(''),
+  message: z.string().trim().min(1),
+});
+
+const portfolioCategorySchema = z.enum(['Short Form', 'Brand Content', 'Long Form', 'Social Media', 'Documentary']);
+
+const portfolioSchema = z.object({
+  title: z.string().trim().min(1),
+  clientName: z.string().trim().optional().or(z.literal('')),
+  hideClientName: z.boolean().optional(),
+  category: portfolioCategorySchema,
+  thumbnailUrl: z.string().trim().url().optional().or(z.literal('')).default(''),
+  videoUrl: z.string().trim().url().optional().or(z.literal('')).default(''),
+  teaser: z.string().trim().optional().default(''),
+  fullDescription: z.string().trim().optional().default(''),
+  dateCreated: z.string().trim().optional().default(''),
+  toolsUsed: z.array(z.string()).optional().default([]),
+  resultsImpact: z.string().trim().optional().default(''),
+  order: z.number().int().optional().default(0),
+  featured: z.boolean().optional().default(false),
+});
+
+const portfolioUpdateSchema = portfolioSchema.partial();
+
+const clientSchema = z.object({
+  email: z.string().trim().email(),
+  name: z.string().trim().min(1),
+  company: z.string().trim().optional().default(''),
+  phone: z.string().trim().optional().default(''),
+  password: z.string().trim().min(1).optional(),
+});
+
+const invoiceSchema = z.object({
+  invoiceNumber: z.string().trim().min(1),
+  clientId: z.string().trim().min(1),
+  clientName: z.string().trim().min(1),
+  amountINR: z.number().min(0),
+  dueDate: z.string().trim().min(1),
+  status: z.enum(['paid', 'unpaid', 'overdue']).optional().default('unpaid'),
+  description: z.string().trim().min(1),
+  projectId: z.string().trim().optional(),
+});
+
+const invoiceUpdateSchema = invoiceSchema.partial();
+
+async function sendInquiryEmail(payload: { name: string; email: string; message: string; phone: string; company?: string; projectType?: string; budgetRange?: string; deadline?: string }) {
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) {
+    console.log(`[EMAIL] RESEND_API_KEY not configured; skipping notification for ${payload.email}`);
+    return;
+  }
+
+  const from = process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev';
+  const to = process.env.NOTIFICATION_EMAIL || 'visionfoldcreative@gmail.com';
+  const html = `
+    <h2>New inquiry from VisionFold Creative</h2>
+    <p><strong>Name:</strong> ${payload.name}</p>
+    <p><strong>Email:</strong> ${payload.email}</p>
+    <p><strong>Phone:</strong> ${payload.phone}</p>
+    <p><strong>Company:</strong> ${payload.company || '—'}</p>
+    <p><strong>Project Type:</strong> ${payload.projectType || '—'}</p>
+    <p><strong>Budget Range:</strong> ${payload.budgetRange || '—'}</p>
+    <p><strong>Deadline:</strong> ${payload.deadline || '—'}</p>
+    <p><strong>Message:</strong><br/>${payload.message.replace(/\n/g, '<br/>')}</p>
+  `;
+
+  const response = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ from, to, subject: `New inquiry from ${payload.name}`, html }),
+  });
+
+  if (!response.ok) {
+    const body = await response.text().catch(() => '');
+    throw new Error(`Resend request failed (${response.status}): ${body}`);
+  }
+}
+
 // Helper middleware for JWT Auth
-function authenticateToken(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+async function authenticateToken(req: AuthenticatedRequest, res: Response, next: NextFunction) {
   const token =
     req.cookies?.vf_token ||
     (req.headers.authorization && req.headers.authorization.split(' ')[1]);
@@ -29,7 +131,7 @@ function authenticateToken(req: AuthenticatedRequest, res: Response, next: NextF
 
   try {
     const decoded = jwt.verify(token, JWT_SECRET) as any;
-    const user = dbManager.findUserById(decoded.id);
+    const user = await dbManager.findUserById(decoded.id);
     if (!user) {
       return res.status(401).json({ error: 'User not found' });
     }
@@ -62,13 +164,13 @@ async function startServer() {
   app.use('/uploads', express.static(publicUploads));
 
   // --- AUTH ROUTES ---
-  app.post('/api/auth/login', (req, res) => {
+  app.post('/api/auth/login', authLimiter, async (req, res) => {
     const { email, password } = req.body;
     if (!email || !password) {
       return res.status(400).json({ error: 'Email and password are required' });
     }
 
-    const userWithHash = dbManager.findUserByEmail(email);
+    const userWithHash = await dbManager.findUserByEmail(email);
     if (!userWithHash) {
       return res.status(401).json({ error: 'Invalid email or password' });
     }
@@ -87,7 +189,7 @@ async function startServer() {
 
     res.cookie('vf_token', token, {
       httpOnly: true,
-      secure: false, // development / cloud run proxy compatible
+      secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });
@@ -95,13 +197,13 @@ async function startServer() {
     res.json({ user: safeUser, token });
   });
 
-  app.post('/api/auth/register', (req, res) => {
+  app.post('/api/auth/register', authLimiter, async (req, res) => {
     const { email, password, name, company, phone } = req.body;
     if (!email || !password || !name) {
       return res.status(400).json({ error: 'Email, password, and name are required' });
     }
 
-    const existing = dbManager.findUserByEmail(email);
+    const existing = await dbManager.findUserByEmail(email);
     if (existing) {
       return res.status(400).json({ error: 'An account with this email already exists' });
     }
@@ -120,7 +222,7 @@ async function startServer() {
       passwordHash,
     };
 
-    const safeUser = dbManager.createUser(newClient);
+    const safeUser = await dbManager.createUser(newClient);
     const token = jwt.sign(
       { id: safeUser.id, email: safeUser.email, role: safeUser.role },
       JWT_SECRET,
@@ -129,7 +231,7 @@ async function startServer() {
 
     res.cookie('vf_token', token, {
       httpOnly: true,
-      secure: false,
+      secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });
@@ -147,55 +249,65 @@ async function startServer() {
   });
 
   // --- CONTENT BLOCKS ROUTES ---
-  app.get('/api/content', (req, res) => {
+  app.get('/api/content', async (req, res) => {
     const { page } = req.query;
-    const blocks = dbManager.getContentBlocks(page as string);
+    const blocks = await dbManager.getContentBlocks(page as string);
     res.json(blocks);
   });
 
-  app.put('/api/content/:id', authenticateToken, requireAdmin, (req, res) => {
+  app.put('/api/content/:id', authenticateToken, requireAdmin, async (req, res) => {
     const { id } = req.params;
-    const updated = dbManager.updateContentBlock(id, req.body);
+    const updated = await dbManager.updateContentBlock(id, req.body);
     if (!updated) {
       return res.status(404).json({ error: 'Content block not found' });
     }
     res.json(updated);
   });
 
-  app.post('/api/content', authenticateToken, requireAdmin, (req, res) => {
-    const newBlock = dbManager.createContentBlock(req.body);
+  app.post('/api/content', authenticateToken, requireAdmin, async (req, res) => {
+    const newBlock = await dbManager.createContentBlock(req.body);
     res.json(newBlock);
   });
 
   // --- PORTFOLIO ROUTES ---
-  app.get('/api/portfolio', (req, res) => {
-    const items = dbManager.getPortfolio();
+  app.get('/api/portfolio', async (req, res) => {
+    const items = await dbManager.getPortfolio();
     res.json(items);
   });
 
-  app.get('/api/portfolio/:id', (req, res) => {
-    const item = dbManager.getPortfolioById(req.params.id);
+  app.get('/api/portfolio/:id', async (req, res) => {
+    const item = await dbManager.getPortfolioById(req.params.id);
     if (!item) {
       return res.status(404).json({ error: 'Portfolio item not found' });
     }
     res.json(item);
   });
 
-  app.post('/api/portfolio', authenticateToken, requireAdmin, (req, res) => {
-    const item = dbManager.createPortfolioItem(req.body);
+  app.post('/api/portfolio', authenticateToken, requireAdmin, async (req, res) => {
+    const parsed = portfolioSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ error: parsed.error.flatten().fieldErrors });
+    }
+
+    const item = await dbManager.createPortfolioItem(parsed.data);
     res.json(item);
   });
 
-  app.put('/api/portfolio/:id', authenticateToken, requireAdmin, (req, res) => {
-    const updated = dbManager.updatePortfolioItem(req.params.id, req.body);
+  app.put('/api/portfolio/:id', authenticateToken, requireAdmin, async (req, res) => {
+    const parsed = portfolioUpdateSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ error: parsed.error.flatten().fieldErrors });
+    }
+
+    const updated = await dbManager.updatePortfolioItem(req.params.id, parsed.data);
     if (!updated) {
       return res.status(404).json({ error: 'Portfolio item not found' });
     }
     res.json(updated);
   });
 
-  app.delete('/api/portfolio/:id', authenticateToken, requireAdmin, (req, res) => {
-    const deleted = dbManager.deletePortfolioItem(req.params.id);
+  app.delete('/api/portfolio/:id', authenticateToken, requireAdmin, async (req, res) => {
+    const deleted = await dbManager.deletePortfolioItem(req.params.id);
     if (!deleted) {
       return res.status(404).json({ error: 'Portfolio item not found' });
     }
@@ -203,40 +315,40 @@ async function startServer() {
   });
 
   // --- MESSAGES / INQUIRIES ROUTE ---
-  app.post('/api/messages', (req, res) => {
-    const { name, email, phone, company, projectType, budgetRange, deadline, message } = req.body;
-    if (!name || !email || !phone || !message) {
-      return res.status(400).json({ error: 'Name, email, phone, and message are required' });
+  app.post('/api/messages', async (req, res) => {
+    const parsed = messageSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ error: parsed.error.flatten().fieldErrors });
     }
 
-    const newMsg = dbManager.createMessage({
+    const { name, email, phone, company, projectType, budgetRange, deadline, message } = parsed.data;
+    const newMsg = await dbManager.createMessage({
       name,
       email,
       phone,
-      company: company || '',
-      projectType: projectType || 'Short Form',
-      budgetRange: budgetRange || '₹10,000 - ₹25,000',
-      deadline: deadline || '',
+      company,
+      projectType,
+      budgetRange,
+      deadline,
       message,
     });
 
-    // Notification Email Trigger Logic
-    // TODO: To send actual emails via Resend/Nodemailer:
-    // 1. npm install resend (or nodemailer)
-    // 2. Set RESEND_API_KEY in environment variables
-    // 3. await resend.emails.send({ from: 'noreply@visionfoldcreative.com', to: 'visionfoldcreative@gmail.com', subject: 'New Inquiry from ' + name, html: ... })
-    console.log(`[NOTIFICATION TODO] New inquiry received from ${name} (${email}): "${message}"`);
+    try {
+      await sendInquiryEmail({ name, email, message, phone, company, projectType, budgetRange, deadline });
+    } catch (error: any) {
+      console.error('[EMAIL ERROR]', error.message);
+    }
 
     res.json({ success: true, message: newMsg });
   });
 
-  app.get('/api/messages', authenticateToken, requireAdmin, (req, res) => {
-    res.json(dbManager.getMessages());
+  app.get('/api/messages', authenticateToken, requireAdmin, async (req, res) => {
+    res.json(await dbManager.getMessages());
   });
 
-  app.patch('/api/messages/:id/status', authenticateToken, requireAdmin, (req, res) => {
+  app.patch('/api/messages/:id/status', authenticateToken, requireAdmin, async (req, res) => {
     const { status } = req.body;
-    const updated = dbManager.updateMessageStatus(req.params.id, status);
+    const updated = await dbManager.updateMessageStatus(req.params.id, status);
     if (!updated) {
       return res.status(404).json({ error: 'Message not found' });
     }
@@ -244,19 +356,20 @@ async function startServer() {
   });
 
   // --- CLIENTS ROUTE (ADMIN) ---
-  app.get('/api/clients', authenticateToken, requireAdmin, (req, res) => {
-    const users = dbManager.getUsers();
+  app.get('/api/clients', authenticateToken, requireAdmin, async (req, res) => {
+    const users = await dbManager.getUsers();
     const clients = users.filter((u) => u.role === 'client');
     res.json(clients);
   });
 
-  app.post('/api/clients', authenticateToken, requireAdmin, (req, res) => {
-    const { email, name, company, phone, password } = req.body;
-    if (!email || !name) {
-      return res.status(400).json({ error: 'Email and name are required' });
+  app.post('/api/clients', authenticateToken, requireAdmin, async (req, res) => {
+    const parsed = clientSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ error: parsed.error.flatten().fieldErrors });
     }
 
-    const existing = dbManager.findUserByEmail(email);
+    const { email, name, company, phone, password } = parsed.data;
+    const existing = await dbManager.findUserByEmail(email);
     if (existing) {
       return res.status(400).json({ error: 'User with this email already exists' });
     }
@@ -269,33 +382,33 @@ async function startServer() {
       id: `user_client_${Date.now()}`,
       email,
       name,
-      company: company || '',
-      phone: phone || '',
+      company,
+      phone,
       role: 'client',
       createdAt: new Date().toISOString(),
       passwordHash,
     };
 
-    const safeUser = dbManager.createUser(newClient);
+    const safeUser = await dbManager.createUser(newClient);
     res.json({ client: safeUser, initialPassword: rawPassword });
   });
 
   // --- PROJECTS ROUTE ---
-  app.get('/api/projects', authenticateToken, (req: AuthenticatedRequest, res) => {
+  app.get('/api/projects', authenticateToken, async (req: AuthenticatedRequest, res) => {
     if (req.user?.role === 'admin') {
-      res.json(dbManager.getProjects());
+      res.json(await dbManager.getProjects());
     } else {
-      res.json(dbManager.getProjects(req.user?.id));
+      res.json(await dbManager.getProjects(req.user?.id));
     }
   });
 
-  app.post('/api/projects', authenticateToken, requireAdmin, (req, res) => {
-    const newProj = dbManager.createProject(req.body);
+  app.post('/api/projects', authenticateToken, requireAdmin, async (req, res) => {
+    const newProj = await dbManager.createProject(req.body);
     res.json(newProj);
   });
 
-  app.put('/api/projects/:id', authenticateToken, requireAdmin, (req, res) => {
-    const updated = dbManager.updateProject(req.params.id, req.body);
+  app.put('/api/projects/:id', authenticateToken, requireAdmin, async (req, res) => {
+    const updated = await dbManager.updateProject(req.params.id, req.body);
     if (!updated) {
       return res.status(404).json({ error: 'Project not found' });
     }
@@ -303,22 +416,22 @@ async function startServer() {
   });
 
   // --- REVISIONS ROUTE ---
-  app.get('/api/revisions', authenticateToken, (req: AuthenticatedRequest, res) => {
+  app.get('/api/revisions', authenticateToken, async (req: AuthenticatedRequest, res) => {
     const { projectId } = req.query;
     if (req.user?.role === 'admin') {
-      res.json(dbManager.getRevisions(projectId as string));
+      res.json(await dbManager.getRevisions(projectId as string));
     } else {
-      res.json(dbManager.getRevisions(projectId as string, req.user?.id));
+      res.json(await dbManager.getRevisions(projectId as string, req.user?.id));
     }
   });
 
-  app.post('/api/revisions', authenticateToken, (req: AuthenticatedRequest, res) => {
+  app.post('/api/revisions', authenticateToken, async (req: AuthenticatedRequest, res) => {
     const { projectId, comment } = req.body;
     if (!projectId || !comment) {
       return res.status(400).json({ error: 'Project ID and comment are required' });
     }
 
-    const proj = dbManager.getProjectById(projectId);
+    const proj = await dbManager.getProjectById(projectId);
     if (!proj) {
       return res.status(404).json({ error: 'Project not found' });
     }
@@ -327,7 +440,7 @@ async function startServer() {
       return res.status(403).json({ error: 'Not authorized for this project' });
     }
 
-    const newRev = dbManager.createRevision({
+    const newRev = await dbManager.createRevision({
       projectId,
       clientId: req.user!.id,
       clientName: req.user!.name,
@@ -337,9 +450,9 @@ async function startServer() {
     res.json(newRev);
   });
 
-  app.patch('/api/revisions/:id/status', authenticateToken, requireAdmin, (req, res) => {
+  app.patch('/api/revisions/:id/status', authenticateToken, requireAdmin, async (req, res) => {
     const { status } = req.body;
-    const updated = dbManager.updateRevisionStatus(req.params.id, status);
+    const updated = await dbManager.updateRevisionStatus(req.params.id, status);
     if (!updated) {
       return res.status(404).json({ error: 'Revision not found' });
     }
@@ -347,21 +460,31 @@ async function startServer() {
   });
 
   // --- INVOICES ROUTE ---
-  app.get('/api/invoices', authenticateToken, (req: AuthenticatedRequest, res) => {
+  app.get('/api/invoices', authenticateToken, async (req: AuthenticatedRequest, res) => {
     if (req.user?.role === 'admin') {
-      res.json(dbManager.getInvoices());
+      res.json(await dbManager.getInvoices());
     } else {
-      res.json(dbManager.getInvoices(req.user?.id));
+      res.json(await dbManager.getInvoices(req.user?.id));
     }
   });
 
-  app.post('/api/invoices', authenticateToken, requireAdmin, (req, res) => {
-    const newInv = dbManager.createInvoice(req.body);
+  app.post('/api/invoices', authenticateToken, requireAdmin, async (req, res) => {
+    const parsed = invoiceSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ error: parsed.error.flatten().fieldErrors });
+    }
+
+    const newInv = await dbManager.createInvoice(parsed.data);
     res.json(newInv);
   });
 
-  app.patch('/api/invoices/:id', authenticateToken, (req: AuthenticatedRequest, res) => {
-    const inv = dbManager.getInvoices().find((i) => i.id === req.params.id);
+  app.patch('/api/invoices/:id', authenticateToken, async (req: AuthenticatedRequest, res) => {
+    const parsed = invoiceUpdateSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ error: parsed.error.flatten().fieldErrors });
+    }
+
+    const inv = (await dbManager.getInvoices()).find((i) => i.id === req.params.id);
     if (!inv) {
       return res.status(404).json({ error: 'Invoice not found' });
     }
@@ -370,22 +493,22 @@ async function startServer() {
       return res.status(403).json({ error: 'Not authorized for this invoice' });
     }
 
-    const updated = dbManager.updateInvoice(req.params.id, req.body);
+    const updated = await dbManager.updateInvoice(req.params.id, parsed.data);
     res.json(updated);
   });
 
   // --- EXPENSES ROUTE (ADMIN) ---
-  app.get('/api/expenses', authenticateToken, requireAdmin, (req, res) => {
-    res.json(dbManager.getExpenses());
+  app.get('/api/expenses', authenticateToken, requireAdmin, async (req, res) => {
+    res.json(await dbManager.getExpenses());
   });
 
-  app.post('/api/expenses', authenticateToken, requireAdmin, (req, res) => {
-    const newExp = dbManager.createExpense(req.body);
+  app.post('/api/expenses', authenticateToken, requireAdmin, async (req, res) => {
+    const newExp = await dbManager.createExpense(req.body);
     res.json(newExp);
   });
 
-  app.delete('/api/expenses/:id', authenticateToken, requireAdmin, (req, res) => {
-    const deleted = dbManager.deleteExpense(req.params.id);
+  app.delete('/api/expenses/:id', authenticateToken, requireAdmin, async (req, res) => {
+    const deleted = await dbManager.deleteExpense(req.params.id);
     if (!deleted) {
       return res.status(404).json({ error: 'Expense not found' });
     }
@@ -410,19 +533,19 @@ async function startServer() {
     }
   });
 
-  // --- AI ROUTE (OpenRouter) ---
+  // --- AI ROUTES (OpenRouter) ---
   app.post('/api/ai/generate', authenticateToken, async (req: AuthenticatedRequest, res) => {
     try {
       const { prompt, systemPrompt, messages, temperature, maxTokens, model } = req.body;
-
+ 
       if (!prompt && !messages) {
         return res.status(400).json({ error: 'Provide either "prompt" or "messages"' });
       }
-
+ 
       const text = messages
         ? await generateText(messages, { temperature, maxTokens, model })
         : await generateFromPrompt(prompt, systemPrompt, { temperature, maxTokens, model });
-
+ 
       res.json({ text });
     } catch (err: any) {
       console.error('[AI ERROR]', err.message);
@@ -430,6 +553,66 @@ async function startServer() {
     }
   });
 
+  app.post('/api/ai/inquiry-assist', async (req, res) => {
+    try {
+      const { message } = req.body;
+      if (!message || !message.trim()) {
+        return res.status(400).json({ error: 'Please provide a rough project message' });
+      }
+
+      const prompt = `You are VisionFold Creative's inquiry assistant. Turn this rough client brief into 4 concise, premium clarifying questions that help quote the work faster. Return valid JSON with a single key named questions as an array of strings. Brief: ${message}`;
+      const responseText = await generateFromPrompt(prompt, 'You are an expert video-production sales assistant. Be practical, premium, and concise.', { temperature: 0.7, maxTokens: 500 });
+      let questions: string[] = [];
+      try {
+        const parsed = JSON.parse(responseText);
+        questions = Array.isArray(parsed.questions) ? parsed.questions.filter(Boolean) : [];
+      } catch {
+        const fallback = responseText.match(/\[[\s\S]*\]/)?.[0] || '[]';
+        const parsed = JSON.parse(fallback);
+        questions = Array.isArray(parsed) ? parsed.filter(Boolean) : [];
+      }
+      res.json({ questions: questions.slice(0, 4) });
+    } catch (err: any) {
+      console.error('[AI ERROR]', err.message);
+      res.status(err.status || 500).json({ error: err.message || 'Inquiry assistance failed' });
+    }
+  });
+
+  app.post('/api/ai/insights', authenticateToken, async (req: AuthenticatedRequest, res) => {
+    try {
+      const [messages, portfolio, invoices, users, projects] = await Promise.all([
+        dbManager.getMessages(),
+        dbManager.getPortfolio(),
+        dbManager.getInvoices(),
+        dbManager.getUsers(),
+        dbManager.getProjects(),
+      ]);
+
+      const revenue = invoices.reduce((sum, item) => sum + (item.status === 'paid' ? item.amountINR : 0), 0);
+      const pending = invoices.filter((item) => item.status !== 'paid').length;
+      const newLeads = messages.filter((item) => item.status === 'new').length;
+
+      const prompt = `You are VisionFold Creative's growth copilot. Analyze the following business snapshot and return valid JSON with keys summary, opportunities, followUps, appreciation. Keep it concise, actionable, and premium. Snapshot: ${JSON.stringify({ messages: messages.slice(0, 5), portfolio: portfolio.slice(0, 4), invoices: invoices.slice(0, 5), users: users.slice(0, 5), projects: projects.slice(0, 4), totals: { revenue, pending, newLeads } })}`;
+      const responseText = await generateFromPrompt(prompt, 'You are an expert growth strategist for a premium video production studio. Suggest high-impact actions that can increase conversion, retention, and client delight.', { temperature: 0.8, maxTokens: 900 });
+      let payload: any = {};
+      try {
+        payload = JSON.parse(responseText);
+      } catch {
+        payload = { summary: responseText, opportunities: [], followUps: [], appreciation: [] };
+      }
+
+      res.json({
+        summary: payload.summary || 'AI insight ready.',
+        opportunities: Array.isArray(payload.opportunities) ? payload.opportunities : [],
+        followUps: Array.isArray(payload.followUps) ? payload.followUps : [],
+        appreciation: Array.isArray(payload.appreciation) ? payload.appreciation : [],
+      });
+    } catch (err: any) {
+      console.error('[AI ERROR]', err.message);
+      res.status(err.status || 500).json({ error: err.message || 'Growth insights failed' });
+    }
+  });
+ 
   // --- VITE / STATIC SERVING ---
   if (process.env.NODE_ENV !== 'production') {
     const vite = await createViteServer({

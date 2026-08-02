@@ -1,11 +1,14 @@
 import React, { useState, useRef } from 'react';
 import { useSfx } from '../../context/SfxContext';
 import { useAdmin } from '../../context/AdminContext';
+import { useContent } from '../../context/ContentContext';
 import { ThreeHero } from '../ThreeHero';
 import { SplitComparison } from '../SplitComparison';
 import { useScrollReveal } from '../../hooks/useScrollReveal';
-import { Play, Activity, ArrowRight, Video, Scissors, Film, MonitorPlay, Infinity as InfinityIcon } from 'lucide-react';
+import { Play, Activity, ArrowRight, Video, Scissors, Film, MonitorPlay, Infinity as InfinityIcon, MessageCircleMore } from 'lucide-react';
 import { SkeletonLoader } from '../SkeletonLoader';
+import { EditableText } from '../EditableText';
+import { EditableImage } from '../EditableImage';
 
 interface HomePageProps {
   onNavigate: (page: string) => void;
@@ -69,11 +72,15 @@ const VideoCard: React.FC<{ videoUrl: string; poster: string; title: string }> =
 export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
   const { playHover, playClick } = useSfx();
   const { baselineRate, metrics, addonRates } = useAdmin();
+  const { isAdmin, editMode } = useContent();
   
   const [estimatorMinutes, setEstimatorMinutes] = useState<number>(3);
   const [wants4k, setWants4k] = useState(false);
   const [wantsMulti, setWantsMulti] = useState(false);
   const [wantsCustomSound, setWantsCustomSound] = useState(false);
+  const [brief, setBrief] = useState('');
+  const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [isSuggesting, setIsSuggesting] = useState(false);
   
   const baseTotal = estimatorMinutes * baselineRate;
   const addonCost = 
@@ -86,47 +93,66 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
   const whatsappMessage = `Hi Aliasgar, I'm interested in a video editing project with VisionFold. I'm looking at approximately ${estimatorMinutes} minutes of finished video.${selectedAddons ? ' With addons: ' + selectedAddons : ''}`;
   const defaultWhatsappMessage = `Hi Aliasgar, I'm interested in a video editing project with VisionFold.`;
 
+  const handleSuggestQuestions = async () => {
+    if (!brief.trim()) return;
+    setIsSuggesting(true);
+    try {
+      const response = await fetch('/api/ai/inquiry-assist', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: brief }),
+      });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.error || 'Unable to generate questions');
+      setSuggestions((payload.questions || []).filter(Boolean));
+    } catch {
+      setSuggestions(['What is the target audience?', 'What is the final platform for the content?', 'What is the timeline and revision count?']);
+    } finally {
+      setIsSuggesting(false);
+    }
+  };
+
   return (
     <div className="flex flex-col bg-[#0A0A0B] text-[#EDEDED] font-sans">
       
       {/* Hero Section */}
-      <section className="relative min-h-[90vh] flex items-center justify-center pt-20 pb-32 overflow-hidden px-6">
+      <section className="relative flex min-h-[90vh] items-center justify-center overflow-hidden px-6 pb-32 pt-20">
         <ThreeHero />
-        
-        <div className="relative z-10 max-w-5xl mx-auto text-center flex flex-col items-center mt-12 md:mt-0 pointer-events-none">
-          <div className="inline-flex items-center gap-2 px-3 py-1.5 border border-[#222226] bg-[#121215]/80 backdrop-blur-md rounded-full mb-8 pointer-events-auto">
-            <span className="w-2 h-2 rounded-full bg-[#D4AF37] animate-pulse" />
-            <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#888891]">• PREMIUM VIDEO EDITING LED BY ALIASGAR</span>
+
+        <div className="pointer-events-none relative z-10 mx-auto mt-12 flex max-w-5xl flex-col items-center text-center md:mt-0">
+          <div className="pointer-events-auto mb-8 inline-flex items-center gap-2 rounded-full border border-[#222226] bg-[#121215]/80 px-3 py-1.5 backdrop-blur-md">
+            <span className="h-2 w-2 animate-pulse rounded-full bg-[#D4AF37]" />
+            <EditableText page="home" sectionKey="home_hero_kicker" fallback="PREMIUM VIDEO EDITING LEAD BY ALIASGAR" className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#888891]" tagName="span" />
           </div>
-          
-          <div className="text-[10px] font-bold uppercase tracking-[0.3em] text-[#D4AF37] mb-6">EDIT • CREATE • INSPIRE</div>
-          
-          <h1 className="text-4xl md:text-6xl lg:text-8xl font-black uppercase tracking-[-0.03em] leading-[0.9] mb-8 text-[#EDEDED]">
-            High-Retention Video Production & <br/>
-            <span className="text-transparent bg-clip-text bg-gradient-to-b from-[#EDEDED] to-[#888891]">Narrative Architecture</span><br/>
-            for Category-Leading Brands.
+
+          <EditableText page="home" sectionKey="home_hero_eyebrow" fallback="EDIT • CREATE • INSPIRE" className="mb-6 text-[10px] font-bold uppercase tracking-[0.3em] text-[#D4AF37]" tagName="div" />
+
+          <h1 className="mb-8 text-4xl font-black uppercase leading-[0.9] tracking-[-0.03em] text-[#EDEDED] md:text-6xl lg:text-8xl">
+            <EditableText page="home" sectionKey="home_hero_headline" fallback="High-Retention Video Production &" className="block" tagName="span" />
+            <span className="mt-2 block bg-gradient-to-b from-[#EDEDED] to-[#888891] bg-clip-text text-transparent">
+              <EditableText page="home" sectionKey="home_hero_headline_alt" fallback="Narrative Architecture" className="block" tagName="span" />
+            </span>
+            <EditableText page="home" sectionKey="home_hero_headline_tail" fallback="for Category-Leading Brands." className="mt-2 block" tagName="span" />
           </h1>
-          
-          <p className="max-w-2xl text-base md:text-lg text-[#888891] font-light leading-relaxed mb-12">
-            Surgical video pacing, cinematic color grading, and organic sound design built for maximum viewer retention.
-          </p>
-          
-          <div className="flex flex-col sm:flex-row items-center gap-6 pointer-events-auto">
-            <a 
+
+          <EditableText page="home" sectionKey="home_hero_subline" fallback="Surgical video pacing, cinematic color grading, and organic sound design built for maximum viewer retention." className="mb-12 max-w-2xl text-base font-light leading-relaxed text-[#888891] md:text-lg" tagName="p" />
+
+          <div className="pointer-events-auto flex flex-col items-center gap-6 sm:flex-row">
+            <a
               href={`https://wa.me/917725004639?text=${encodeURIComponent(defaultWhatsappMessage)}`}
               target="_blank"
               rel="noopener noreferrer"
               onMouseEnter={playHover}
               onClick={playClick}
-              className="px-8 py-4 bg-[#25D366] text-[#0A0A0B] font-bold text-xs uppercase tracking-[0.15em] hover:bg-white hover:text-[#0A0A0B] transition-colors flex items-center gap-3 interactive-hover"
+              className="flex items-center gap-3 bg-[#25D366] px-8 py-4 text-xs font-bold uppercase tracking-[0.15em] text-[#0A0A0B] transition-colors hover:bg-white hover:text-[#0A0A0B] interactive-hover"
             >
-              START PROJECT <ArrowRight className="w-4 h-4" />
+              START PROJECT <ArrowRight className="h-4 w-4" />
             </a>
-            
-            <button 
+
+            <button
               onClick={() => { playClick(); document.getElementById('work')?.scrollIntoView({ behavior: 'smooth' }); }}
               onMouseEnter={playHover}
-              className="px-8 py-4 border border-[#222226] text-[#EDEDED] font-bold text-xs uppercase tracking-[0.15em] hover:border-[#D4AF37] hover:text-[#D4AF37] transition-all interactive-hover"
+              className="border border-[#222226] px-8 py-4 text-xs font-bold uppercase tracking-[0.15em] text-[#EDEDED] transition-all hover:border-[#D4AF37] hover:text-[#D4AF37] interactive-hover"
             >
               View Showcase
             </button>
@@ -243,22 +269,22 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
       <section id="services" className="py-32 px-6 bg-[#121215] border-y border-[#222226]">
         <RevealSection className="max-w-7xl mx-auto">
           <div className="mb-20 text-center">
-            <h2 className="text-3xl md:text-5xl font-semibold tracking-[-0.03em] uppercase text-[#EDEDED] mb-6">Services & Expertise</h2>
-            <p className="text-[#888891] font-light text-lg max-w-2xl mx-auto">Specialized post-production capabilities tailored to diverse content formats and platforms.</p>
+            <EditableText page="home" sectionKey="home_services_heading" fallback="Services & Expertise" className="mb-6 text-3xl font-semibold uppercase tracking-[-0.03em] text-[#EDEDED] md:text-5xl" tagName="h2" />
+            <EditableText page="home" sectionKey="home_services_subline" fallback="Specialized post-production capabilities tailored to diverse content formats and platforms." className="mx-auto max-w-2xl text-lg font-light text-[#888891]" tagName="p" />
           </div>
 
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
             {[
-              { title: 'Short-Form Editing', icon: Scissors, desc: 'High-impact Reels, Shorts, and TikToks designed for viral retention.' },
-              { title: 'Long-Form YouTube', icon: MonitorPlay, desc: 'Talking heads, Vlogs, and Documentaries with surgical narrative pacing.' },
-              { title: 'Brand Films', icon: Film, desc: 'Luxury product showcases and commercial ads with cinematic grading.' },
-              { title: 'Motion Graphics', icon: Video, desc: 'Custom lower thirds, data diagrams, and 3D overlays/tracking.' },
-              { title: 'Content Retainers', icon: InfinityIcon, desc: 'Ongoing batch editing managed directly by lead editor Aliasgar.' },
+              { titleKey: 'home_services_item_1_title', descKey: 'home_services_item_1_desc', icon: Scissors, fallbackTitle: 'Short-Form Editing', fallbackDesc: 'High-impact Reels, Shorts, and TikToks designed for viral retention.' },
+              { titleKey: 'home_services_item_2_title', descKey: 'home_services_item_2_desc', icon: MonitorPlay, fallbackTitle: 'Long-Form YouTube', fallbackDesc: 'Talking heads, Vlogs, and Documentaries with surgical narrative pacing.' },
+              { titleKey: 'home_services_item_3_title', descKey: 'home_services_item_3_desc', icon: Film, fallbackTitle: 'Brand Films', fallbackDesc: 'Luxury product showcases and commercial ads with cinematic grading.' },
+              { titleKey: 'home_services_item_4_title', descKey: 'home_services_item_4_desc', icon: Video, fallbackTitle: 'Motion Graphics', fallbackDesc: 'Custom lower thirds, data diagrams, and 3D overlays/tracking.' },
+              { titleKey: 'home_services_item_5_title', descKey: 'home_services_item_5_desc', icon: InfinityIcon, fallbackTitle: 'Content Retainers', fallbackDesc: 'Ongoing batch editing managed directly by lead editor Aliasgar.' },
             ].map((service, i) => (
-              <div key={i} className="border border-[#222226] hover:border-[#D4AF37] bg-[#0A0A0B] p-8 transition-colors interactive-hover group">
-                <service.icon className="w-8 h-8 text-[#888891] group-hover:text-[#D4AF37] mb-6 transition-colors" />
-                <h3 className="text-lg font-bold uppercase tracking-widest text-[#EDEDED] mb-4">{service.title}</h3>
-                <p className="text-[#888891] text-sm font-light leading-relaxed">{service.desc}</p>
+              <div key={i} className="group border border-[#222226] bg-[#0A0A0B] p-8 transition-colors hover:border-[#D4AF37] interactive-hover">
+                <service.icon className="mb-6 h-8 w-8 text-[#888891] transition-colors group-hover:text-[#D4AF37]" />
+                <EditableText page="home" sectionKey={service.titleKey} fallback={service.fallbackTitle} className="mb-4 text-lg font-bold uppercase tracking-[0.2em] text-[#EDEDED]" tagName="h3" />
+                <EditableText page="home" sectionKey={service.descKey} fallback={service.fallbackDesc} className="text-sm font-light leading-relaxed text-[#888891]" tagName="p" />
               </div>
             ))}
           </div>
@@ -269,23 +295,23 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
       <section id="process" className="py-32 px-6 bg-[#0A0A0B]">
         <RevealSection className="max-w-7xl mx-auto">
           <div className="mb-20 md:w-1/2">
-            <h2 className="text-3xl md:text-5xl font-semibold tracking-[-0.03em] uppercase text-[#EDEDED] mb-6">Execution Workflow</h2>
-            <p className="text-[#888891] font-light text-lg">A systematic approach to post-production that leaves nothing to chance.</p>
+            <EditableText page="home" sectionKey="home_process_heading" fallback="Execution Workflow" className="mb-6 text-3xl font-semibold uppercase tracking-[-0.03em] text-[#EDEDED] md:text-5xl" tagName="h2" />
+            <EditableText page="home" sectionKey="home_process_subline" fallback="A systematic approach to post-production that leaves nothing to chance." className="text-lg font-light text-[#888891]" tagName="p" />
           </div>
 
           <div className="flex flex-col border-t border-[#222226] pt-12">
             {[
-              { num: '01', title: 'Strategic Narrative Briefing', desc: 'Analyzing target audience, emotional core, and business objectives.' },
-              { num: '02', title: 'Pacing & Hook Architecture', desc: 'Engineering the critical first 3-second retention hook and outlining pacing.' },
-              { num: '03', title: 'Surgical Cut Timing', desc: 'Trimming dead air, applying dynamic beats, and eliminating drop-off points.' },
-              { num: '04', title: 'Captions, SFX & Color Grade', desc: 'Adding kinetic typography, organic Foley sound design, and Rec.709 cinematic grading.' },
-              { num: '05', title: 'Platform-Optimized Export', desc: 'Delivering mastered 4K renders optimized for YouTube, Reels, or TikTok algorithms.' }
+              { num: '01', titleKey: 'home_process_step_1_title', descKey: 'home_process_step_1_desc', fallbackTitle: 'Strategic Narrative Briefing', fallbackDesc: 'Analyzing target audience, emotional core, and business objectives.' },
+              { num: '02', titleKey: 'home_process_step_2_title', descKey: 'home_process_step_2_desc', fallbackTitle: 'Pacing & Hook Architecture', fallbackDesc: 'Engineering the critical first 3-second retention hook and outlining pacing.' },
+              { num: '03', titleKey: 'home_process_step_3_title', descKey: 'home_process_step_3_desc', fallbackTitle: 'Surgical Cut Timing', fallbackDesc: 'Trimming dead air, applying dynamic beats, and eliminating drop-off points.' },
+              { num: '04', titleKey: 'home_process_step_4_title', descKey: 'home_process_step_4_desc', fallbackTitle: 'Captions, SFX & Color Grade', fallbackDesc: 'Adding kinetic typography, organic Foley sound design, and Rec.709 cinematic grading.' },
+              { num: '05', titleKey: 'home_process_step_5_title', descKey: 'home_process_step_5_desc', fallbackTitle: 'Platform-Optimized Export', fallbackDesc: 'Delivering mastered 4K renders optimized for YouTube, Reels, or TikTok algorithms.' }
             ].map((step, i) => (
-              <div key={i} className="flex flex-col md:flex-row gap-8 py-10 border-b border-[#222226] group relative overflow-hidden">
-                <div className="text-sm md:text-lg font-bold text-[#888891] w-16 group-hover:text-[#D4AF37] transition-colors font-mono">{step.num}</div>
+              <div key={i} className="group relative flex flex-col gap-8 overflow-hidden border-b border-[#222226] py-10 md:flex-row">
+                <div className="w-16 font-mono text-sm font-bold text-[#888891] transition-colors group-hover:text-[#D4AF37] md:text-lg">{step.num}</div>
                 <div className="flex-1">
-                  <h3 className="text-xl md:text-2xl font-bold text-[#EDEDED] mb-3">{step.title}</h3>
-                  <p className="text-[#888891] text-base md:text-lg font-light leading-relaxed">{step.desc}</p>
+                  <EditableText page="home" sectionKey={step.titleKey} fallback={step.fallbackTitle} className="mb-3 text-xl font-bold text-[#EDEDED] md:text-2xl" tagName="h3" />
+                  <EditableText page="home" sectionKey={step.descKey} fallback={step.fallbackDesc} className="text-base font-light leading-relaxed text-[#888891] md:text-lg" tagName="p" />
                 </div>
               </div>
             ))}
@@ -294,71 +320,121 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
       </section>
 
       {/* Estimator */}
-      <section id="estimator" className="py-32 px-6 border-y border-[#222226] bg-[#0A0A0B]">
-        <RevealSection className="max-w-4xl mx-auto">
+      <section id="estimator" className="border-y border-[#222226] bg-[#0A0A0B] px-6 py-32">
+        <RevealSection className="mx-auto max-w-4xl">
           <div className="mb-16">
-            <h2 className="text-3xl md:text-5xl font-semibold tracking-[-0.03em] uppercase text-[#EDEDED] mb-4">Transparent Investment</h2>
-            <p className="text-[#888891] font-light">We operate on a flat baseline rate of ₹{baselineRate} per finished minute. Use the calculator to estimate your project cost.</p>
+            <EditableText page="home" sectionKey="home_estimator_heading" fallback="Transparent Investment" className="mb-4 text-3xl font-semibold uppercase tracking-[-0.03em] text-[#EDEDED] md:text-5xl" tagName="h2" />
+            <EditableText page="home" sectionKey="home_estimator_subline" fallback={`We operate on a flat baseline rate of ₹${baselineRate} per finished minute. Use the calculator to estimate your project cost.`} className="font-light text-[#888891]" tagName="p" />
           </div>
 
-          <div className="bg-[#121215] border border-[#222226] rounded-xl overflow-hidden">
-            {/* Top Section */}
-            <div className="p-12 text-center border-b border-[#222226] flex flex-col items-center">
-              <div className="text-xs uppercase tracking-widest text-[#888891] font-bold mb-4">ESTIMATED OUTPUT</div>
-              <div className="text-5xl md:text-7xl font-black text-[#D4AF37] mb-8">₹{totalCost.toLocaleString()}</div>
-              <a 
+          <div className="overflow-hidden rounded-xl border border-[#222226] bg-[#121215]">
+            <div className="flex flex-col items-center border-b border-[#222226] p-12 text-center">
+              <div className="mb-4 text-xs font-bold uppercase tracking-[0.2em] text-[#888891]">ESTIMATED OUTPUT</div>
+              <div className="mb-8 text-5xl font-black text-[#D4AF37] md:text-7xl">₹{totalCost.toLocaleString()}</div>
+              <a
                 href={`https://wa.me/917725004639?text=${encodeURIComponent(whatsappMessage)}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 onMouseEnter={playHover}
                 onClick={playClick}
-                className="w-full md:w-auto px-16 py-5 bg-[#EDEDED] text-[#0A0A0B] font-bold text-xs uppercase tracking-[0.15em] hover:bg-white transition-colors interactive-hover text-center"
+                className="w-full bg-[#EDEDED] px-16 py-5 text-center text-xs font-bold uppercase tracking-[0.15em] text-[#0A0A0B] transition-colors hover:bg-white interactive-hover md:w-auto"
               >
                 RESERVE EDIT SLOT
               </a>
             </div>
 
-            {/* Bottom Section */}
             <div className="p-8 md:p-12">
-              <div className="flex justify-between items-center text-xs font-bold uppercase tracking-widest text-[#888891] mb-6">
+              <div className="mb-6 flex items-center justify-between text-xs font-bold uppercase tracking-[0.2em] text-[#888891]">
                 <span>FINISHED DURATION</span>
                 <span className="text-[#EDEDED]">{estimatorMinutes} MINS</span>
               </div>
-              
-              <input 
-                type="range" 
-                min="1" 
-                max="20" 
-                value={estimatorMinutes} 
+
+              <input
+                type="range"
+                min="1"
+                max="20"
+                value={estimatorMinutes}
                 onChange={(e) => { playHover(); setEstimatorMinutes(parseInt(e.target.value)); }}
-                className="w-full appearance-none bg-[#222226] h-1.5 rounded-full outline-none [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-6 [&::-webkit-slider-thumb]:h-6 [&::-webkit-slider-thumb]:bg-[#D4AF37] [&::-webkit-slider-thumb]:rounded-full cursor-pointer interactive-hover mb-12"
+                className="mb-12 h-1.5 w-full cursor-pointer appearance-none rounded-full bg-[#222226] outline-none interactive-hover [&::-webkit-slider-thumb]:h-6 [&::-webkit-slider-thumb]:w-6 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-[#D4AF37]"
               />
 
-              <div className="space-y-6 pt-6 border-t border-[#222226]">
-                <label className="flex items-center justify-between group cursor-pointer text-[#888891] hover:text-[#EDEDED] transition-colors">
+              <div className="space-y-6 border-t border-[#222226] pt-6">
+                <label className="flex items-center justify-between gap-4 text-[#888891] transition-colors group cursor-pointer hover:text-[#EDEDED]">
                   <div className="flex items-center gap-4">
-                    <input type="checkbox" checked={wants4k} onChange={(e) => { playClick(); setWants4k(e.target.checked); }} className="w-5 h-5 accent-[#D4AF37] bg-[#121215] border-[#222226]" />
+                    <input type="checkbox" checked={wants4k} onChange={(e) => { playClick(); setWants4k(e.target.checked); }} className="h-5 w-5 border-[#222226] bg-[#121215] accent-[#D4AF37]" />
                     <span className="text-sm">4K Render Export</span>
                   </div>
                   <span className="text-xs font-mono">+₹{addonRates.render4k}/min</span>
                 </label>
-                
-                <label className="flex items-center justify-between group cursor-pointer text-[#888891] hover:text-[#EDEDED] transition-colors">
+
+                <label className="flex items-center justify-between gap-4 text-[#888891] transition-colors group cursor-pointer hover:text-[#EDEDED]">
                   <div className="flex items-center gap-4">
-                    <input type="checkbox" checked={wantsMulti} onChange={(e) => { playClick(); setWantsMulti(e.target.checked); }} className="w-5 h-5 accent-[#D4AF37] bg-[#121215] border-[#222226]" />
+                    <input type="checkbox" checked={wantsMulti} onChange={(e) => { playClick(); setWantsMulti(e.target.checked); }} className="h-5 w-5 border-[#222226] bg-[#121215] accent-[#D4AF37]" />
                     <span className="text-sm">Multi-Format Reframing (16:9 + 9:16)</span>
                   </div>
                   <span className="text-xs font-mono">+₹{addonRates.multiFormat}/min</span>
                 </label>
-                
-                <label className="flex items-center justify-between group cursor-pointer text-[#888891] hover:text-[#EDEDED] transition-colors">
+
+                <label className="flex items-center justify-between gap-4 text-[#888891] transition-colors group cursor-pointer hover:text-[#EDEDED]">
                   <div className="flex items-center gap-4">
-                    <input type="checkbox" checked={wantsCustomSound} onChange={(e) => { playClick(); setWantsCustomSound(e.target.checked); }} className="w-5 h-5 accent-[#D4AF37] bg-[#121215] border-[#222226]" />
+                    <input type="checkbox" checked={wantsCustomSound} onChange={(e) => { playClick(); setWantsCustomSound(e.target.checked); }} className="h-5 w-5 border-[#222226] bg-[#121215] accent-[#D4AF37]" />
                     <span className="text-sm text-[#D4AF37]">Custom Sound Design & Foley</span>
                   </div>
                   <span className="text-xs font-mono text-[#D4AF37]">+₹{addonRates.customSound}/min</span>
                 </label>
               </div>
+            </div>
+          </div>
+        </RevealSection>
+      </section>
+
+      <section className="border-t border-[#222226] bg-[#121215] px-6 py-24">
+        <RevealSection className="mx-auto flex max-w-6xl flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
+          <div className="max-w-2xl">
+            <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-[#222226] px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.2em] text-[#D4AF37]">
+              <MessageCircleMore className="h-4 w-4" />
+              <span>Inquiry Assist</span>
+            </div>
+            <EditableText page="home" sectionKey="home_inquiry_heading" fallback="Need a sharper brief before you reach out?" className="mb-3 text-3xl font-semibold uppercase tracking-[-0.03em] text-[#EDEDED] md:text-4xl" tagName="h2" />
+            <EditableText page="home" sectionKey="home_inquiry_subline" fallback="Share the rough idea, and we’ll suggest the questions that help us quote the work faster." className="max-w-xl text-base font-light leading-relaxed text-[#888891]" tagName="p" />
+          </div>
+          <div className="w-full rounded-2xl border border-[#222226] bg-[#0A0A0B] p-6 lg:max-w-xl">
+            <textarea
+              value={brief}
+              onChange={(event) => setBrief(event.target.value)}
+              placeholder="Describe the video, audience, platform, and timeline..."
+              className="min-h-32 w-full rounded-xl border border-[#222226] bg-[#121215] px-4 py-3 text-sm text-[#EDEDED] outline-none focus:border-[#D4AF37]"
+            />
+            <button
+              type="button"
+              onClick={() => void handleSuggestQuestions()}
+              className="mt-4 rounded-full border border-[#D4AF37]/40 bg-[#121215] px-4 py-2 text-[10px] font-bold uppercase tracking-[0.2em] text-[#EDEDED] transition-colors hover:bg-[#D4AF37] hover:text-[#0A0A0B]"
+            >
+              {isSuggesting ? 'Probing your brief…' : 'Suggest clarifying questions'}
+            </button>
+            {suggestions.length ? (
+              <ul className="mt-4 space-y-2 text-sm text-[#888891]">
+                {suggestions.map((item) => (
+                  <li key={item} className="rounded-lg border border-[#222226] bg-[#121215] px-3 py-2">{item}</li>
+                ))}
+              </ul>
+            ) : null}
+          </div>
+        </RevealSection>
+      </section>
+
+      <section className="border-t border-[#222226] bg-[#0A0A0B] px-6 py-16">
+        <RevealSection className="mx-auto flex max-w-6xl flex-col gap-8 lg:flex-row lg:items-center lg:justify-between">
+          <div className="max-w-xl">
+            <EditableText page="home" sectionKey="home_portfolio_heading" fallback="Featured portfolio" className="mb-3 text-2xl font-semibold uppercase tracking-[-0.03em] text-[#EDEDED]" tagName="h2" />
+            <EditableText page="home" sectionKey="home_portfolio_subline" fallback="Swap imagery and copy from the admin panel without touching code." className="text-base font-light leading-relaxed text-[#888891]" tagName="p" />
+          </div>
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="overflow-hidden rounded-2xl border border-[#222226] bg-[#121215]">
+              <EditableImage page="home" sectionKey="home_portfolio_image_one" fallbackSrc="https://images.unsplash.com/photo-1536240478700-b869070f9279?auto=format&fit=crop&w=1200&q=80" alt="Editorial edit preview" className="h-56 w-full" />
+            </div>
+            <div className="overflow-hidden rounded-2xl border border-[#222226] bg-[#121215]">
+              <EditableImage page="home" sectionKey="home_portfolio_image_two" fallbackSrc="https://images.unsplash.com/photo-1516321497487-e288fb19713f?auto=format&fit=crop&w=1200&q=80" alt="Story-driven motion graphics preview" className="h-56 w-full" />
             </div>
           </div>
         </RevealSection>
