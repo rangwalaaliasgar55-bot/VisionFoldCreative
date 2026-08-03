@@ -155,6 +155,8 @@ values ('default', 700,
 
 -- =============================================================================
 -- ROW LEVEL SECURITY (RLS) - Security enabled
+-- NOTE: Current implementation uses service_role key which bypasses RLS.
+-- These policies are for when anon key is used for client-side operations.
 -- =============================================================================
 alter table public.users enable row level security;
 alter table public.content_blocks enable row level security;
@@ -167,6 +169,93 @@ alter table public.expenses enable row level security;
 alter table public.settings enable row level security;
 
 -- =============================================================================
+-- RLS POLICIES
+-- NOTE: The server currently uses service_role key (bypasses RLS).
+-- These policies support anon key usage for client-side operations.
+-- =============================================================================
+
+-- Content blocks: Public read, admin write
+create policy if not exists "Public can view content blocks"
+  on public.content_blocks for select
+  using (true);
+
+create policy if not exists "Admin can manage content blocks"
+  on public.content_blocks for all
+  using (auth.jwt() ->> 'role' = 'admin');
+
+-- Portfolio: Public read, admin write
+create policy if not exists "Public can view portfolio"
+  on public.portfolio for select
+  using (true);
+
+create policy if not exists "Admin can manage portfolio"
+  on public.portfolio for all
+  using (auth.jwt() ->> 'role' = 'admin');
+
+-- Messages: Public create, admin read/update
+create policy if not exists "Anyone can submit messages"
+  on public.messages for insert
+  with check (true);
+
+create policy if not exists "Admin can view messages"
+  on public.messages for select
+  using (auth.jwt() ->> 'role' = 'admin');
+
+create policy if not exists "Admin can update messages"
+  on public.messages for update
+  using (auth.jwt() ->> 'role' = 'admin');
+
+-- Users: Admin can view all, users can view own
+create policy if not exists "Admin can manage users"
+  on public.users for all
+  using (auth.jwt() ->> 'role' = 'admin');
+
+create policy if not exists "Users can view own profile"
+  on public.users for select
+  using (auth.uid() = id);
+
+-- Projects: Clients can view own, admin can manage all
+create policy if not exists "Admin can manage projects"
+  on public.projects for all
+  using (auth.jwt() ->> 'role' = 'admin');
+
+create policy if not exists "Clients can view own projects"
+  on public.projects for select
+  using (auth.uid() = client_id);
+
+-- Revisions: Clients can create/view own, admin can manage all
+create policy if not exists "Anyone authenticated can create revisions"
+  on public.revisions for insert
+  with check (auth.role() = 'authenticated');
+
+create policy if not exists "Admin can manage revisions"
+  on public.revisions for all
+  using (auth.jwt() ->> 'role' = 'admin');
+
+create policy if not exists "Clients can view own revisions"
+  on public.revisions for select
+  using (auth.uid() = client_id);
+
+-- Invoices: Clients can view own, admin can manage all
+create policy if not exists "Admin can manage invoices"
+  on public.invoices for all
+  using (auth.jwt() ->> 'role' = 'admin');
+
+create policy if not exists "Clients can view own invoices"
+  on public.invoices for select
+  using (auth.uid() = client_id);
+
+-- Expenses: Admin only
+create policy if not exists "Admin can manage expenses"
+  on public.expenses for all
+  using (auth.jwt() ->> 'role' = 'admin');
+
+-- Settings: Admin only
+create policy if not exists "Admin can manage settings"
+  on public.settings for all
+  using (auth.jwt() ->> 'role' = 'admin');
+
+-- =============================================================================
 -- STORAGE BUCKET FOR FILE UPLOADS
 -- =============================================================================
 insert into storage.buckets (id, name, public)
@@ -176,6 +265,14 @@ on conflict (id) do nothing;
 create policy if not exists "Public can view visionfold-uploads files"
   on storage.objects for select
   using (bucket_id = 'visionfold-uploads');
+
+create policy if not exists "Admin can upload visionfold-uploads files"
+  on storage.objects for insert
+  with check (bucket_id = 'visionfold-uploads' AND auth.jwt() ->> 'role' = 'admin');
+
+create policy if not exists "Admin can delete visionfold-uploads files"
+  on storage.objects for delete
+  using (bucket_id = 'visionfold-uploads' AND auth.jwt() ->> 'role' = 'admin');
 
 -- =============================================================================
 -- INDEXES FOR PERFORMANCE

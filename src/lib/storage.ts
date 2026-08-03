@@ -1,5 +1,6 @@
 import fs from 'fs';
 import path from 'path';
+import { createClient } from '@supabase/supabase-js';
 
 export interface StorageProvider {
   upload(fileBuffer: Buffer, fileName: string, mimeType: string): Promise<string>;
@@ -8,8 +9,68 @@ export interface StorageProvider {
 }
 
 /**
+ * Supabase Storage Provider
+ * Uses Supabase Storage for persistent file storage.
+ * Files are stored in the 'visionfold-uploads' bucket.
+ */
+export class SupabaseStorageProvider implements StorageProvider {
+  private supabase: ReturnType<typeof createClient>;
+  private bucketId: string = 'visionfold-uploads';
+
+  constructor() {
+    // Support both Vercel Supabase integration and standard naming
+    const supabaseUrl = process.env.SUPABASE_URL 
+      || process.env.SupaBase_SUPABASE_URL 
+      || process.env.VITE_SUPABASE_URL 
+      || '';
+    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY 
+      || process.env.SupaBase_SUPABASE_SERVICE_ROLE_KEY 
+      || process.env.SUPABASE_ANON_KEY 
+      || process.env.SupaBase_SUPABASE_ANON_KEY 
+      || '';
+
+    this.supabase = createClient(supabaseUrl, supabaseKey);
+  }
+
+  async upload(fileBuffer: Buffer, fileName: string, mimeType: string): Promise<string> {
+    const cleanName = fileName.replace(/[^a-zA-Z0-9.-]/g, '_');
+    const key = `${Date.now()}_${cleanName}`;
+    
+    const { data, error } = await this.supabase.storage
+      .from(this.bucketId)
+      .upload(key, fileBuffer, {
+        contentType: mimeType,
+        upsert: true,
+      });
+
+    if (error) {
+      throw new Error(`Supabase upload failed: ${error.message}`);
+    }
+
+    return key;
+  }
+
+  getUrl(key: string): string {
+    if (key.startsWith('http://') || key.startsWith('https://') || key.startsWith('data:')) {
+      return key;
+    }
+    
+    const { data } = this.supabase.storage.from(this.bucketId).getPublicUrl(key);
+    return data.publicUrl;
+  }
+
+  async delete(key: string): Promise<void> {
+    const { error } = await this.supabase.storage.from(this.bucketId).remove([key]);
+    if (error) {
+      console.warn(`Failed to delete ${key} from Supabase:`, error.message);
+    }
+  }
+}
+
+/**
  * LocalDiskStorageProvider implementation.
  * Stores files in the public/uploads directory during development/local execution.
+ * WARNING: Files stored here will be lost on Vercel (serverless) deployments!
  */
 export class LocalDiskStorageProvider implements StorageProvider {
   private uploadDir: string;
@@ -47,11 +108,7 @@ export class LocalDiskStorageProvider implements StorageProvider {
 }
 
 /**
- * TODO: AWS S3 Storage Provider
- * To switch to AWS S3:
- * 1. npm install @aws-sdk/client-s3
- * 2. Configure AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_REGION, S3_BUCKET
- * 3. Implement S3StorageProvider implementing StorageProvider interface
+ * AWS S3 Storage Provider
  */
 export class S3StorageProvider implements StorageProvider {
   async upload(_fileBuffer: Buffer, _fileName: string, _mimeType: string): Promise<string> {
@@ -66,10 +123,7 @@ export class S3StorageProvider implements StorageProvider {
 }
 
 /**
- * TODO: Cloudflare R2 Storage Provider
- * To switch to R2:
- * 1. npm install @aws-sdk/client-s3 (R2 uses S3-compatible API)
- * 2. Configure CLOUDFLARE_R2_ENDPOINT, CLOUDFLARE_ACCESS_KEY_ID, CLOUDFLARE_SECRET_ACCESS_KEY
+ * Cloudflare R2 Storage Provider
  */
 export class R2StorageProvider implements StorageProvider {
   async upload(_fileBuffer: Buffer, _fileName: string, _mimeType: string): Promise<string> {
@@ -83,5 +137,21 @@ export class R2StorageProvider implements StorageProvider {
   }
 }
 
+// Check if Supabase is configured and use it for production
+function createStorageProvider(): StorageProvider {
+  const supabaseUrl = process.env.SUPABASE_URL || process.env.SupaBase_SUPABASE_URL;
+  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SupaBase_SUPABASE_SERVICE_ROLE_KEY;
+  
+  // Use Supabase if configured (production)
+  if (supabaseUrl && supabaseKey) {
+    console.log('[STORAGE] Using Supabase Storage (production)');
+    return new SupabaseStorageProvider();
+  }
+  
+  // Fall back to local disk for development only
+  console.log('[STORAGE] Using Local Disk Storage (development only - files will be lost on Vercel!)');
+  return new LocalDiskStorageProvider();
+}
+
 // Default storage provider singleton
-export const storageProvider: StorageProvider = new LocalDiskStorageProvider();
+export const storageProvider: StorageProvider = createStorageProvider();

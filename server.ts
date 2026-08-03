@@ -4,6 +4,7 @@ import fs from 'fs';
 import cookieParser from 'cookie-parser';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
+import helmet from 'helmet';
 import { rateLimit } from 'express-rate-limit';
 import { z } from 'zod';
 import { createServer as createViteServer } from 'vite';
@@ -13,11 +14,32 @@ import { User, UserRole } from './src/types';
 import { generateText, generateFromPrompt } from './src/lib/openrouter';
 
 const PORT = Number(process.env.PORT || 3000);
+
+// Security: Rate limiting for auth routes (brute force protection)
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 10,
   standardHeaders: true,
   legacyHeaders: false,
+  message: { error: 'Too many authentication attempts, please try again after 15 minutes.' },
+});
+
+// Security: Rate limiting for public contact form (spam protection)
+const messageLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hour
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many messages sent, please try again later.' },
+});
+
+// Security: Rate limiting for AI endpoints (prevent abuse)
+const aiLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many AI requests, please slow down.' },
 });
 
 const REQUIRED_JWT_SECRET = process.env.JWT_SECRET;
@@ -151,6 +173,22 @@ function requireAdmin(req: AuthenticatedRequest, res: Response, next: NextFuncti
 
 async function startServer() {
   const app = express();
+
+  // Security: Helmet for HTTP security headers
+  app.use(helmet({
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
+        styleSrc: ["'self'", "'unsafe-inline'"],
+        imgSrc: ["'self'", 'data:', 'https:', 'blob:'],
+        mediaSrc: ["'self'", 'data:', 'https:', 'blob:'],
+        connectSrc: ["'self'", 'https://openrouter.ai'],
+        fontSrc: ["'self'", 'data:'],
+      },
+    },
+    crossOriginEmbedderPolicy: false,
+  }));
 
   app.use(express.json({ limit: '20mb' }));
   app.use(express.urlencoded({ extended: true, limit: '20mb' }));
@@ -315,7 +353,8 @@ async function startServer() {
   });
 
   // --- MESSAGES / INQUIRIES ROUTE ---
-  app.post('/api/messages', async (req, res) => {
+  // Public contact form - rate limited to prevent spam
+  app.post('/api/messages', messageLimiter, async (req, res) => {
     const parsed = messageSchema.safeParse(req.body);
     if (!parsed.success) {
       return res.status(400).json({ error: parsed.error.flatten().fieldErrors });
@@ -516,15 +555,29 @@ async function startServer() {
   });
 
   // --- UPLOAD ROUTE ---
-  app.post('/api/upload', authenticateToken, async (req, res) => {
+  // --- FILE UPLOAD (admin only to prevent abuse) ---
+  app.post('/api/upload', authenticateToken, requireAdmin, async (req, res) => {
     try {
       const { fileName, fileData, mimeType } = req.body;
       if (!fileData || !fileName) {
         return res.status(400).json({ error: 'fileData (base64) and fileName are required' });
       }
 
+      // Validate file size (max 15MB)
       const buffer = Buffer.from(fileData.replace(/^data:image\/\w+;base64,/, ''), 'base64');
-      const key = await storageProvider.upload(buffer, fileName, mimeType || 'image/png');
+      const MAX_FILE_SIZE = 15 * 1024 * 1024; // 15MB
+      if (buffer.length > MAX_FILE_SIZE) {
+        return res.status(400).json({ error: 'File too large. Maximum size is 15MB.' });
+      }
+
+      // Validate MIME type (allowlist)
+      const allowedMimeTypes = ['image/jpeg', 'image/png', 'image/webp', 'video/mp4'];
+      const detectedMimeType = mimeType || 'image/png';
+      if (!allowedMimeTypes.includes(detectedMimeType)) {
+        return res.status(400).json({ error: 'Invalid file type. Allowed: JPEG, PNG, WebP, MP4' });
+      }
+
+      const key = await storageProvider.upload(buffer, fileName, detectedMimeType);
       const url = storageProvider.getUrl(key);
 
       res.json({ key, url });
@@ -534,7 +587,8 @@ async function startServer() {
   });
 
   // --- AI ROUTES (OpenRouter) ---
-  app.post('/api/ai/generate', authenticateToken, async (req: AuthenticatedRequest, res) => {
+  // Admin-only endpoints to prevent OpenRouter budget abuse
+  app.post('/api/ai/generate', authenticateToken, requireAdmin, async (req: AuthenticatedRequest, res) => {
     try {
       const { prompt, systemPrompt, messages, temperature, maxTokens, model } = req.body;
  
@@ -578,7 +632,8 @@ async function startServer() {
     }
   });
 
-  app.post('/api/ai/insights', authenticateToken, async (req: AuthenticatedRequest, res) => {
+  // Admin-only: growth insights from business data
+  app.post('/api/ai/insights', authenticateToken, requireAdmin, async (req: AuthenticatedRequest, res) => {
     try {
       const [messages, portfolio, invoices, users, projects] = await Promise.all([
         dbManager.getMessages(),

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
 import { Navbar } from './components/Navbar';
 import { Footer } from './components/Footer';
 import { HomePage } from './components/PublicPages/HomePage';
@@ -9,10 +10,55 @@ import { ContentProvider, useContent } from './context/ContentContext';
 import { AuthProvider } from './context/AuthContext';
 import { AdminApp } from './components/Admin/AdminApp';
 import { Portal } from './components/Portal/Portal';
+import { NotFound } from './components/NotFound';
+import { PortfolioPage } from './components/PublicPages/PortfolioPage';
+import { ServicesPage } from './components/PublicPages/ServicesPage';
+import { ContactPage } from './components/PublicPages/ContactPage';
+import { WorkDetailPage } from './components/PublicPages/WorkDetailPage';
+
+// Error Boundary Component
+class ErrorBoundary extends React.Component<
+  { children: React.ReactNode },
+  { hasError: boolean; error?: Error }
+> {
+  constructor(props: { children: React.ReactNode }) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+    console.error('App Error:', error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="min-h-screen bg-[#0A0A0B] flex items-center justify-center">
+          <div className="text-center p-8">
+            <h1 className="text-2xl font-bold text-[#D4AF37] mb-4">Something went wrong</h1>
+            <p className="text-[#A0A0A0] mb-6">{this.state.error?.message}</p>
+            <button
+              onClick={() => window.location.reload()}
+              className="px-6 py-3 bg-[#D4AF37] text-[#0A0A0B] font-semibold rounded-lg hover:bg-[#E5C04B] transition-colors"
+            >
+              Reload Page
+            </button>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 const MainContent: React.FC = () => {
   const { editMode, isAdmin, setEditMode } = useContent();
   const [currentPage, setCurrentPage] = useState<string>('home');
+  const location = useLocation();
 
   const handleNavigate = (page: string) => {
     setCurrentPage(page);
@@ -23,7 +69,8 @@ const MainContent: React.FC = () => {
     window.location.href = '/admin';
   };
 
-  if (currentPage === 'portal') {
+  // Handle portal page
+  if (location.pathname === '/portal') {
     return <Portal onNavigate={handleNavigate} />;
   }
 
@@ -48,8 +95,9 @@ const MainContent: React.FC = () => {
   );
 };
 
-export default function App() {
+const AppRoutes: React.FC = () => {
   const [isAdminRoute, setIsAdminRoute] = useState(() => window.location.pathname.startsWith('/admin'));
+  const location = useLocation();
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -68,15 +116,39 @@ export default function App() {
     };
   }, []);
 
+  // Show admin for /admin routes
+  if (location.pathname.startsWith('/admin')) {
+    return <AdminApp />;
+  }
+
+  // Use client-side routing for other pages
   return (
-    <AdminProvider>
-      <ContentProvider>
-        <SfxProvider>
-          <AuthProvider>
-            {isAdminRoute ? <AdminApp /> : <MainContent />}
-          </AuthProvider>
-        </SfxProvider>
-      </ContentProvider>
-    </AdminProvider>
+    <Routes>
+      <Route path="/" element={<MainContent />} />
+      <Route path="/work" element={<PortfolioPage />} />
+      <Route path="/work/:slug" element={<WorkDetailPage />} />
+      <Route path="/services" element={<ServicesPage />} />
+      <Route path="/contact" element={<ContactPage />} />
+      <Route path="/portal" element={<Portal onNavigate={(p) => window.location.href = p === 'home' ? '/' : `/${p}`} />} />
+      <Route path="*" element={<NotFound />} />
+    </Routes>
+  );
+};
+
+export default function App() {
+  return (
+    <ErrorBoundary>
+      <BrowserRouter>
+        <AdminProvider>
+          <ContentProvider>
+            <SfxProvider>
+              <AuthProvider>
+                <AppRoutes />
+              </AuthProvider>
+            </SfxProvider>
+          </ContentProvider>
+        </AdminProvider>
+      </BrowserRouter>
+    </ErrorBoundary>
   );
 }
