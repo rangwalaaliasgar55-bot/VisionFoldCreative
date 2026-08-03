@@ -6,7 +6,9 @@ import { FloatingWhatsApp } from './components/FloatingWhatsApp';
 import { SfxProvider } from './context/SfxContext';
 import { AdminProvider } from './context/AdminContext';
 import { ContentProvider, useContent } from './context/ContentContext';
+import { AuthProvider } from './context/AuthContext';
 import { AdminApp } from './components/Admin/AdminApp';
+import { Portal } from './components/Portal/Portal';
 
 const MainContent: React.FC = () => {
   const { editMode, isAdmin, setEditMode } = useContent();
@@ -20,6 +22,10 @@ const MainContent: React.FC = () => {
   const goToAdmin = () => {
     window.location.href = '/admin';
   };
+
+  if (currentPage === 'portal') {
+    return <Portal onNavigate={handleNavigate} />;
+  }
 
   return (
     <div className="min-h-screen bg-[#0A0A0B] text-[#EDEDED] flex flex-col font-sans selection:bg-[#D4AF37] selection:text-[#0A0A0B]">
@@ -66,7 +72,9 @@ export default function App() {
     <AdminProvider>
       <ContentProvider>
         <SfxProvider>
-          {isAdminRoute ? <AdminApp /> : <MainContent />}
+          <AuthProvider>
+            {isAdminRoute ? <AdminApp /> : <MainContent />}
+          </AuthProvider>
         </SfxProvider>
       </ContentProvider>
     </AdminProvider>
