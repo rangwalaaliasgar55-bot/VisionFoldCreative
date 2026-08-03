@@ -6,3 +6,8 @@ coverage/
 *.log
 .env*
 !.env.example
+
+# Supabase credentials (NEVER commit these)
+.env
+.env.local
+.env.production
