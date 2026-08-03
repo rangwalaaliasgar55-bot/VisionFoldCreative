@@ -12,6 +12,11 @@ import {
   Expense,
   SiteSettings,
 } from '../types';
+import { getSupabaseClient, isSupabaseConfigured } from './supabase';
+
+// Check if Supabase is configured
+const USE_SUPABASE = isSupabaseConfigured();
+const supabase = USE_SUPABASE ? getSupabaseClient() : null;
 
 // On Vercel (and most serverless platforms) the deployment bundle is
 // read-only outside of /tmp, and /tmp itself is wiped between cold starts /
@@ -26,12 +31,15 @@ const isServerless = !!process.env.VERCEL;
 const DATA_DIR = isServerless ? path.join('/tmp', 'data') : path.join(process.cwd(), 'data');
 const DB_FILE = path.join(DATA_DIR, 'db.json');
 
-if (isServerless) {
+if (USE_SUPABASE) {
+  // eslint-disable-next-line no-console
+  console.log('[db] Using Supabase database');
+} else if (isServerless) {
   // eslint-disable-next-line no-console
   console.warn(
     '[db] Running on Vercel with the JSON file store — writes will NOT persist ' +
-      'across deployments or cold starts. Replace src/lib/db.ts with a real ' +
-      'database before relying on admin edits / inquiries being saved long-term.'
+      'across deployments or cold starts. Set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY ' +
+      'in environment variables to use Supabase for persistent storage.'
   );
 }
 
