@@ -10,38 +10,11 @@ import {
   Revision,
   Invoice,
   Expense,
-  SiteSettings,
 } from '../types';
 import { getSupabaseClient, isSupabaseConfigured } from './supabase';
 
-// Check if Supabase is configured
-const USE_SUPABASE = isSupabaseConfigured();
-const supabase = USE_SUPABASE ? getSupabaseClient() : null;
-
-// On Vercel (and most serverless platforms) the deployment bundle is
-// read-only outside of /tmp, and /tmp itself is wiped between cold starts /
-// separate function instances. A JSON-file "database" therefore cannot
-// reliably persist writes in that environment.
-//
-// We still point at a writable directory so the app doesn't crash, but this
-// is NOT durable storage on Vercel — treat any writes (new messages,
-// portfolio edits, settings changes) as ephemeral until this is swapped for
-// a real database (Postgres/Supabase/Turso etc).
-const isServerless = !!process.env.VERCEL;
-const DATA_DIR = isServerless ? path.join('/tmp', 'data') : path.join(process.cwd(), 'data');
+const DATA_DIR = path.join(process.cwd(), 'data');
 const DB_FILE = path.join(DATA_DIR, 'db.json');
-
-if (USE_SUPABASE) {
-  // eslint-disable-next-line no-console
-  console.log('[db] Using Supabase database');
-} else if (isServerless) {
-  // eslint-disable-next-line no-console
-  console.warn(
-    '[db] Running on Vercel with the JSON file store — writes will NOT persist ' +
-      'across deployments or cold starts. Set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY ' +
-      'in environment variables to use Supabase for persistent storage.'
-  );
-}
 
 interface Schema {
   users: User[];
@@ -52,22 +25,11 @@ interface Schema {
   revisions: Revision[];
   invoices: Invoice[];
   expenses: Expense[];
-  settings: SiteSettings;
 }
 
 function getDefaultDB(): Schema {
   const salt = bcrypt.genSaltSync(10);
-
-  const initialAdminPassword = process.env.ADMIN_INITIAL_PASSWORD;
-  if (!initialAdminPassword) {
-    // eslint-disable-next-line no-console
-    console.warn(
-      '[db] ADMIN_INITIAL_PASSWORD is not set — using an insecure default admin ' +
-        'password. Set ADMIN_INITIAL_PASSWORD in your environment before going ' +
-        'to production, then log in and change it.'
-    );
-  }
-  const hashedPassword = bcrypt.hashSync(initialAdminPassword || 'admin123password', salt);
+  const hashedPassword = bcrypt.hashSync('admin123password', salt);
   const clientHashedPassword = bcrypt.hashSync('client123password', salt);
 
   const adminUser: User = {
@@ -707,22 +669,6 @@ function getDefaultDB(): Schema {
     },
   ];
 
-  const settings: SiteSettings = {
-    baselineRate: 700,
-    addonRates: {
-      render4k: 100,
-      multiFormat: 150,
-      customSound: 200,
-    },
-    metrics: {
-      retentionSplit: '+320% Watch Time',
-      card1Metric: '+192% Avg Watch Duration',
-      card2Metric: '3.8M Views • 14k+ Saves',
-      card3Metric: 'Featured on ArchDaily',
-    },
-    updatedAt: new Date().toISOString(),
-  };
-
   // Map hashed passwords to user credentials store
   return {
     users: [
@@ -736,218 +682,849 @@ function getDefaultDB(): Schema {
     revisions,
     invoices,
     expenses,
-    settings,
   };
 }
 
-export class DBManager {
+export class SupabaseDBManager {
   private db: Schema;
+  private readonly supabaseClient = getSupabaseClient();
+  private readonly useSupabase: boolean;
 
   constructor() {
     if (!fs.existsSync(DATA_DIR)) {
       fs.mkdirSync(DATA_DIR, { recursive: true });
     }
-    if (fs.existsSync(DB_FILE)) {
-      try {
-        const fileData = fs.readFileSync(DB_FILE, 'utf-8');
-        this.db = JSON.parse(fileData);
-        if (!this.db.settings) {
-          // Migrate DB files written before `settings` existed.
-          this.db.settings = getDefaultDB().settings;
-          this.save();
-        }
-      } catch (err) {
-        console.error('Error reading db.json, re-initializing default DB:', err);
-        this.db = getDefaultDB();
-        this.save();
-      }
-    } else {
-      this.db = getDefaultDB();
-      this.save();
+
+    this.db = this.loadLocalDB();
+    this.useSupabase = isSupabaseConfigured() && Boolean(this.supabaseClient);
+
+    if (process.env.NODE_ENV === 'production' && !this.useSupabase) {
+      throw new Error(
+        '[DB] SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY are not configured. ' +
+        'This app persists data through Supabase only in production; refusing to start ' +
+        'with the local-JSON fallback active.'
+      );
+    }
+
+    if (!this.useSupabase) {
+      console.warn(
+        '[DB] Supabase is not configured — using local data/db.json for this dev session only. ' +
+        'This file is NOT used in production and will not reflect real data.'
+      );
     }
   }
 
-  private save() {
+  /**
+   * Every Supabase read/write is wrapped in try/catch so a transient failure doesn't
+   * crash the request. In production we do NOT want that catch block to silently keep
+   * serving stale/local data as if it were real — that hides outages. So any Supabase
+   * error is re-thrown here when running in production; the local-JSON fallback below
+   * only ever executes in local development.
+   */
+  private guardFallback(err: unknown): void {
+    if (process.env.NODE_ENV === 'production') {
+      throw err instanceof Error ? err : new Error(String(err));
+    }
+  }
+
+  private loadLocalDB(): Schema {
+    if (fs.existsSync(DB_FILE)) {
+      try {
+        const fileData = fs.readFileSync(DB_FILE, 'utf-8');
+        return JSON.parse(fileData);
+      } catch (err) {
+        console.error('Error reading db.json, re-initializing default DB:', err);
+      }
+    }
+
+    const defaultDB = getDefaultDB();
+    this.saveLocalDB(defaultDB);
+    return defaultDB;
+  }
+
+  private saveLocalDB(db: Schema = this.db) {
     try {
-      fs.writeFileSync(DB_FILE, JSON.stringify(this.db, null, 2), 'utf-8');
+      fs.writeFileSync(DB_FILE, JSON.stringify(db, null, 2), 'utf-8');
     } catch (err) {
       console.error('Failed to save DB:', err);
     }
   }
 
-  // Users
-  getUsers(): User[] {
-    return this.db.users.map(({ passwordHash, ...u }: any) => u);
+  private mapUser(user: any): User & { passwordHash?: string } {
+    return {
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      role: user.role,
+      company: user.company || '',
+      phone: user.phone || '',
+      createdAt: user.createdAt || user.created_at || new Date().toISOString(),
+      passwordHash: user.passwordHash || user.password_hash,
+    };
   }
 
-  findUserByEmail(email: string): (User & { passwordHash?: string }) | undefined {
-    return this.db.users.find((u) => u.email.toLowerCase() === email.toLowerCase());
+  private toUserRow(user: User & { passwordHash?: string }) {
+    return {
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      role: user.role,
+      company: user.company || '',
+      phone: user.phone || '',
+      created_at: user.createdAt,
+      password_hash: user.passwordHash || null,
+    };
   }
 
-  findUserById(id: string): User | undefined {
-    const user = this.db.users.find((u) => u.id === id);
-    if (!user) return undefined;
-    const { passwordHash, ...safeUser } = user as any;
-    return safeUser;
+  private mapContentBlock(row: any): ContentBlock {
+    return {
+      id: row.id,
+      page: row.page,
+      section_key: row.section_key,
+      type: row.type,
+      value: row.value,
+      order: row.order,
+      visible: row.visible,
+      updatedAt: row.updatedAt || row.updated_at,
+    };
   }
 
-  createUser(user: User & { passwordHash: string }): User {
-    this.db.users.push(user);
-    this.save();
-    const { passwordHash, ...safeUser } = user;
-    return safeUser;
+  private toContentBlockRow(block: Omit<ContentBlock, 'id' | 'updatedAt'> & { id?: string; updatedAt?: string }) {
+    return {
+      id: block.id,
+      page: block.page,
+      section_key: block.section_key,
+      type: block.type,
+      value: block.value,
+      order: block.order,
+      visible: block.visible,
+      updated_at: block.updatedAt || new Date().toISOString(),
+    };
   }
 
-  updateUserPassword(id: string, newHash: string) {
-    const u = this.db.users.find((x) => x.id === id);
-    if (u) {
-      (u as any).passwordHash = newHash;
-      this.save();
+  private mapPortfolioItem(row: any): PortfolioItem {
+    return {
+      id: row.id,
+      title: row.title,
+      clientName: row.clientName || row.client_name || '',
+      hideClientName: Boolean(row.hideClientName ?? row.hide_client_name),
+      category: row.category,
+      thumbnailUrl: row.thumbnailUrl || row.thumbnail_url || '',
+      videoUrl: row.videoUrl || row.video_url || '',
+      teaser: row.teaser || '',
+      fullDescription: row.fullDescription || row.full_description || '',
+      dateCreated: row.dateCreated || row.date_created || '',
+      toolsUsed: Array.isArray(row.toolsUsed || row.tools_used) ? row.toolsUsed || row.tools_used : [],
+      resultsImpact: row.resultsImpact || row.results_impact || '',
+      order: row.order ?? 0,
+      featured: Boolean(row.featured),
+    };
+  }
+
+  private toPortfolioRow(item: Omit<PortfolioItem, 'id'> & { id?: string }) {
+    return {
+      id: item.id,
+      title: item.title,
+      client_name: item.clientName || '',
+      hide_client_name: Boolean(item.hideClientName),
+      category: item.category,
+      thumbnail_url: item.thumbnailUrl || '',
+      video_url: item.videoUrl || '',
+      teaser: item.teaser || '',
+      full_description: item.fullDescription || '',
+      date_created: item.dateCreated || '',
+      tools_used: item.toolsUsed || [],
+      results_impact: item.resultsImpact || '',
+      order: item.order ?? 0,
+      featured: Boolean(item.featured),
+    };
+  }
+
+  private mapMessage(row: any): Message {
+    return {
+      id: row.id,
+      name: row.name,
+      email: row.email,
+      phone: row.phone,
+      company: row.company || '',
+      projectType: row.projectType || row.project_type || 'Short Form',
+      budgetRange: row.budgetRange || row.budget_range || '₹10,000 - ₹25,000',
+      deadline: row.deadline || '',
+      message: row.message,
+      status: row.status || 'new',
+      createdAt: row.createdAt || row.created_at || new Date().toISOString(),
+    };
+  }
+
+  private toMessageRow(message: Omit<Message, 'id' | 'status' | 'createdAt'> & { id?: string; status?: Message['status']; createdAt?: string }) {
+    return {
+      id: message.id,
+      name: message.name,
+      email: message.email,
+      phone: message.phone,
+      company: message.company || '',
+      project_type: (message as any).projectType || '',
+      budget_range: (message as any).budgetRange || '',
+      deadline: (message as any).deadline || '',
+      message: message.message,
+      status: message.status || 'new',
+      created_at: message.createdAt || new Date().toISOString(),
+    };
+  }
+
+  private toProjectRow(project: Omit<Project, 'id' | 'createdAt'> & { id?: string; createdAt?: string }) {
+    return {
+      id: project.id,
+      title: project.title,
+      client_id: project.clientId,
+      client_name: project.clientName,
+      client_email: project.clientEmail,
+      category: project.category,
+      status: project.status,
+      description: project.description,
+      delivered_files: project.deliveredFiles || [],
+      results_impact: project.resultsImpact || '',
+      start_date: project.startDate,
+      delivery_date: project.deliveryDate || '',
+      amount_inr: project.amountINR,
+      created_at: project.createdAt || new Date().toISOString(),
+    };
+  }
+
+  private mapProject(row: any): Project {
+    return {
+      id: row.id,
+      title: row.title,
+      clientId: row.clientId || row.client_id,
+      clientName: row.clientName || row.client_name,
+      clientEmail: row.clientEmail || row.client_email,
+      category: row.category,
+      status: row.status,
+      description: row.description,
+      deliveredFiles: row.deliveredFiles || row.delivered_files || [],
+      resultsImpact: row.resultsImpact || row.results_impact,
+      startDate: row.startDate || row.start_date,
+      deliveryDate: row.deliveryDate || row.delivery_date,
+      amountINR: row.amountINR || row.amount_inr || 0,
+      createdAt: row.createdAt || row.created_at,
+    };
+  }
+
+  private toRevisionRow(rev: Omit<Revision, 'id' | 'createdAt' | 'updatedAt' | 'status'> & { id?: string; createdAt?: string; updatedAt?: string; status?: Revision['status'] }) {
+    return {
+      id: rev.id,
+      project_id: rev.projectId,
+      client_id: rev.clientId,
+      client_name: rev.clientName,
+      comment: rev.comment,
+      status: rev.status || 'pending',
+      created_at: rev.createdAt || new Date().toISOString(),
+      updated_at: rev.updatedAt || new Date().toISOString(),
+    };
+  }
+
+  private mapRevision(row: any): Revision {
+    return {
+      id: row.id,
+      projectId: row.projectId || row.project_id,
+      clientId: row.clientId || row.client_id,
+      clientName: row.clientName || row.client_name,
+      comment: row.comment,
+      status: row.status,
+      createdAt: row.createdAt || row.created_at,
+      updatedAt: row.updatedAt || row.updated_at,
+    };
+  }
+
+  private toInvoiceRow(inv: Omit<Invoice, 'id' | 'createdAt'> & { id?: string; createdAt?: string }) {
+    return {
+      id: inv.id,
+      invoice_number: inv.invoiceNumber,
+      project_id: inv.projectId || '',
+      client_id: inv.clientId,
+      client_name: inv.clientName,
+      amount_inr: inv.amountINR,
+      due_date: inv.dueDate,
+      status: inv.status,
+      description: inv.description,
+      paid_at: inv.paidAt || '',
+      created_at: inv.createdAt || new Date().toISOString(),
+    };
+  }
+
+  private mapInvoice(row: any): Invoice {
+    return {
+      id: row.id,
+      invoiceNumber: row.invoiceNumber || row.invoice_number,
+      projectId: row.projectId || row.project_id || '',
+      clientId: row.clientId || row.client_id,
+      clientName: row.clientName || row.client_name,
+      amountINR: row.amountINR || row.amount_inr || 0,
+      dueDate: row.dueDate || row.due_date,
+      status: row.status,
+      description: row.description,
+      paidAt: row.paidAt || row.paid_at || '',
+      createdAt: row.createdAt || row.created_at,
+    };
+  }
+
+  private toExpenseRow(exp: Omit<Expense, 'id' | 'createdAt'> & { id?: string; createdAt?: string }) {
+    return {
+      id: exp.id,
+      title: exp.title,
+      category: exp.category,
+      amount_inr: exp.amountINR,
+      date: exp.date,
+      description: exp.description || '',
+      created_at: exp.createdAt || new Date().toISOString(),
+    };
+  }
+
+  private mapExpense(row: any): Expense {
+    return {
+      id: row.id,
+      title: row.title,
+      category: row.category,
+      amountINR: row.amountINR || row.amount_inr || 0,
+      date: row.date,
+      description: row.description || '',
+      createdAt: row.createdAt || row.created_at,
+    };
+  }
+
+  async getUsers(): Promise<User[]> {
+    if (!this.useSupabase || !this.supabaseClient) {
+      return this.db.users.map((user: any) => {
+        const { passwordHash: _passwordHash, ...safeUser } = user;
+        return safeUser;
+      });
+    }
+
+    try {
+      const { data, error } = await this.supabaseClient.from('users').select('*').order('created_at', { ascending: true });
+      if (error) throw error;
+      const users = (data || []).map((row: any) => this.mapUser(row));
+      this.db.users = users as any;
+      this.saveLocalDB(this.db);
+      return users.map((user: any) => {
+        const { passwordHash: _passwordHash, ...safeUser } = user;
+        return safeUser;
+      });
+    } catch (err) {
+      this.guardFallback(err);
+      console.warn('[DB] Unable to read users from Supabase; using local storage.', err);
+      return this.db.users.map((user: any) => {
+        const { passwordHash: _passwordHash, ...safeUser } = user;
+        return safeUser;
+      });
     }
   }
 
-  // Content Blocks
-  getContentBlocks(page?: string): ContentBlock[] {
-    if (page) {
-      return this.db.content_blocks
-        .filter((cb) => cb.page === page)
-        .sort((a, b) => a.order - b.order);
+  async findUserByEmail(email: string): Promise<(User & { passwordHash?: string }) | undefined> {
+    if (!this.useSupabase || !this.supabaseClient) {
+      return this.db.users.find((u) => u.email.toLowerCase() === email.toLowerCase());
     }
-    return this.db.content_blocks.sort((a, b) => a.order - b.order);
+
+    try {
+      const { data, error } = await this.supabaseClient.from('users').select('*').eq('email', email).maybeSingle();
+      if (error) throw error;
+      if (!data) {
+        return undefined;
+      }
+      const user = this.mapUser(data);
+      const currentUser = this.db.users.find((u) => u.id === user.id);
+      if (!currentUser) {
+        this.db.users.push(user as any);
+        this.saveLocalDB(this.db);
+      }
+      return user;
+    } catch (err) {
+      this.guardFallback(err);
+      console.warn('[DB] Unable to query user by email via Supabase; using local storage.', err);
+      return this.db.users.find((u) => u.email.toLowerCase() === email.toLowerCase());
+    }
   }
 
-  updateContentBlock(id: string, updates: Partial<ContentBlock>): ContentBlock | null {
-    const idx = this.db.content_blocks.findIndex((cb) => cb.id === id);
-    if (idx === -1) return null;
-    this.db.content_blocks[idx] = {
-      ...this.db.content_blocks[idx],
+  async findUserById(id: string): Promise<User | undefined> {
+    if (!this.useSupabase || !this.supabaseClient) {
+      const user = this.db.users.find((u) => u.id === id);
+      if (!user) return undefined;
+      const { passwordHash, ...safeUser } = user as any;
+      return safeUser;
+    }
+
+    try {
+      const { data, error } = await this.supabaseClient.from('users').select('*').eq('id', id).maybeSingle();
+      if (error) throw error;
+      if (!data) return undefined;
+      const user = this.mapUser(data);
+      const { passwordHash, ...safeUser } = user;
+      return safeUser;
+    } catch (err) {
+      this.guardFallback(err);
+      console.warn('[DB] Unable to fetch user by id via Supabase; using local storage.', err);
+      const user = this.db.users.find((u) => u.id === id);
+      if (!user) return undefined;
+      const { passwordHash, ...safeUser } = user as any;
+      return safeUser;
+    }
+  }
+
+  async createUser(user: User & { passwordHash: string }): Promise<User> {
+    const record = this.toUserRow(user);
+    if (!this.useSupabase || !this.supabaseClient) {
+      this.db.users.push(user as any);
+      this.saveLocalDB(this.db);
+      const { passwordHash, ...safeUser } = user;
+      return safeUser;
+    }
+
+    try {
+      const { data, error } = await this.supabaseClient.from('users').insert([record]).select('*').maybeSingle();
+      if (error) throw error;
+      const savedUser = this.mapUser(data);
+      this.db.users = [...this.db.users.filter((item) => item.id !== savedUser.id), savedUser as any];
+      this.saveLocalDB(this.db);
+      const { passwordHash, ...safeUser } = savedUser;
+      return safeUser;
+    } catch (err) {
+      this.guardFallback(err);
+      console.warn('[DB] Unable to persist user to Supabase; using local storage.', err);
+      this.db.users.push(user as any);
+      this.saveLocalDB(this.db);
+      const { passwordHash, ...safeUser } = user;
+      return safeUser;
+    }
+  }
+
+  async updateUserPassword(id: string, newHash: string) {
+    if (!this.useSupabase || !this.supabaseClient) {
+      const user = this.db.users.find((item) => item.id === id);
+      if (user) {
+        (user as any).passwordHash = newHash;
+        this.saveLocalDB(this.db);
+      }
+      return;
+    }
+
+    try {
+      const { error } = await this.supabaseClient.from('users').update({ password_hash: newHash }).eq('id', id);
+      if (error) throw error;
+      const user = this.db.users.find((item) => item.id === id);
+      if (user) {
+        (user as any).passwordHash = newHash;
+        this.saveLocalDB(this.db);
+      }
+    } catch (err) {
+      this.guardFallback(err);
+      console.warn('[DB] Unable to update password in Supabase; using local storage.', err);
+      const user = this.db.users.find((item) => item.id === id);
+      if (user) {
+        (user as any).passwordHash = newHash;
+        this.saveLocalDB(this.db);
+      }
+    }
+  }
+
+  async getContentBlocks(page?: string): Promise<ContentBlock[]> {
+    if (!this.useSupabase || !this.supabaseClient) {
+      const list = page
+        ? this.db.content_blocks.filter((item) => item.page === page)
+        : this.db.content_blocks;
+      return list.sort((a, b) => a.order - b.order);
+    }
+
+    try {
+      let query = this.supabaseClient.from('content_blocks').select('*');
+      if (page) {
+        query = query.eq('page', page);
+      }
+      const { data, error } = await query.order('order', { ascending: true });
+      if (error) throw error;
+      const blocks = (data || []).map((row: any) => this.mapContentBlock(row));
+      this.db.content_blocks = blocks as any;
+      this.saveLocalDB(this.db);
+      return blocks;
+    } catch (err) {
+      this.guardFallback(err);
+      console.warn('[DB] Unable to read content blocks from Supabase; using local storage.', err);
+      const list = page
+        ? this.db.content_blocks.filter((item) => item.page === page)
+        : this.db.content_blocks;
+      return list.sort((a, b) => a.order - b.order);
+    }
+  }
+
+  async updateContentBlock(id: string, updates: Partial<ContentBlock>): Promise<ContentBlock | null> {
+    const current = this.db.content_blocks.find((item) => item.id === id);
+    if (!current) return null;
+
+    const merged: ContentBlock = {
+      ...current,
       ...updates,
       updatedAt: new Date().toISOString(),
-    };
-    this.save();
-    return this.db.content_blocks[idx];
+    } as ContentBlock;
+
+    if (!this.useSupabase || !this.supabaseClient) {
+      this.db.content_blocks = this.db.content_blocks.map((item) => (item.id === id ? merged : item));
+      this.saveLocalDB(this.db);
+      return merged;
+    }
+
+    try {
+      const { data, error } = await this.supabaseClient.from('content_blocks').update(this.toContentBlockRow(merged)).eq('id', id).select('*').maybeSingle();
+      if (error) throw error;
+      const saved = this.mapContentBlock(data);
+      this.db.content_blocks = this.db.content_blocks.map((item) => (item.id === id ? saved : item));
+      this.saveLocalDB(this.db);
+      return saved;
+    } catch (err) {
+      this.guardFallback(err);
+      console.warn('[DB] Unable to update content block in Supabase; using local storage.', err);
+      this.db.content_blocks = this.db.content_blocks.map((item) => (item.id === id ? merged : item));
+      this.saveLocalDB(this.db);
+      return merged;
+    }
   }
 
-  createContentBlock(block: Omit<ContentBlock, 'id' | 'updatedAt'>): ContentBlock {
+  async createContentBlock(block: Omit<ContentBlock, 'id' | 'updatedAt'>): Promise<ContentBlock> {
     const newBlock: ContentBlock = {
       ...block,
       id: `cb_${Date.now()}`,
       updatedAt: new Date().toISOString(),
     };
-    this.db.content_blocks.push(newBlock);
-    this.save();
-    return newBlock;
+
+    if (!this.useSupabase || !this.supabaseClient) {
+      this.db.content_blocks.push(newBlock);
+      this.saveLocalDB(this.db);
+      return newBlock;
+    }
+
+    try {
+      const { data, error } = await this.supabaseClient.from('content_blocks').insert([this.toContentBlockRow(newBlock)]).select('*').maybeSingle();
+      if (error) throw error;
+      const saved = this.mapContentBlock(data);
+      this.db.content_blocks.push(saved);
+      this.saveLocalDB(this.db);
+      return saved;
+    } catch (err) {
+      this.guardFallback(err);
+      console.warn('[DB] Unable to create content block in Supabase; using local storage.', err);
+      this.db.content_blocks.push(newBlock);
+      this.saveLocalDB(this.db);
+      return newBlock;
+    }
   }
 
-  // Portfolio
-  getPortfolio(): PortfolioItem[] {
-    return this.db.portfolio.sort((a, b) => a.order - b.order);
+  async getPortfolio(): Promise<PortfolioItem[]> {
+    if (!this.useSupabase || !this.supabaseClient) {
+      return this.db.portfolio.sort((a, b) => a.order - b.order);
+    }
+
+    try {
+      const { data, error } = await this.supabaseClient.from('portfolio').select('*').order('order', { ascending: true });
+      if (error) throw error;
+      const items = (data || []).map((row: any) => this.mapPortfolioItem(row));
+      this.db.portfolio = items as any;
+      this.saveLocalDB(this.db);
+      return items;
+    } catch (err) {
+      this.guardFallback(err);
+      console.warn('[DB] Unable to read portfolio from Supabase; using local storage.', err);
+      return this.db.portfolio.sort((a, b) => a.order - b.order);
+    }
   }
 
-  getPortfolioById(id: string): PortfolioItem | undefined {
-    return this.db.portfolio.find((p) => p.id === id);
+  async getPortfolioById(id: string): Promise<PortfolioItem | undefined> {
+    if (!this.useSupabase || !this.supabaseClient) {
+      return this.db.portfolio.find((item) => item.id === id);
+    }
+
+    try {
+      const { data, error } = await this.supabaseClient.from('portfolio').select('*').eq('id', id).maybeSingle();
+      if (error) throw error;
+      if (!data) return undefined;
+      return this.mapPortfolioItem(data);
+    } catch (err) {
+      this.guardFallback(err);
+      console.warn('[DB] Unable to read portfolio item from Supabase; using local storage.', err);
+      return this.db.portfolio.find((item) => item.id === id);
+    }
   }
 
-  createPortfolioItem(item: Omit<PortfolioItem, 'id'>): PortfolioItem {
-    const newItem: PortfolioItem = {
-      ...item,
-      id: `port_${Date.now()}`,
-    };
-    this.db.portfolio.push(newItem);
-    this.save();
-    return newItem;
+  async createPortfolioItem(item: Omit<PortfolioItem, 'id'>): Promise<PortfolioItem> {
+    const newItem: PortfolioItem = { ...item, id: `port_${Date.now()}` };
+    if (!this.useSupabase || !this.supabaseClient) {
+      this.db.portfolio.push(newItem);
+      this.saveLocalDB(this.db);
+      return newItem;
+    }
+
+    try {
+      const { data, error } = await this.supabaseClient.from('portfolio').insert([this.toPortfolioRow(newItem)]).select('*').maybeSingle();
+      if (error) throw error;
+      const saved = this.mapPortfolioItem(data);
+      this.db.portfolio.push(saved);
+      this.saveLocalDB(this.db);
+      return saved;
+    } catch (err) {
+      this.guardFallback(err);
+      console.warn('[DB] Unable to create portfolio item in Supabase; using local storage.', err);
+      this.db.portfolio.push(newItem);
+      this.saveLocalDB(this.db);
+      return newItem;
+    }
   }
 
-  updatePortfolioItem(id: string, updates: Partial<PortfolioItem>): PortfolioItem | null {
-    const idx = this.db.portfolio.findIndex((p) => p.id === id);
-    if (idx === -1) return null;
-    this.db.portfolio[idx] = { ...this.db.portfolio[idx], ...updates };
-    this.save();
-    return this.db.portfolio[idx];
+  async updatePortfolioItem(id: string, updates: Partial<PortfolioItem>): Promise<PortfolioItem | null> {
+    const current = this.db.portfolio.find((item) => item.id === id);
+    if (!current) return null;
+    const merged: PortfolioItem = { ...current, ...updates };
+
+    if (!this.useSupabase || !this.supabaseClient) {
+      this.db.portfolio = this.db.portfolio.map((item) => (item.id === id ? merged : item));
+      this.saveLocalDB(this.db);
+      return merged;
+    }
+
+    try {
+      const { data, error } = await this.supabaseClient.from('portfolio').update(this.toPortfolioRow(merged)).eq('id', id).select('*').maybeSingle();
+      if (error) throw error;
+      const saved = this.mapPortfolioItem(data);
+      this.db.portfolio = this.db.portfolio.map((item) => (item.id === id ? saved : item));
+      this.saveLocalDB(this.db);
+      return saved;
+    } catch (err) {
+      this.guardFallback(err);
+      console.warn('[DB] Unable to update portfolio item in Supabase; using local storage.', err);
+      this.db.portfolio = this.db.portfolio.map((item) => (item.id === id ? merged : item));
+      this.saveLocalDB(this.db);
+      return merged;
+    }
   }
 
-  deletePortfolioItem(id: string): boolean {
-    const initialLen = this.db.portfolio.length;
-    this.db.portfolio = this.db.portfolio.filter((p) => p.id !== id);
-    this.save();
-    return this.db.portfolio.length < initialLen;
+  async deletePortfolioItem(id: string): Promise<boolean> {
+    if (!this.useSupabase || !this.supabaseClient) {
+      const initialLen = this.db.portfolio.length;
+      this.db.portfolio = this.db.portfolio.filter((item) => item.id !== id);
+      this.saveLocalDB(this.db);
+      return this.db.portfolio.length < initialLen;
+    }
+
+    try {
+      const { error } = await this.supabaseClient.from('portfolio').delete().eq('id', id);
+      if (error) throw error;
+      const initialLen = this.db.portfolio.length;
+      this.db.portfolio = this.db.portfolio.filter((item) => item.id !== id);
+      this.saveLocalDB(this.db);
+      return this.db.portfolio.length < initialLen;
+    } catch (err) {
+      this.guardFallback(err);
+      console.warn('[DB] Unable to delete portfolio item in Supabase; using local storage.', err);
+      const initialLen = this.db.portfolio.length;
+      this.db.portfolio = this.db.portfolio.filter((item) => item.id !== id);
+      this.saveLocalDB(this.db);
+      return this.db.portfolio.length < initialLen;
+    }
   }
 
-  // Messages / Inquiries
-  getMessages(): Message[] {
-    return this.db.messages.sort(
-      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-    );
+  async getMessages(): Promise<Message[]> {
+    if (!this.useSupabase || !this.supabaseClient) {
+      return this.db.messages.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    }
+
+    try {
+      const { data, error } = await this.supabaseClient.from('messages').select('*').order('created_at', { ascending: false });
+      if (error) throw error;
+      const messages = (data || []).map((row: any) => this.mapMessage(row));
+      this.db.messages = messages as any;
+      this.saveLocalDB(this.db);
+      return messages;
+    } catch (err) {
+      this.guardFallback(err);
+      console.warn('[DB] Unable to read messages from Supabase; using local storage.', err);
+      return this.db.messages.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    }
   }
 
-  createMessage(msg: Omit<Message, 'id' | 'status' | 'createdAt'>): Message {
+  async createMessage(msg: Omit<Message, 'id' | 'status' | 'createdAt'>): Promise<Message> {
     const newMsg: Message = {
       ...msg,
       id: `msg_${Date.now()}`,
       status: 'new',
       createdAt: new Date().toISOString(),
     };
-    this.db.messages.push(newMsg);
-    this.save();
-    return newMsg;
-  }
 
-  updateMessageStatus(id: string, status: Message['status']): Message | null {
-    const msg = this.db.messages.find((m) => m.id === id);
-    if (!msg) return null;
-    msg.status = status;
-    this.save();
-    return msg;
-  }
-
-  // Projects
-  getProjects(clientId?: string): Project[] {
-    if (clientId) {
-      return this.db.projects.filter((p) => p.clientId === clientId);
+    if (!this.useSupabase || !this.supabaseClient) {
+      this.db.messages.push(newMsg);
+      this.saveLocalDB(this.db);
+      return newMsg;
     }
-    return this.db.projects.sort(
-      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-    );
-  }
 
-  getProjectById(id: string): Project | undefined {
-    return this.db.projects.find((p) => p.id === id);
-  }
-
-  createProject(proj: Omit<Project, 'id' | 'createdAt'>): Project {
-    const newProj: Project = {
-      ...proj,
-      id: `proj_${Date.now()}`,
-      createdAt: new Date().toISOString(),
-    };
-    this.db.projects.push(newProj);
-    this.save();
-    return newProj;
-  }
-
-  updateProject(id: string, updates: Partial<Project>): Project | null {
-    const idx = this.db.projects.findIndex((p) => p.id === id);
-    if (idx === -1) return null;
-    this.db.projects[idx] = { ...this.db.projects[idx], ...updates };
-    this.save();
-    return this.db.projects[idx];
-  }
-
-  // Revisions
-  getRevisions(projectId?: string, clientId?: string): Revision[] {
-    let list = this.db.revisions;
-    if (projectId) {
-      list = list.filter((r) => r.projectId === projectId);
+    try {
+      const { data, error } = await this.supabaseClient.from('messages').insert([this.toMessageRow(newMsg)]).select('*').maybeSingle();
+      if (error) throw error;
+      const saved = this.mapMessage(data);
+      this.db.messages.push(saved);
+      this.saveLocalDB(this.db);
+      return saved;
+    } catch (err) {
+      this.guardFallback(err);
+      console.warn('[DB] Unable to create message in Supabase; using local storage.', err);
+      this.db.messages.push(newMsg);
+      this.saveLocalDB(this.db);
+      return newMsg;
     }
-    if (clientId) {
-      list = list.filter((r) => r.clientId === clientId);
-    }
-    return list.sort(
-      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-    );
   }
 
-  createRevision(rev: Omit<Revision, 'id' | 'createdAt' | 'updatedAt' | 'status'>): Revision {
+  async updateMessageStatus(id: string, status: Message['status']): Promise<Message | null> {
+    const current = this.db.messages.find((item) => item.id === id);
+    if (!current) return null;
+    const merged = { ...current, status };
+
+    if (!this.useSupabase || !this.supabaseClient) {
+      this.db.messages = this.db.messages.map((item) => (item.id === id ? merged : item));
+      this.saveLocalDB(this.db);
+      return merged;
+    }
+
+    try {
+      const { data, error } = await this.supabaseClient.from('messages').update({ status }).eq('id', id).select('*').maybeSingle();
+      if (error) throw error;
+      const saved = this.mapMessage(data);
+      this.db.messages = this.db.messages.map((item) => (item.id === id ? saved : item));
+      this.saveLocalDB(this.db);
+      return saved;
+    } catch (err) {
+      this.guardFallback(err);
+      console.warn('[DB] Unable to update message status in Supabase; using local storage.', err);
+      this.db.messages = this.db.messages.map((item) => (item.id === id ? merged : item));
+      this.saveLocalDB(this.db);
+      return merged;
+    }
+  }
+
+  async getProjects(clientId?: string): Promise<Project[]> {
+    if (!this.useSupabase || !this.supabaseClient) {
+      const list = clientId ? this.db.projects.filter((item) => item.clientId === clientId) : this.db.projects;
+      return list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    }
+
+    try {
+      let query = this.supabaseClient.from('projects').select('*');
+      if (clientId) {
+        query = query.eq('client_id', clientId);
+      }
+      const { data, error } = await query.order('created_at', { ascending: false });
+      if (error) throw error;
+      const projects = (data || []).map((row: any) => this.mapProject(row));
+      this.db.projects = projects as any;
+      this.saveLocalDB(this.db);
+      return projects;
+    } catch (err) {
+      this.guardFallback(err);
+      console.warn('[DB] Unable to read projects from Supabase; using local storage.', err);
+      const list = clientId ? this.db.projects.filter((item) => item.clientId === clientId) : this.db.projects;
+      return list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    }
+  }
+
+  async getProjectById(id: string): Promise<Project | undefined> {
+    if (!this.useSupabase || !this.supabaseClient) {
+      return this.db.projects.find((item) => item.id === id);
+    }
+
+    try {
+      const { data, error } = await this.supabaseClient.from('projects').select('*').eq('id', id).maybeSingle();
+      if (error) throw error;
+      if (!data) return undefined;
+      return this.mapProject(data);
+    } catch (err) {
+      this.guardFallback(err);
+      console.warn('[DB] Unable to read project from Supabase; using local storage.', err);
+      return this.db.projects.find((item) => item.id === id);
+    }
+  }
+
+  async createProject(proj: Omit<Project, 'id' | 'createdAt'>): Promise<Project> {
+    const newProj: Project = { ...proj, id: `proj_${Date.now()}`, createdAt: new Date().toISOString() };
+    if (!this.useSupabase || !this.supabaseClient) {
+      this.db.projects.push(newProj);
+      this.saveLocalDB(this.db);
+      return newProj;
+    }
+
+    try {
+      const { data, error } = await this.supabaseClient.from('projects').insert([this.toProjectRow(newProj)]).select('*').maybeSingle();
+      if (error) throw error;
+      const saved = this.mapProject(data);
+      this.db.projects.push(saved);
+      this.saveLocalDB(this.db);
+      return saved;
+    } catch (err) {
+      this.guardFallback(err);
+      console.warn('[DB] Unable to create project in Supabase; using local storage.', err);
+      this.db.projects.push(newProj);
+      this.saveLocalDB(this.db);
+      return newProj;
+    }
+  }
+
+  async updateProject(id: string, updates: Partial<Project>): Promise<Project | null> {
+    const current = this.db.projects.find((item) => item.id === id);
+    if (!current) return null;
+    const merged = { ...current, ...updates };
+    if (!this.useSupabase || !this.supabaseClient) {
+      this.db.projects = this.db.projects.map((item) => (item.id === id ? merged : item));
+      this.saveLocalDB(this.db);
+      return merged;
+    }
+
+    try {
+      const { data, error } = await this.supabaseClient.from('projects').update(this.toProjectRow(merged as any)).eq('id', id).select('*').maybeSingle();
+      if (error) throw error;
+      const saved = this.mapProject(data);
+      this.db.projects = this.db.projects.map((item) => (item.id === id ? saved : item));
+      this.saveLocalDB(this.db);
+      return saved;
+    } catch (err) {
+      this.guardFallback(err);
+      console.warn('[DB] Unable to update project in Supabase; using local storage.', err);
+      this.db.projects = this.db.projects.map((item) => (item.id === id ? merged : item));
+      this.saveLocalDB(this.db);
+      return merged;
+    }
+  }
+
+  async getRevisions(projectId?: string, clientId?: string): Promise<Revision[]> {
+    if (!this.useSupabase || !this.supabaseClient) {
+      let list = this.db.revisions;
+      if (projectId) list = list.filter((item) => item.projectId === projectId);
+      if (clientId) list = list.filter((item) => item.clientId === clientId);
+      return list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    }
+
+    try {
+      let query = this.supabaseClient.from('revisions').select('*');
+      if (projectId) query = query.eq('project_id', projectId);
+      if (clientId) query = query.eq('client_id', clientId);
+      const { data, error } = await query.order('created_at', { ascending: false });
+      if (error) throw error;
+      const revisions = (data || []).map((row: any) => this.mapRevision(row));
+      this.db.revisions = revisions as any;
+      this.saveLocalDB(this.db);
+      return revisions;
+    } catch (err) {
+      this.guardFallback(err);
+      console.warn('[DB] Unable to read revisions from Supabase; using local storage.', err);
+      let list = this.db.revisions;
+      if (projectId) list = list.filter((item) => item.projectId === projectId);
+      if (clientId) list = list.filter((item) => item.clientId === clientId);
+      return list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    }
+  }
+
+  async createRevision(rev: Omit<Revision, 'id' | 'createdAt' | 'updatedAt' | 'status'>): Promise<Revision> {
     const newRev: Revision = {
       ...rev,
       id: `rev_${Date.now()}`,
@@ -955,90 +1532,196 @@ export class DBManager {
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
-    this.db.revisions.push(newRev);
-    this.save();
-    return newRev;
-  }
-
-  updateRevisionStatus(id: string, status: Revision['status']): Revision | null {
-    const rev = this.db.revisions.find((r) => r.id === id);
-    if (!rev) return null;
-    rev.status = status;
-    rev.updatedAt = new Date().toISOString();
-    this.save();
-    return rev;
-  }
-
-  // Invoices
-  getInvoices(clientId?: string): Invoice[] {
-    if (clientId) {
-      return this.db.invoices.filter((i) => i.clientId === clientId);
+    if (!this.useSupabase || !this.supabaseClient) {
+      this.db.revisions.push(newRev);
+      this.saveLocalDB(this.db);
+      return newRev;
     }
-    return this.db.invoices.sort(
-      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-    );
+
+    try {
+      const { data, error } = await this.supabaseClient.from('revisions').insert([this.toRevisionRow(newRev)]).select('*').maybeSingle();
+      if (error) throw error;
+      const saved = this.mapRevision(data);
+      this.db.revisions.push(saved);
+      this.saveLocalDB(this.db);
+      return saved;
+    } catch (err) {
+      this.guardFallback(err);
+      console.warn('[DB] Unable to create revision in Supabase; using local storage.', err);
+      this.db.revisions.push(newRev);
+      this.saveLocalDB(this.db);
+      return newRev;
+    }
   }
 
-  createInvoice(inv: Omit<Invoice, 'id' | 'createdAt'>): Invoice {
-    const newInv: Invoice = {
-      ...inv,
-      id: `inv_${Date.now()}`,
-      createdAt: new Date().toISOString(),
-    };
-    this.db.invoices.push(newInv);
-    this.save();
-    return newInv;
+  async updateRevisionStatus(id: string, status: Revision['status']): Promise<Revision | null> {
+    const current = this.db.revisions.find((item) => item.id === id);
+    if (!current) return null;
+    const merged = { ...current, status, updatedAt: new Date().toISOString() };
+    if (!this.useSupabase || !this.supabaseClient) {
+      this.db.revisions = this.db.revisions.map((item) => (item.id === id ? merged : item));
+      this.saveLocalDB(this.db);
+      return merged;
+    }
+
+    try {
+      const { data, error } = await this.supabaseClient.from('revisions').update({ status, updated_at: merged.updatedAt }).eq('id', id).select('*').maybeSingle();
+      if (error) throw error;
+      const saved = this.mapRevision(data);
+      this.db.revisions = this.db.revisions.map((item) => (item.id === id ? saved : item));
+      this.saveLocalDB(this.db);
+      return saved;
+    } catch (err) {
+      this.guardFallback(err);
+      console.warn('[DB] Unable to update revision status in Supabase; using local storage.', err);
+      this.db.revisions = this.db.revisions.map((item) => (item.id === id ? merged : item));
+      this.saveLocalDB(this.db);
+      return merged;
+    }
   }
 
-  updateInvoice(id: string, updates: Partial<Invoice>): Invoice | null {
-    const idx = this.db.invoices.findIndex((i) => i.id === id);
-    if (idx === -1) return null;
-    this.db.invoices[idx] = { ...this.db.invoices[idx], ...updates };
-    this.save();
-    return this.db.invoices[idx];
+  async getInvoices(clientId?: string): Promise<Invoice[]> {
+    if (!this.useSupabase || !this.supabaseClient) {
+      const list = clientId ? this.db.invoices.filter((item) => item.clientId === clientId) : this.db.invoices;
+      return list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    }
+
+    try {
+      let query = this.supabaseClient.from('invoices').select('*');
+      if (clientId) {
+        query = query.eq('client_id', clientId);
+      }
+      const { data, error } = await query.order('created_at', { ascending: false });
+      if (error) throw error;
+      const invoices = (data || []).map((row: any) => this.mapInvoice(row));
+      this.db.invoices = invoices as any;
+      this.saveLocalDB(this.db);
+      return invoices;
+    } catch (err) {
+      this.guardFallback(err);
+      console.warn('[DB] Unable to read invoices from Supabase; using local storage.', err);
+      const list = clientId ? this.db.invoices.filter((item) => item.clientId === clientId) : this.db.invoices;
+      return list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    }
   }
 
-  // Settings (baseline/addon pricing + homepage metrics shown to all visitors)
-  getSettings(): SiteSettings {
-    return this.db.settings;
+  async createInvoice(inv: Omit<Invoice, 'id' | 'createdAt'>): Promise<Invoice> {
+    const newInv: Invoice = { ...inv, id: `inv_${Date.now()}`, createdAt: new Date().toISOString() };
+    if (!this.useSupabase || !this.supabaseClient) {
+      this.db.invoices.push(newInv);
+      this.saveLocalDB(this.db);
+      return newInv;
+    }
+
+    try {
+      const { data, error } = await this.supabaseClient.from('invoices').insert([this.toInvoiceRow(newInv)]).select('*').maybeSingle();
+      if (error) throw error;
+      const saved = this.mapInvoice(data);
+      this.db.invoices.push(saved);
+      this.saveLocalDB(this.db);
+      return saved;
+    } catch (err) {
+      this.guardFallback(err);
+      console.warn('[DB] Unable to create invoice in Supabase; using local storage.', err);
+      this.db.invoices.push(newInv);
+      this.saveLocalDB(this.db);
+      return newInv;
+    }
   }
 
-  updateSettings(updates: Partial<Omit<SiteSettings, 'updatedAt'>>): SiteSettings {
-    this.db.settings = {
-      ...this.db.settings,
-      ...updates,
-      addonRates: { ...this.db.settings.addonRates, ...(updates.addonRates || {}) },
-      metrics: { ...this.db.settings.metrics, ...(updates.metrics || {}) },
-      updatedAt: new Date().toISOString(),
-    };
-    this.save();
-    return this.db.settings;
+  async updateInvoice(id: string, updates: Partial<Invoice>): Promise<Invoice | null> {
+    const current = this.db.invoices.find((item) => item.id === id);
+    if (!current) return null;
+    const merged = { ...current, ...updates };
+    if (!this.useSupabase || !this.supabaseClient) {
+      this.db.invoices = this.db.invoices.map((item) => (item.id === id ? merged : item));
+      this.saveLocalDB(this.db);
+      return merged;
+    }
+
+    try {
+      const { data, error } = await this.supabaseClient.from('invoices').update(this.toInvoiceRow(merged as any)).eq('id', id).select('*').maybeSingle();
+      if (error) throw error;
+      const saved = this.mapInvoice(data);
+      this.db.invoices = this.db.invoices.map((item) => (item.id === id ? saved : item));
+      this.saveLocalDB(this.db);
+      return saved;
+    } catch (err) {
+      this.guardFallback(err);
+      console.warn('[DB] Unable to update invoice in Supabase; using local storage.', err);
+      this.db.invoices = this.db.invoices.map((item) => (item.id === id ? merged : item));
+      this.saveLocalDB(this.db);
+      return merged;
+    }
   }
 
-  // Expenses
-  getExpenses(): Expense[] {
-    return this.db.expenses.sort(
-      (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
-    );
+  async getExpenses(): Promise<Expense[]> {
+    if (!this.useSupabase || !this.supabaseClient) {
+      return this.db.expenses.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    }
+
+    try {
+      const { data, error } = await this.supabaseClient.from('expenses').select('*').order('date', { ascending: false });
+      if (error) throw error;
+      const expenses = (data || []).map((row: any) => this.mapExpense(row));
+      this.db.expenses = expenses as any;
+      this.saveLocalDB(this.db);
+      return expenses;
+    } catch (err) {
+      this.guardFallback(err);
+      console.warn('[DB] Unable to read expenses from Supabase; using local storage.', err);
+      return this.db.expenses.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    }
   }
 
-  createExpense(exp: Omit<Expense, 'id' | 'createdAt'>): Expense {
-    const newExp: Expense = {
-      ...exp,
-      id: `exp_${Date.now()}`,
-      createdAt: new Date().toISOString(),
-    };
-    this.db.expenses.push(newExp);
-    this.save();
-    return newExp;
+  async createExpense(exp: Omit<Expense, 'id' | 'createdAt'>): Promise<Expense> {
+    const newExp: Expense = { ...exp, id: `exp_${Date.now()}`, createdAt: new Date().toISOString() };
+    if (!this.useSupabase || !this.supabaseClient) {
+      this.db.expenses.push(newExp);
+      this.saveLocalDB(this.db);
+      return newExp;
+    }
+
+    try {
+      const { data, error } = await this.supabaseClient.from('expenses').insert([this.toExpenseRow(newExp)]).select('*').maybeSingle();
+      if (error) throw error;
+      const saved = this.mapExpense(data);
+      this.db.expenses.push(saved);
+      this.saveLocalDB(this.db);
+      return saved;
+    } catch (err) {
+      this.guardFallback(err);
+      console.warn('[DB] Unable to create expense in Supabase; using local storage.', err);
+      this.db.expenses.push(newExp);
+      this.saveLocalDB(this.db);
+      return newExp;
+    }
   }
 
-  deleteExpense(id: string): boolean {
-    const init = this.db.expenses.length;
-    this.db.expenses = this.db.expenses.filter((e) => e.id !== id);
-    this.save();
-    return this.db.expenses.length < init;
+  async deleteExpense(id: string): Promise<boolean> {
+    if (!this.useSupabase || !this.supabaseClient) {
+      const initialLen = this.db.expenses.length;
+      this.db.expenses = this.db.expenses.filter((item) => item.id !== id);
+      this.saveLocalDB(this.db);
+      return this.db.expenses.length < initialLen;
+    }
+
+    try {
+      const { error } = await this.supabaseClient.from('expenses').delete().eq('id', id);
+      if (error) throw error;
+      const initialLen = this.db.expenses.length;
+      this.db.expenses = this.db.expenses.filter((item) => item.id !== id);
+      this.saveLocalDB(this.db);
+      return this.db.expenses.length < initialLen;
+    } catch (err) {
+      this.guardFallback(err);
+      console.warn('[DB] Unable to delete expense in Supabase; using local storage.', err);
+      const initialLen = this.db.expenses.length;
+      this.db.expenses = this.db.expenses.filter((item) => item.id !== id);
+      this.saveLocalDB(this.db);
+      return this.db.expenses.length < initialLen;
+    }
   }
 }
 
-export const dbManager = new DBManager();
+export const dbManager = new SupabaseDBManager();

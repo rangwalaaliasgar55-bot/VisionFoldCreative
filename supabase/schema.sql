@@ -1,3 +1,10 @@
+-- =============================================================================
+-- VisionFold Creative - Supabase Database Schema
+-- =============================================================================
+-- Run this SQL in your Supabase SQL Editor to create all required tables.
+-- =============================================================================
+
+-- Users (admin and clients)
 create table if not exists public.users (
   id text primary key,
   email text not null unique,
@@ -9,6 +16,7 @@ create table if not exists public.users (
   password_hash text
 );
 
+-- Content blocks for CMS
 create table if not exists public.content_blocks (
   id text primary key,
   page text not null,
@@ -20,6 +28,7 @@ create table if not exists public.content_blocks (
   updated_at text not null
 );
 
+-- Portfolio items
 create table if not exists public.portfolio (
   id text primary key,
   title text not null,
@@ -37,6 +46,7 @@ create table if not exists public.portfolio (
   featured boolean not null default false
 );
 
+-- Client inquiry messages
 create table if not exists public.messages (
   id text primary key,
   name text not null,
@@ -51,6 +61,7 @@ create table if not exists public.messages (
   created_at text not null
 );
 
+-- Projects
 create table if not exists public.projects (
   id text primary key,
   title text not null,
@@ -68,6 +79,7 @@ create table if not exists public.projects (
   created_at text not null
 );
 
+-- Project revisions
 create table if not exists public.revisions (
   id text primary key,
   project_id text not null,
@@ -79,6 +91,7 @@ create table if not exists public.revisions (
   updated_at text not null
 );
 
+-- Invoices
 create table if not exists public.invoices (
   id text primary key,
   invoice_number text not null,
@@ -93,6 +106,7 @@ create table if not exists public.invoices (
   created_at text not null
 );
 
+-- Studio expenses
 create table if not exists public.expenses (
   id text primary key,
   title text not null,
@@ -103,16 +117,14 @@ create table if not exists public.expenses (
   created_at text not null
 );
 
--- ---------------------------------------------------------------------------
--- Row Level Security
---
+-- =============================================================================
+-- Row Level Security (RLS)
+-- =============================================================================
 -- All application reads/writes go through the Express API (server.ts) using the
--- Supabase SERVICE ROLE key, which bypasses RLS by design. Enabling RLS with no
--- permissive policies below means the anon/public key (if it were ever used
--- directly from the browser) gets zero direct access to these tables — exactly
--- what we want, since the browser should only ever talk to /api/*, never to
--- Supabase directly.
--- ---------------------------------------------------------------------------
+-- Supabase SERVICE ROLE key, which bypasses RLS by design. We enable RLS on all
+-- tables but do NOT add permissive policies for the anon key — the browser should
+-- only ever talk to /api/*, never directly to Supabase.
+-- =============================================================================
 
 alter table public.users enable row level security;
 alter table public.content_blocks enable row level security;
@@ -123,11 +135,8 @@ alter table public.revisions enable row level security;
 alter table public.invoices enable row level security;
 alter table public.expenses enable row level security;
 
--- Exception: published content_blocks and portfolio items are meant to be public
--- marketing content. If you later add a client-side Supabase read path (bypassing
--- the Express API) for these two tables specifically, uncomment the policies below.
--- Until then, leave them commented out — the API already serves this data publicly
--- via GET /api/content and GET /api/portfolio, so no direct client access is needed.
+-- Optional: If you want public read access to portfolio content_blocks from the
+-- browser (bypassing the Express API), uncomment these policies:
 --
 -- create policy "Public can read visible content blocks"
 --   on public.content_blocks for select
@@ -137,21 +146,19 @@ alter table public.expenses enable row level security;
 --   on public.portfolio for select
 --   using (true);
 
--- ---------------------------------------------------------------------------
--- Storage bucket for uploaded files (see src/lib/storage.ts SupabaseStorageProvider)
--- Bucket name must match SUPABASE_STORAGE_BUCKET in your .env (defaults to
--- "visionfold-uploads"). public = true so getPublicUrl() works for portfolio
--- thumbnails without needing signed URLs. Switch to a private bucket + signed URLs
--- if you later store confidential client deliverables here.
--- ---------------------------------------------------------------------------
+-- =============================================================================
+-- Storage Bucket for File Uploads
+-- =============================================================================
+-- Bucket name must match SUPABASE_STORAGE_BUCKET env var (defaults to
+-- "visionfold-uploads"). Set public=true so getPublicUrl() works for portfolio
+-- thumbnails without needing signed URLs.
+-- =============================================================================
 
 insert into storage.buckets (id, name, public)
 values ('visionfold-uploads', 'visionfold-uploads', true)
 on conflict (id) do nothing;
 
--- The service role key already bypasses storage RLS, so the API's uploads work with
--- no further policies. This policy only matters if you want public read access to
--- the bucket's files via direct URLs (needed for getPublicUrl() to serve thumbnails).
+-- Allow public read access to the bucket for thumbnails
 create policy "Public can view visionfold-uploads files"
   on storage.objects for select
   using (bucket_id = 'visionfold-uploads');

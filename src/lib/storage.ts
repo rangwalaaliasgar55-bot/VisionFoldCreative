@@ -1,5 +1,6 @@
 import fs from 'fs';
 import path from 'path';
+import { getSupabaseClient, isSupabaseConfigured } from './supabase';
 
 export interface StorageProvider {
   upload(fileBuffer: Buffer, fileName: string, mimeType: string): Promise<string>;
@@ -16,14 +17,7 @@ export class LocalDiskStorageProvider implements StorageProvider {
   private baseUrl: string;
 
   constructor() {
-    // process.cwd() is read-only on Vercel outside of local dev/build; only
-    // /tmp is writable at runtime there, and it does not persist between
-    // invocations. This keeps uploads from crashing the function, but files
-    // saved this way will disappear — swap in S3StorageProvider/R2StorageProvider
-    // (stubs below) before relying on uploads in a serverless deployment.
-    this.uploadDir = process.env.VERCEL
-      ? path.join('/tmp', 'uploads')
-      : path.join(process.cwd(), 'public', 'uploads');
+    this.uploadDir = path.join(process.cwd(), 'public', 'uploads');
     this.baseUrl = '/uploads';
     if (!fs.existsSync(this.uploadDir)) {
       fs.mkdirSync(this.uploadDir, { recursive: true });
@@ -54,41 +48,98 @@ export class LocalDiskStorageProvider implements StorageProvider {
 }
 
 /**
- * TODO: AWS S3 Storage Provider
- * To switch to AWS S3:
- * 1. npm install @aws-sdk/client-s3
- * 2. Configure AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_REGION, S3_BUCKET
- * 3. Implement S3StorageProvider implementing StorageProvider interface
+ * SupabaseStorageProvider — stores uploaded files (portfolio thumbnails, delivered
+ * client files, etc.) in a Supabase Storage bucket instead of local disk. Local disk
+ * doesn't persist across deploys/instances on Vercel's serverless filesystem, so this
+ * is the provider that must be used in production.
+ *
+ * One-time setup required in the Supabase dashboard (or via SQL / CLI) before this
+ * works:
+ *   1. Storage -> New bucket -> name it to match SUPABASE_STORAGE_BUCKET below
+ *      (defaults to "visionfold-uploads"). Mark it Public if you want thumbnails to
+ *      be viewable without signed URLs (recommended for portfolio media); keep it
+ *      private and switch getUrl()/download flow to signed URLs if you need
+ *      client-delivered files to stay access-controlled.
+ *   2. Add storage policies allowing the service role to insert/select/delete objects
+ *      in that bucket (the service role key bypasses RLS by default, so this is
+ *      usually a no-op, but confirm in Storage -> Policies).
  */
-export class S3StorageProvider implements StorageProvider {
-  async upload(_fileBuffer: Buffer, _fileName: string, _mimeType: string): Promise<string> {
-    throw new Error('S3 Storage is not configured yet. Configure AWS environment variables.');
+export class SupabaseStorageProvider implements StorageProvider {
+  private bucket: string;
+
+  constructor(bucket: string = process.env.SUPABASE_STORAGE_BUCKET || 'visionfold-uploads') {
+    this.bucket = bucket;
   }
+
+  async upload(fileBuffer: Buffer, fileName: string, mimeType: string): Promise<string> {
+    const client = getSupabaseClient();
+    if (!client) {
+      throw new Error('Supabase is not configured; cannot upload file.');
+    }
+
+    const cleanName = fileName.replace(/[^a-zA-Z0-9.\-_/]/g, '_');
+    const key = `${Date.now()}_${cleanName}`;
+
+    const { error } = await client.storage.from(this.bucket).upload(key, fileBuffer, {
+      contentType: mimeType || 'application/octet-stream',
+      upsert: false,
+    });
+
+    if (error) {
+      throw new Error(`Supabase Storage upload failed: ${error.message}`);
+    }
+
+    return key;
+  }
+
   getUrl(key: string): string {
-    return `https://s3.amazonaws.com/your-bucket-name/${key}`;
+    if (key.startsWith('http://') || key.startsWith('https://') || key.startsWith('data:')) {
+      return key;
+    }
+
+    const client = getSupabaseClient();
+    if (!client) {
+      throw new Error('Supabase is not configured; cannot resolve file URL.');
+    }
+
+    const { data } = client.storage.from(this.bucket).getPublicUrl(key);
+    return data.publicUrl;
   }
-  async delete(_key: string): Promise<void> {
-    throw new Error('S3 Storage is not configured yet.');
+
+  async delete(key: string): Promise<void> {
+    const client = getSupabaseClient();
+    if (!client) {
+      throw new Error('Supabase is not configured; cannot delete file.');
+    }
+
+    const { error } = await client.storage.from(this.bucket).remove([key]);
+    if (error) {
+      throw new Error(`Supabase Storage delete failed: ${error.message}`);
+    }
   }
 }
 
-/**
- * TODO: Cloudflare R2 Storage Provider
- * To switch to R2:
- * 1. npm install @aws-sdk/client-s3 (R2 uses S3-compatible API)
- * 2. Configure CLOUDFLARE_R2_ENDPOINT, CLOUDFLARE_ACCESS_KEY_ID, CLOUDFLARE_SECRET_ACCESS_KEY
- */
-export class R2StorageProvider implements StorageProvider {
-  async upload(_fileBuffer: Buffer, _fileName: string, _mimeType: string): Promise<string> {
-    throw new Error('Cloudflare R2 is not configured yet.');
+// Default storage provider singleton — Supabase in production (and any environment
+// where Supabase is configured), local disk only as an explicit dev-without-Supabase
+// convenience. Mirrors the same rule enforced in db.ts.
+function createStorageProvider(): StorageProvider {
+  if (isSupabaseConfigured()) {
+    return new SupabaseStorageProvider();
   }
-  getUrl(key: string): string {
-    return `https://r2.yourdomain.com/${key}`;
+
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error(
+      '[Storage] SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY are not configured. ' +
+      'File uploads persist through Supabase Storage only in production; refusing to ' +
+      'start with the local-disk fallback active.'
+    );
   }
-  async delete(_key: string): Promise<void> {
-    throw new Error('Cloudflare R2 is not configured yet.');
-  }
+
+  console.warn(
+    '[Storage] Supabase is not configured — using local disk storage for this dev ' +
+    'session only. Uploaded files will not persist in production.'
+  );
+  return new LocalDiskStorageProvider();
 }
 
-// Default storage provider singleton
-export const storageProvider: StorageProvider = new LocalDiskStorageProvider();
+export const storageProvider: StorageProvider = createStorageProvider();

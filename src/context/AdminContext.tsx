@@ -17,6 +17,10 @@ interface AdminContextType {
   baselineRate: number;
   addonRates: AdminAddonRates;
   metrics: AdminMetrics;
+  isSaving: boolean;
+  setBaselineRate: (rate: number) => void;
+  setAddonRates: (rates: AdminAddonRates) => void;
+  setMetrics: (metrics: AdminMetrics) => void;
   /** Applies settings locally (optimistic UI) and caches them for instant
    * paint next visit. Does NOT write to the server — the caller (AdminModal)
    * is responsible for persisting via PUT /api/settings first, then calling
@@ -42,6 +46,10 @@ const AdminContext = createContext<AdminContextType>({
   baselineRate: 700,
   addonRates: defaultAddons,
   metrics: defaultMetrics,
+  isSaving: false,
+  setBaselineRate: () => {},
+  setAddonRates: () => {},
+  setMetrics: () => {},
   applySettings: () => {},
 });
 
@@ -51,6 +59,40 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [baselineRate, setBaselineRateState] = useState(700);
   const [addonRates, setAddonRatesState] = useState<AdminAddonRates>(defaultAddons);
   const [metrics, setMetricsState] = useState<AdminMetrics>(defaultMetrics);
+  const [isSaving, setIsSaving] = useState(false);
+
+  const setBaselineRate = useCallback((rate: number) => {
+    setBaselineRateState(rate);
+    try {
+      const cached = localStorage.getItem(CACHE_KEY);
+      const current = cached ? JSON.parse(cached) : { baselineRate: 700, addonRates: defaultAddons, metrics: defaultMetrics };
+      localStorage.setItem(CACHE_KEY, JSON.stringify({ ...current, baselineRate: rate }));
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  const setAddonRates = useCallback((rates: AdminAddonRates) => {
+    setAddonRatesState(rates);
+    try {
+      const cached = localStorage.getItem(CACHE_KEY);
+      const current = cached ? JSON.parse(cached) : { baselineRate: 700, addonRates: defaultAddons, metrics: defaultMetrics };
+      localStorage.setItem(CACHE_KEY, JSON.stringify({ ...current, addonRates: rates }));
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  const setMetrics = useCallback((newMetrics: AdminMetrics) => {
+    setMetricsState(newMetrics);
+    try {
+      const cached = localStorage.getItem(CACHE_KEY);
+      const current = cached ? JSON.parse(cached) : { baselineRate: 700, addonRates: defaultAddons, metrics: defaultMetrics };
+      localStorage.setItem(CACHE_KEY, JSON.stringify({ ...current, metrics: newMetrics }));
+    } catch {
+      // ignore
+    }
+  }, []);
 
   const applySettings = useCallback(
     (settings: { baselineRate: number; addonRates: AdminAddonRates; metrics: AdminMetrics }) => {
@@ -96,7 +138,7 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   }, [applySettings]);
 
   return (
-    <AdminContext.Provider value={{ baselineRate, addonRates, metrics, applySettings }}>
+    <AdminContext.Provider value={{ baselineRate, addonRates, metrics, isSaving, setBaselineRate, setAddonRates, setMetrics, applySettings }}>
       {children}
     </AdminContext.Provider>
   );
