@@ -32,7 +32,7 @@ export const ContentBlockSchema = z.object({
   page: z.enum(['home', 'about', 'services', 'portfolio', 'contact', 'global']),
   section_key: z.string().min(1),
   type: ContentBlockTypeSchema,
-  value: z.union([z.string(), z.array(z.string()), z.record(z.any())]),
+  value: z.union([z.string(), z.array(z.string()), z.record(z.string(), z.any())]),
   order: z.number().int().nonnegative(),
   visible: z.boolean(),
   updatedAt: z.string().datetime(),
