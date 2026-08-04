@@ -51,7 +51,14 @@ export const AdminApp: React.FC = () => {
 
   // Show login if not authenticated
   if (!isAuthenticated) {
-    return <AdminLogin onSuccess={clearError} />;
+    return (
+      <AdminLogin 
+        onSuccess={() => {
+          clearError();
+          // Auth state should auto-update via useAuth hook
+        }} 
+      />
+    );
   }
 
   const meta = VIEW_META[view];
