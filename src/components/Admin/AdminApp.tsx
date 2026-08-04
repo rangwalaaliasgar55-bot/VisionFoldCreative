@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { AdminLayout, AdminView } from './AdminLayout';
 import { AdminLogin } from './AdminLogin';
 import { Overview } from './views/Overview';
@@ -11,6 +11,8 @@ import { Expenses } from './views/Expenses';
 import { GrowthCopilot } from './views/GrowthCopilot';
 import { Settings } from './views/Settings';
 import { LoadingState } from './ui';
+import { useAuth } from '../../context/AuthContext';
+import { ErrorHandler } from '../../lib/errors';
 
 const VIEW_META: Record<AdminView, { title: string; subtitle?: string }> = {
   overview: { title: 'Studio Overview', subtitle: 'Revenue, leads, and project health at a glance' },
@@ -25,30 +27,21 @@ const VIEW_META: Record<AdminView, { title: string; subtitle?: string }> = {
 };
 
 export const AdminApp: React.FC = () => {
-  const [authChecked, setAuthChecked] = useState(false);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const { user, isLoading, logout, error, clearError } = useAuth();
   const [view, setView] = useState<AdminView>('overview');
 
-  useEffect(() => {
-    (async () => {
-      try {
-        const response = await fetch('/api/auth/me', { credentials: 'include' });
-        if (response.ok) {
-          const payload = await response.json();
-          setIsAuthenticated(payload?.user?.role === 'admin');
-        }
-      } finally {
-        setAuthChecked(true);
-      }
-    })();
-  }, []);
+  const isAuthenticated = useMemo(() => user?.role === 'admin', [user?.role]);
 
   const handleLogout = async () => {
-    await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
-    setIsAuthenticated(false);
+    try {
+      await logout();
+    } catch (err) {
+      ErrorHandler.log(err, 'AdminApp logout');
+    }
   };
 
-  if (!authChecked) {
+  // Show loading state while checking auth
+  if (isLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-[#0A0A0B]">
         <LoadingState />
@@ -56,14 +49,23 @@ export const AdminApp: React.FC = () => {
     );
   }
 
+  // Show login if not authenticated
   if (!isAuthenticated) {
-    return <AdminLogin onSuccess={() => setIsAuthenticated(true)} />;
+    return <AdminLogin onSuccess={clearError} />;
   }
 
   const meta = VIEW_META[view];
 
   return (
-    <AdminLayout activeView={view} onNavigate={setView} onLogout={() => void handleLogout()} title={meta.title} subtitle={meta.subtitle}>
+    <AdminLayout
+      activeView={view}
+      onNavigate={setView}
+      onLogout={() => void handleLogout()}
+      title={meta.title}
+      subtitle={meta.subtitle}
+      error={error}
+      onClearError={clearError}
+    >
       {view === 'overview' && <Overview />}
       {view === 'leads' && <Leads />}
       {view === 'clients' && <Clients />}

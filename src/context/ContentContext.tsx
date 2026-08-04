@@ -1,10 +1,12 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import type { ContentBlock, PortfolioItem } from '../types';
+import { ErrorHandler, AppError } from '../lib/errors';
+import type { ContentBlock, PortfolioItem } from '../lib/validation';
 
 interface ContentContextValue {
   isAdmin: boolean;
   isAuthenticated: boolean;
   editMode: boolean;
+  error: AppError | null;
   setEditMode: (enabled: boolean) => void;
   toggleEditMode: () => void;
   getValue: (page: string, sectionKey: string, fallback?: string) => string;
@@ -15,6 +17,7 @@ interface ContentContextValue {
   savePortfolioItem: (item: Omit<PortfolioItem, 'id'>) => Promise<void>;
   updatePortfolioItem: (id: string, updates: Partial<PortfolioItem>) => Promise<void>;
   deletePortfolioItem: (id: string) => Promise<void>;
+  clearError: () => void;
 }
 
 const ContentContext = createContext<ContentContextValue | undefined>(undefined);
@@ -25,6 +28,9 @@ export const ContentProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [editMode, setEditModeState] = useState(false);
+  const [error, setError] = useState<AppError | null>(null);
+
+  const clearError = useCallback(() => setError(null), []);
 
   const refreshAuth = useCallback(async () => {
     try {
@@ -40,12 +46,15 @@ export const ContentProvider: React.FC<{ children: React.ReactNode }> = ({ child
       setIsAuthenticated(true);
       setIsAdmin(role === 'admin');
       setEditModeState(false);
-    } catch {
+      clearError();
+    } catch (err) {
+      ErrorHandler.log(err, 'refreshAuth');
       setIsAuthenticated(false);
       setIsAdmin(false);
       setEditModeState(false);
+      setError(err instanceof AppError ? err : new AppError('Auth check failed', 'UNKNOWN_ERROR', 500));
     }
-  }, []);
+  }, [clearError]);
 
   const refreshContent = useCallback(async () => {
     try {
@@ -53,10 +62,12 @@ export const ContentProvider: React.FC<{ children: React.ReactNode }> = ({ child
       if (!response.ok) return;
       const payload = await response.json();
       setBlocks(Array.isArray(payload) ? payload : []);
-    } catch {
-      // Ignore content refresh failures and fall back to defaults.
+      clearError();
+    } catch (err) {
+      ErrorHandler.log(err, 'refreshContent');
+      // Fall back to defaults, don't show error to user for content loading
     }
-  }, []);
+  }, [clearError]);
 
   const refreshPortfolio = useCallback(async () => {
     try {
@@ -64,10 +75,12 @@ export const ContentProvider: React.FC<{ children: React.ReactNode }> = ({ child
       if (!response.ok) return;
       const payload = await response.json();
       setPortfolio(Array.isArray(payload) ? payload : []);
-    } catch {
-      // Ignore portfolio refresh failures.
+      clearError();
+    } catch (err) {
+      ErrorHandler.log(err, 'refreshPortfolio');
+      // Ignore portfolio refresh failures, fall back to defaults
     }
-  }, []);
+  }, [clearError]);
 
   useEffect(() => {
     void refreshAuth();
@@ -85,81 +98,113 @@ export const ContentProvider: React.FC<{ children: React.ReactNode }> = ({ child
   }, [blocks]);
 
   const saveValue = useCallback(async (page: string, sectionKey: string, value: string, type: ContentBlock['type'] = 'text') => {
-    const existing = blocks.find((block) => block.page === page && block.section_key === sectionKey);
-    const body = {
-      page,
-      section_key: sectionKey,
-      type,
-      value,
-      order: existing?.order ?? 1,
-      visible: existing?.visible ?? true,
-    };
+    try {
+      const existing = blocks.find((block) => block.page === page && block.section_key === sectionKey);
+      const body = {
+        page,
+        section_key: sectionKey,
+        type,
+        value,
+        order: existing?.order ?? 1,
+        visible: existing?.visible ?? true,
+      };
 
-    const response = existing
-      ? await fetch(`/api/content/${existing.id}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
-          body: JSON.stringify({ ...existing, ...body }),
-        })
-      : await fetch('/api/content', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
-          body: JSON.stringify(body),
-        });
+      const response = existing
+        ? await fetch(`/api/content/${existing.id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ ...existing, ...body }),
+          })
+        : await fetch('/api/content', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify(body),
+          });
 
-    if (!response.ok) {
-      throw new Error('Failed to save content block');
-    }
-
-    const saved = await response.json();
-    setBlocks((prev) => {
-      if (existing) {
-        return prev.map((block) => (block.id === existing.id ? saved : block));
+      if (!response.ok) {
+        throw new AppError('Failed to save content block', 'SERVER_ERROR', response.status);
       }
-      return [...prev, saved];
-    });
-  }, [blocks]);
+
+      const saved = await response.json();
+      setBlocks((prev) => {
+        if (existing) {
+          return prev.map((block) => (block.id === existing.id ? saved : block));
+        }
+        return [...prev, saved];
+      });
+      clearError();
+    } catch (err) {
+      ErrorHandler.log(err, 'saveValue');
+      const appError = err instanceof AppError ? err : new AppError('Failed to save content', 'UNKNOWN_ERROR', 500);
+      setError(appError);
+      throw appError;
+    }
+  }, [blocks, clearError]);
 
   const savePortfolioItem = useCallback(async (item: Omit<PortfolioItem, 'id'>) => {
-    const response = await fetch('/api/portfolio', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
-      body: JSON.stringify(item),
-    });
-    if (!response.ok) {
-      throw new Error('Failed to save portfolio item');
+    try {
+      const response = await fetch('/api/portfolio', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(item),
+      });
+      if (!response.ok) {
+        throw new AppError('Failed to save portfolio item', 'SERVER_ERROR', response.status);
+      }
+      const saved = await response.json();
+      setPortfolio((prev) => [...prev, saved]);
+      clearError();
+    } catch (err) {
+      ErrorHandler.log(err, 'savePortfolioItem');
+      const appError = err instanceof AppError ? err : new AppError('Failed to save portfolio', 'UNKNOWN_ERROR', 500);
+      setError(appError);
+      throw appError;
     }
-    const saved = await response.json();
-    setPortfolio((prev) => [...prev, saved]);
-  }, []);
+  }, [clearError]);
 
   const updatePortfolioItem = useCallback(async (id: string, updates: Partial<PortfolioItem>) => {
-    const response = await fetch(`/api/portfolio/${id}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
-      body: JSON.stringify(updates),
-    });
-    if (!response.ok) {
-      throw new Error('Failed to update portfolio item');
+    try {
+      const response = await fetch(`/api/portfolio/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(updates),
+      });
+      if (!response.ok) {
+        throw new AppError('Failed to update portfolio item', 'SERVER_ERROR', response.status);
+      }
+      const saved = await response.json();
+      setPortfolio((prev) => prev.map((item) => (item.id === id ? saved : item)));
+      clearError();
+    } catch (err) {
+      ErrorHandler.log(err, 'updatePortfolioItem');
+      const appError = err instanceof AppError ? err : new AppError('Failed to update portfolio', 'UNKNOWN_ERROR', 500);
+      setError(appError);
+      throw appError;
     }
-    const saved = await response.json();
-    setPortfolio((prev) => prev.map((item) => (item.id === id ? saved : item)));
-  }, []);
+  }, [clearError]);
 
   const deletePortfolioItem = useCallback(async (id: string) => {
-    const response = await fetch(`/api/portfolio/${id}`, {
-      method: 'DELETE',
-      credentials: 'include',
-    });
-    if (!response.ok) {
-      throw new Error('Failed to delete portfolio item');
+    try {
+      const response = await fetch(`/api/portfolio/${id}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+      if (!response.ok) {
+        throw new AppError('Failed to delete portfolio item', 'SERVER_ERROR', response.status);
+      }
+      setPortfolio((prev) => prev.filter((item) => item.id !== id));
+      clearError();
+    } catch (err) {
+      ErrorHandler.log(err, 'deletePortfolioItem');
+      const appError = err instanceof AppError ? err : new AppError('Failed to delete portfolio', 'UNKNOWN_ERROR', 500);
+      setError(appError);
+      throw appError;
     }
-    setPortfolio((prev) => prev.filter((item) => item.id !== id));
-  }, []);
+  }, [clearError]);
 
   const setEditMode = useCallback((enabled: boolean) => {
     if (!isAdmin) return;
@@ -175,6 +220,7 @@ export const ContentProvider: React.FC<{ children: React.ReactNode }> = ({ child
     isAdmin,
     isAuthenticated,
     editMode,
+    error,
     setEditMode,
     toggleEditMode,
     getValue,
@@ -185,7 +231,8 @@ export const ContentProvider: React.FC<{ children: React.ReactNode }> = ({ child
     savePortfolioItem,
     updatePortfolioItem,
     deletePortfolioItem,
-  }), [deletePortfolioItem, editMode, getValue, isAdmin, isAuthenticated, portfolio, refreshContent, refreshPortfolio, savePortfolioItem, saveValue, setEditMode, toggleEditMode, updatePortfolioItem]);
+    clearError,
+  }), [deletePortfolioItem, editMode, error, getValue, isAdmin, isAuthenticated, portfolio, refreshContent, refreshPortfolio, savePortfolioItem, saveValue, setEditMode, toggleEditMode, updatePortfolioItem, clearError]);
 
   return <ContentContext.Provider value={value}>{children}</ContentContext.Provider>;
 };
