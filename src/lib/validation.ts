@@ -94,7 +94,8 @@ export const MessageSchema = z.object({
   company: z.string().optional(),
   projectType: z.string().min(1),
   budgetRange: z.string().min(1),
-  deadline: z.string().datetime().optional(),
+  // Allow flexible date formats for deadline
+  deadline: FlexibleDateSchema.optional(),
   message: z.string().min(10),
   status: z.enum(['new', 'contacted', 'closed']),
   createdAt: z.string().datetime(),
@@ -110,6 +111,12 @@ export const UpdateMessageStatusSchema = z.object({
 
 // Project Validation
 export const ProjectStatusSchema = z.enum(['in_progress', 'in_review', 'delivered']);
+
+const FlexibleDateSchema = z.string().refine(
+  (val) => !isNaN(Date.parse(val)),
+  'Must be a valid date string (ISO 8601 or YYYY-MM-DD)'
+);
+
 export const ProjectSchema = z.object({
   id: z.string().min(1),
   title: z.string().min(1),
@@ -119,10 +126,18 @@ export const ProjectSchema = z.object({
   category: z.string().min(1),
   status: ProjectStatusSchema,
   description: z.string().min(1),
-  deliveredFiles: z.array(z.object({ name: z.string(), url: z.string().url() })).optional(),
+  // Allow empty URLs for flexibility
+  deliveredFiles: z
+    .array(
+      z.object({
+        name: z.string().min(1),
+        url: z.string().url().or(z.literal('')),
+      })
+    )
+    .optional(),
   resultsImpact: z.string().optional(),
-  startDate: z.string().datetime(),
-  deliveryDate: z.string().datetime().optional(),
+  startDate: FlexibleDateSchema,
+  deliveryDate: FlexibleDateSchema.optional(),
   amountINR: z.number().positive(),
   createdAt: z.string().datetime(),
 });
@@ -172,7 +187,7 @@ export const ExpenseSchema = z.object({
   title: z.string().min(1),
   category: z.enum(['Software/Tools', 'Subcontracting', 'Equipment', 'Marketing', 'Operations']),
   amountINR: z.number().positive(),
-  date: z.string().datetime(),
+  date: FlexibleDateSchema,
   description: z.string().optional(),
   createdAt: z.string().datetime(),
 });
