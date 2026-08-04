@@ -171,7 +171,7 @@ function requireAdmin(req: AuthenticatedRequest, res: Response, next: NextFuncti
   next();
 }
 
-async function startServer() {
+export async function createApp() {
   const app = express();
 
   // Security: Helmet for HTTP security headers
@@ -683,9 +683,16 @@ async function startServer() {
     });
   }
 
-  app.listen(PORT, '0.0.0.0', () => {
-    console.log(`Vision Fold Creative Server running on port ${PORT}`);
-  });
+  return app;
 }
 
-startServer();
+// Only bind a persistent port when NOT running as a Vercel serverless
+// function. On Vercel, api/index.ts imports createApp() and exports the
+// Express app directly as the request handler instead.
+if (!process.env.VERCEL) {
+  createApp().then((app) => {
+    app.listen(PORT, '0.0.0.0', () => {
+      console.log(`Vision Fold Creative Server running on port ${PORT}`);
+    });
+  });
+}
