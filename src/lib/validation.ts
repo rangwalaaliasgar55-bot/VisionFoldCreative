@@ -25,6 +25,12 @@ export const UpdateUserSchema = CreateUserSchema.partial().omit({ password: true
   password: z.string().min(8).optional(),
 });
 
+// Shared flexible date schema for various date formats
+const FlexibleDateSchema = z.string().refine(
+  (val) => !isNaN(Date.parse(val)),
+  'Must be a valid date string (ISO 8601 or YYYY-MM-DD)'
+);
+
 // Content Block Validation
 export const ContentBlockTypeSchema = z.enum(['text', 'richtext', 'image', 'list', 'price']);
 
@@ -111,11 +117,6 @@ export const UpdateMessageStatusSchema = z.object({
 
 // Project Validation
 export const ProjectStatusSchema = z.enum(['in_progress', 'in_review', 'delivered']);
-
-const FlexibleDateSchema = z.string().refine(
-  (val) => !isNaN(Date.parse(val)),
-  'Must be a valid date string (ISO 8601 or YYYY-MM-DD)'
-);
 
 export const ProjectSchema = z.object({
   id: z.string().min(1),
