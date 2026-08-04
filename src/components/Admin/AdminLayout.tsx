@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import {
   LayoutDashboard, Inbox, Users, FolderKanban, Image as ImageIcon,
-  Receipt, Wallet, Sparkles, Settings as SettingsIcon, LogOut, Menu, X,
+  Receipt, Wallet, Sparkles, Settings as SettingsIcon, LogOut, Menu, X, AlertCircle,
 } from 'lucide-react';
 import { VisionFoldLogo } from '../VisionFoldLogo';
+import { AppError } from '../../lib/errors';
 
 export type AdminView =
   | 'overview' | 'leads' | 'clients' | 'projects' | 'portfolio'
@@ -28,7 +29,9 @@ export const AdminLayout: React.FC<{
   title: string;
   subtitle?: string;
   children: React.ReactNode;
-}> = ({ activeView, onNavigate, onLogout, title, subtitle, children }) => {
+  error?: AppError | null;
+  onClearError?: () => void;
+}> = ({ activeView, onNavigate, onLogout, title, subtitle, children, error, onClearError }) => {
   const [mobileOpen, setMobileOpen] = useState(false);
 
   const NavList = (
@@ -112,7 +115,25 @@ export const AdminLayout: React.FC<{
           </div>
         </header>
 
-        <main className="flex-1 overflow-y-auto p-4 sm:p-8">{children}</main>
+        <main className="flex-1 overflow-y-auto p-4 sm:p-8">
+          {error && (
+            <div className="mb-6 flex items-start gap-3 rounded-lg border border-red-600/30 bg-red-600/10 p-4">
+              <AlertCircle className="h-5 w-5 flex-shrink-0 text-red-400 mt-0.5" />
+              <div className="flex-1">
+                <p className="text-sm font-medium text-red-300">{error.message}</p>
+              </div>
+              {onClearError && (
+                <button
+                  onClick={onClearError}
+                  className="text-red-400 hover:text-red-300 font-medium text-sm"
+                >
+                  Dismiss
+                </button>
+              )}
+            </div>
+          )}
+          {children}
+        </main>
       </div>
     </div>
   );
