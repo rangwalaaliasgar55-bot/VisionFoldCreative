@@ -35,7 +35,7 @@ export const AdminLayout: React.FC<{
   const [mobileOpen, setMobileOpen] = useState(false);
 
   const NavList = (
-    <nav className="flex-1 space-y-1 px-3 py-4">
+    <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-4">
       {NAV_ITEMS.map((item) => {
         const Icon = item.icon;
         const active = activeView === item.id;
@@ -43,11 +43,12 @@ export const AdminLayout: React.FC<{
           <button
             key={item.id}
             onClick={() => { onNavigate(item.id); setMobileOpen(false); }}
-            className={`flex w-full items-center gap-3 rounded-lg border-l-2 px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wider transition-colors ${
+            className={`flex w-full items-center gap-3 rounded-lg border-l-2 px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wider transition-colors focus:outline-none focus:ring-2 focus:ring-[#D4AF37]/50 ${
               active
                 ? 'border-[#D4AF37] bg-[#D4AF37]/10 text-[#D4AF37]'
                 : 'border-transparent text-[#888891] hover:bg-[#1a1a1d] hover:text-[#EDEDED]'
             }`}
+            aria-current={active ? 'page' : undefined}
           >
             <Icon className="h-4 w-4 shrink-0" />
             <span className="truncate">{item.label}</span>

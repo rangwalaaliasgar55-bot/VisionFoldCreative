@@ -13,10 +13,12 @@ export const Overview: React.FC = () => {
   const [projects, setProjects] = useState<Project[]>([]);
   const [clients, setClients] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     (async () => {
       try {
+        setError(null);
         const [m, i, p, c] = await Promise.all([
           adminApi.get<Message[]>('/api/messages'),
           adminApi.get<Invoice[]>('/api/invoices'),
@@ -27,8 +29,11 @@ export const Overview: React.FC = () => {
         setInvoices(i);
         setProjects(p);
         setClients(c);
-      } catch {
-        // Panels below simply show empty state if a call fails.
+      } catch (err) {
+        const errorMsg = err instanceof Error ? err.message : 'Failed to load overview data';
+        setError(errorMsg);
+        // Fallback to empty state for resilience
+        console.error('[v0] Overview data fetch failed:', errorMsg);
       } finally {
         setLoading(false);
       }
@@ -64,6 +69,21 @@ export const Overview: React.FC = () => {
   }, [projects]);
 
   if (loading) return <LoadingState />;
+
+  if (error) {
+    return (
+      <div className="rounded-lg border border-red-600/30 bg-red-600/10 p-6 text-center">
+        <h3 className="text-sm font-semibold text-red-300 mb-2">Failed to Load Overview</h3>
+        <p className="text-xs text-red-400 mb-4">{error}</p>
+        <button
+          onClick={() => window.location.reload()}
+          className="rounded px-4 py-2 bg-red-600/20 text-red-300 text-xs font-medium hover:bg-red-600/30 transition-colors"
+        >
+          Retry
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
