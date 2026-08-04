@@ -66,13 +66,18 @@ export const PortfolioItemSchema = z.object({
   clientName: z.string().optional(),
   hideClientName: z.boolean().optional(),
   category: z.enum(['Short Form', 'Brand Content', 'Long Form', 'Social Media', 'Documentary']),
-  thumbnailUrl: z.string().url(),
-  videoUrl: z.string().url().optional(),
+  // Allow both URLs and empty strings for flexibility with CDN uploads
+  thumbnailUrl: z.string().url().or(z.literal('')).optional(),
+  videoUrl: z.string().url().or(z.literal('')).optional(),
   teaser: z.string().min(10),
   fullDescription: z.string().min(20),
-  dateCreated: z.string().datetime(),
+  // Allow both ISO datetime and date-only strings (YYYY-MM-DD)
+  dateCreated: z.string().refine(
+    (val) => !isNaN(Date.parse(val)),
+    'Must be a valid date string (ISO 8601 or YYYY-MM-DD)'
+  ),
   toolsUsed: z.array(z.string()).min(1),
-  resultsImpact: z.string(),
+  resultsImpact: z.string().min(1),
   order: z.number().int().nonnegative(),
   featured: z.boolean(),
 });
