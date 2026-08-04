@@ -171,7 +171,7 @@ export const InvoiceSchema = z.object({
   clientId: z.string().min(1),
   clientName: z.string().min(1),
   amountINR: z.number().positive(),
-  dueDate: z.string().datetime(),
+  dueDate: FlexibleDateSchema,
   status: z.enum(['paid', 'unpaid', 'overdue']),
   description: z.string().min(1),
   paidAt: z.string().datetime().optional(),
