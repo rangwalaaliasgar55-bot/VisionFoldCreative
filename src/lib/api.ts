@@ -4,6 +4,7 @@ import { AppError, ErrorHandler, ValidationError, retryAsync, ErrorCode } from '
 export interface RequestConfig {
   method?: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH';
   headers?: Record<string, string>;
+  body?: any; // Will be JSON stringified
   timeout?: number;
   retry?: boolean;
   retryOptions?: {
@@ -80,11 +81,18 @@ export class ApiClient {
       const abortController = this.getAbortController(timeout);
 
       try {
-        const response = await fetch(url, {
+        const fetchOptions: RequestInit = {
           method,
           headers: mergedHeaders,
           signal: abortController.signal,
-        });
+        };
+
+        // Add body for POST, PUT, PATCH if provided
+        if ((method === 'POST' || method === 'PUT' || method === 'PATCH') && config.body) {
+          fetchOptions.body = JSON.stringify(config.body);
+        }
+
+        const response = await fetch(url, fetchOptions);
 
         if (!response.ok) {
           const errorData = await response.json().catch(() => ({}));
@@ -139,6 +147,7 @@ export class ApiClient {
     return this.request(endpoint, schema, {
       ...config,
       method: 'POST',
+      body: body ?? config?.body,
       headers: {
         ...config?.headers,
         'Content-Type': 'application/json',
@@ -155,6 +164,7 @@ export class ApiClient {
     return this.request(endpoint, schema, {
       ...config,
       method: 'PUT',
+      body: body ?? config?.body,
       headers: {
         ...config?.headers,
         'Content-Type': 'application/json',
@@ -175,6 +185,7 @@ export class ApiClient {
     return this.request(endpoint, schema, {
       ...config,
       method: 'PATCH',
+      body: body ?? config?.body,
       headers: {
         ...config?.headers,
         'Content-Type': 'application/json',
