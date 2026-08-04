@@ -147,7 +147,15 @@ function createStorageProvider(): StorageProvider {
     console.log('[STORAGE] Using Supabase Storage (production)');
     return new SupabaseStorageProvider();
   }
-  
+
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error(
+      '[STORAGE] SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY are not configured. ' +
+      'File uploads persist through Supabase Storage only in production; refusing to ' +
+      'start with the local-disk fallback active.'
+    );
+  }
+
   // Fall back to local disk for development only
   console.log('[STORAGE] Using Local Disk Storage (development only - files will be lost on Vercel!)');
   return new LocalDiskStorageProvider();

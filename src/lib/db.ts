@@ -685,285 +685,6 @@ function getDefaultDB(): Schema {
   };
 }
 
-export class DBManager {
-  private db: Schema;
-
-  constructor() {
-    if (!fs.existsSync(DATA_DIR)) {
-      fs.mkdirSync(DATA_DIR, { recursive: true });
-    }
-    if (fs.existsSync(DB_FILE)) {
-      try {
-        const fileData = fs.readFileSync(DB_FILE, 'utf-8');
-        this.db = JSON.parse(fileData);
-      } catch (err) {
-        console.error('Error reading db.json, re-initializing default DB:', err);
-        this.db = getDefaultDB();
-        this.save();
-      }
-    } else {
-      this.db = getDefaultDB();
-      this.save();
-    }
-  }
-
-  private save() {
-    try {
-      fs.writeFileSync(DB_FILE, JSON.stringify(this.db, null, 2), 'utf-8');
-    } catch (err) {
-      console.error('Failed to save DB:', err);
-    }
-  }
-
-  // Users
-  getUsers(): User[] {
-    return this.db.users.map(({ passwordHash, ...u }: any) => u);
-  }
-
-  findUserByEmail(email: string): (User & { passwordHash?: string }) | undefined {
-    return this.db.users.find((u) => u.email.toLowerCase() === email.toLowerCase());
-  }
-
-  findUserById(id: string): User | undefined {
-    const user = this.db.users.find((u) => u.id === id);
-    if (!user) return undefined;
-    const { passwordHash, ...safeUser } = user as any;
-    return safeUser;
-  }
-
-  createUser(user: User & { passwordHash: string }): User {
-    this.db.users.push(user);
-    this.save();
-    const { passwordHash, ...safeUser } = user;
-    return safeUser;
-  }
-
-  updateUserPassword(id: string, newHash: string) {
-    const u = this.db.users.find((x) => x.id === id);
-    if (u) {
-      (u as any).passwordHash = newHash;
-      this.save();
-    }
-  }
-
-  // Content Blocks
-  getContentBlocks(page?: string): ContentBlock[] {
-    if (page) {
-      return this.db.content_blocks
-        .filter((cb) => cb.page === page)
-        .sort((a, b) => a.order - b.order);
-    }
-    return this.db.content_blocks.sort((a, b) => a.order - b.order);
-  }
-
-  updateContentBlock(id: string, updates: Partial<ContentBlock>): ContentBlock | null {
-    const idx = this.db.content_blocks.findIndex((cb) => cb.id === id);
-    if (idx === -1) return null;
-    this.db.content_blocks[idx] = {
-      ...this.db.content_blocks[idx],
-      ...updates,
-      updatedAt: new Date().toISOString(),
-    };
-    this.save();
-    return this.db.content_blocks[idx];
-  }
-
-  createContentBlock(block: Omit<ContentBlock, 'id' | 'updatedAt'>): ContentBlock {
-    const newBlock: ContentBlock = {
-      ...block,
-      id: `cb_${Date.now()}`,
-      updatedAt: new Date().toISOString(),
-    };
-    this.db.content_blocks.push(newBlock);
-    this.save();
-    return newBlock;
-  }
-
-  // Portfolio
-  getPortfolio(): PortfolioItem[] {
-    return this.db.portfolio.sort((a, b) => a.order - b.order);
-  }
-
-  getPortfolioById(id: string): PortfolioItem | undefined {
-    return this.db.portfolio.find((p) => p.id === id);
-  }
-
-  createPortfolioItem(item: Omit<PortfolioItem, 'id'>): PortfolioItem {
-    const newItem: PortfolioItem = {
-      ...item,
-      id: `port_${Date.now()}`,
-    };
-    this.db.portfolio.push(newItem);
-    this.save();
-    return newItem;
-  }
-
-  updatePortfolioItem(id: string, updates: Partial<PortfolioItem>): PortfolioItem | null {
-    const idx = this.db.portfolio.findIndex((p) => p.id === id);
-    if (idx === -1) return null;
-    this.db.portfolio[idx] = { ...this.db.portfolio[idx], ...updates };
-    this.save();
-    return this.db.portfolio[idx];
-  }
-
-  deletePortfolioItem(id: string): boolean {
-    const initialLen = this.db.portfolio.length;
-    this.db.portfolio = this.db.portfolio.filter((p) => p.id !== id);
-    this.save();
-    return this.db.portfolio.length < initialLen;
-  }
-
-  // Messages / Inquiries
-  getMessages(): Message[] {
-    return this.db.messages.sort(
-      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-    );
-  }
-
-  createMessage(msg: Omit<Message, 'id' | 'status' | 'createdAt'>): Message {
-    const newMsg: Message = {
-      ...msg,
-      id: `msg_${Date.now()}`,
-      status: 'new',
-      createdAt: new Date().toISOString(),
-    };
-    this.db.messages.push(newMsg);
-    this.save();
-    return newMsg;
-  }
-
-  updateMessageStatus(id: string, status: Message['status']): Message | null {
-    const msg = this.db.messages.find((m) => m.id === id);
-    if (!msg) return null;
-    msg.status = status;
-    this.save();
-    return msg;
-  }
-
-  // Projects
-  getProjects(clientId?: string): Project[] {
-    if (clientId) {
-      return this.db.projects.filter((p) => p.clientId === clientId);
-    }
-    return this.db.projects.sort(
-      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-    );
-  }
-
-  getProjectById(id: string): Project | undefined {
-    return this.db.projects.find((p) => p.id === id);
-  }
-
-  createProject(proj: Omit<Project, 'id' | 'createdAt'>): Project {
-    const newProj: Project = {
-      ...proj,
-      id: `proj_${Date.now()}`,
-      createdAt: new Date().toISOString(),
-    };
-    this.db.projects.push(newProj);
-    this.save();
-    return newProj;
-  }
-
-  updateProject(id: string, updates: Partial<Project>): Project | null {
-    const idx = this.db.projects.findIndex((p) => p.id === id);
-    if (idx === -1) return null;
-    this.db.projects[idx] = { ...this.db.projects[idx], ...updates };
-    this.save();
-    return this.db.projects[idx];
-  }
-
-  // Revisions
-  getRevisions(projectId?: string, clientId?: string): Revision[] {
-    let list = this.db.revisions;
-    if (projectId) {
-      list = list.filter((r) => r.projectId === projectId);
-    }
-    if (clientId) {
-      list = list.filter((r) => r.clientId === clientId);
-    }
-    return list.sort(
-      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-    );
-  }
-
-  createRevision(rev: Omit<Revision, 'id' | 'createdAt' | 'updatedAt' | 'status'>): Revision {
-    const newRev: Revision = {
-      ...rev,
-      id: `rev_${Date.now()}`,
-      status: 'pending',
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
-    this.db.revisions.push(newRev);
-    this.save();
-    return newRev;
-  }
-
-  updateRevisionStatus(id: string, status: Revision['status']): Revision | null {
-    const rev = this.db.revisions.find((r) => r.id === id);
-    if (!rev) return null;
-    rev.status = status;
-    rev.updatedAt = new Date().toISOString();
-    this.save();
-    return rev;
-  }
-
-  // Invoices
-  getInvoices(clientId?: string): Invoice[] {
-    if (clientId) {
-      return this.db.invoices.filter((i) => i.clientId === clientId);
-    }
-    return this.db.invoices.sort(
-      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-    );
-  }
-
-  createInvoice(inv: Omit<Invoice, 'id' | 'createdAt'>): Invoice {
-    const newInv: Invoice = {
-      ...inv,
-      id: `inv_${Date.now()}`,
-      createdAt: new Date().toISOString(),
-    };
-    this.db.invoices.push(newInv);
-    this.save();
-    return newInv;
-  }
-
-  updateInvoice(id: string, updates: Partial<Invoice>): Invoice | null {
-    const idx = this.db.invoices.findIndex((i) => i.id === id);
-    if (idx === -1) return null;
-    this.db.invoices[idx] = { ...this.db.invoices[idx], ...updates };
-    this.save();
-    return this.db.invoices[idx];
-  }
-
-  // Expenses
-  getExpenses(): Expense[] {
-    return this.db.expenses.sort(
-      (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
-    );
-  }
-
-  createExpense(exp: Omit<Expense, 'id' | 'createdAt'>): Expense {
-    const newExp: Expense = {
-      ...exp,
-      id: `exp_${Date.now()}`,
-      createdAt: new Date().toISOString(),
-    };
-    this.db.expenses.push(newExp);
-    this.save();
-    return newExp;
-  }
-
-  deleteExpense(id: string): boolean {
-    const init = this.db.expenses.length;
-    this.db.expenses = this.db.expenses.filter((e) => e.id !== id);
-    this.save();
-    return this.db.expenses.length < init;
-  }
-}
-
 export class SupabaseDBManager {
   private db: Schema;
   private readonly supabaseClient = getSupabaseClient();
@@ -976,6 +697,27 @@ export class SupabaseDBManager {
 
     this.db = this.loadLocalDB();
     this.useSupabase = isSupabaseConfigured() && Boolean(this.supabaseClient);
+
+    if (process.env.NODE_ENV === 'production' && !this.useSupabase) {
+      throw new Error(
+        '[DB] SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY are not configured. ' +
+        'This app persists data through Supabase only in production; refusing to start ' +
+        'with the local-JSON fallback active.'
+      );
+    }
+
+    if (!this.useSupabase) {
+      console.warn(
+        '[DB] Supabase is not configured — using local data/db.json for this dev session only. ' +
+        'This file is NOT used in production and will not reflect real data.'
+      );
+    }
+  }
+
+  private guardFallback(err: unknown): void {
+    if (process.env.NODE_ENV === 'production') {
+      throw err instanceof Error ? err : new Error(String(err));
+    }
   }
 
   private loadLocalDB(): Schema {
@@ -1262,6 +1004,7 @@ export class SupabaseDBManager {
         return safeUser;
       });
     } catch (err) {
+      this.guardFallback(err);
       console.warn('[DB] Unable to read users from Supabase; using local storage.', err);
       return this.db.users.map((user: any) => {
         const { passwordHash: _passwordHash, ...safeUser } = user;
@@ -1289,6 +1032,7 @@ export class SupabaseDBManager {
       }
       return user;
     } catch (err) {
+      this.guardFallback(err);
       console.warn('[DB] Unable to query user by email via Supabase; using local storage.', err);
       return this.db.users.find((u) => u.email.toLowerCase() === email.toLowerCase());
     }
@@ -1310,6 +1054,7 @@ export class SupabaseDBManager {
       const { passwordHash, ...safeUser } = user;
       return safeUser;
     } catch (err) {
+      this.guardFallback(err);
       console.warn('[DB] Unable to fetch user by id via Supabase; using local storage.', err);
       const user = this.db.users.find((u) => u.id === id);
       if (!user) return undefined;
@@ -1336,6 +1081,7 @@ export class SupabaseDBManager {
       const { passwordHash, ...safeUser } = savedUser;
       return safeUser;
     } catch (err) {
+      this.guardFallback(err);
       console.warn('[DB] Unable to persist user to Supabase; using local storage.', err);
       this.db.users.push(user as any);
       this.saveLocalDB(this.db);
@@ -1363,6 +1109,7 @@ export class SupabaseDBManager {
         this.saveLocalDB(this.db);
       }
     } catch (err) {
+      this.guardFallback(err);
       console.warn('[DB] Unable to update password in Supabase; using local storage.', err);
       const user = this.db.users.find((item) => item.id === id);
       if (user) {
@@ -1392,6 +1139,7 @@ export class SupabaseDBManager {
       this.saveLocalDB(this.db);
       return blocks;
     } catch (err) {
+      this.guardFallback(err);
       console.warn('[DB] Unable to read content blocks from Supabase; using local storage.', err);
       const list = page
         ? this.db.content_blocks.filter((item) => item.page === page)
@@ -1424,6 +1172,7 @@ export class SupabaseDBManager {
       this.saveLocalDB(this.db);
       return saved;
     } catch (err) {
+      this.guardFallback(err);
       console.warn('[DB] Unable to update content block in Supabase; using local storage.', err);
       this.db.content_blocks = this.db.content_blocks.map((item) => (item.id === id ? merged : item));
       this.saveLocalDB(this.db);
@@ -1452,6 +1201,7 @@ export class SupabaseDBManager {
       this.saveLocalDB(this.db);
       return saved;
     } catch (err) {
+      this.guardFallback(err);
       console.warn('[DB] Unable to create content block in Supabase; using local storage.', err);
       this.db.content_blocks.push(newBlock);
       this.saveLocalDB(this.db);
@@ -1472,6 +1222,7 @@ export class SupabaseDBManager {
       this.saveLocalDB(this.db);
       return items;
     } catch (err) {
+      this.guardFallback(err);
       console.warn('[DB] Unable to read portfolio from Supabase; using local storage.', err);
       return this.db.portfolio.sort((a, b) => a.order - b.order);
     }
@@ -1488,6 +1239,7 @@ export class SupabaseDBManager {
       if (!data) return undefined;
       return this.mapPortfolioItem(data);
     } catch (err) {
+      this.guardFallback(err);
       console.warn('[DB] Unable to read portfolio item from Supabase; using local storage.', err);
       return this.db.portfolio.find((item) => item.id === id);
     }
@@ -1509,6 +1261,7 @@ export class SupabaseDBManager {
       this.saveLocalDB(this.db);
       return saved;
     } catch (err) {
+      this.guardFallback(err);
       console.warn('[DB] Unable to create portfolio item in Supabase; using local storage.', err);
       this.db.portfolio.push(newItem);
       this.saveLocalDB(this.db);
@@ -1535,6 +1288,7 @@ export class SupabaseDBManager {
       this.saveLocalDB(this.db);
       return saved;
     } catch (err) {
+      this.guardFallback(err);
       console.warn('[DB] Unable to update portfolio item in Supabase; using local storage.', err);
       this.db.portfolio = this.db.portfolio.map((item) => (item.id === id ? merged : item));
       this.saveLocalDB(this.db);
@@ -1558,6 +1312,7 @@ export class SupabaseDBManager {
       this.saveLocalDB(this.db);
       return this.db.portfolio.length < initialLen;
     } catch (err) {
+      this.guardFallback(err);
       console.warn('[DB] Unable to delete portfolio item in Supabase; using local storage.', err);
       const initialLen = this.db.portfolio.length;
       this.db.portfolio = this.db.portfolio.filter((item) => item.id !== id);
@@ -1579,6 +1334,7 @@ export class SupabaseDBManager {
       this.saveLocalDB(this.db);
       return messages;
     } catch (err) {
+      this.guardFallback(err);
       console.warn('[DB] Unable to read messages from Supabase; using local storage.', err);
       return this.db.messages.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
     }
@@ -1606,6 +1362,7 @@ export class SupabaseDBManager {
       this.saveLocalDB(this.db);
       return saved;
     } catch (err) {
+      this.guardFallback(err);
       console.warn('[DB] Unable to create message in Supabase; using local storage.', err);
       this.db.messages.push(newMsg);
       this.saveLocalDB(this.db);
@@ -1632,6 +1389,7 @@ export class SupabaseDBManager {
       this.saveLocalDB(this.db);
       return saved;
     } catch (err) {
+      this.guardFallback(err);
       console.warn('[DB] Unable to update message status in Supabase; using local storage.', err);
       this.db.messages = this.db.messages.map((item) => (item.id === id ? merged : item));
       this.saveLocalDB(this.db);
@@ -1657,6 +1415,7 @@ export class SupabaseDBManager {
       this.saveLocalDB(this.db);
       return projects;
     } catch (err) {
+      this.guardFallback(err);
       console.warn('[DB] Unable to read projects from Supabase; using local storage.', err);
       const list = clientId ? this.db.projects.filter((item) => item.clientId === clientId) : this.db.projects;
       return list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
@@ -1674,6 +1433,7 @@ export class SupabaseDBManager {
       if (!data) return undefined;
       return this.mapProject(data);
     } catch (err) {
+      this.guardFallback(err);
       console.warn('[DB] Unable to read project from Supabase; using local storage.', err);
       return this.db.projects.find((item) => item.id === id);
     }
@@ -1695,6 +1455,7 @@ export class SupabaseDBManager {
       this.saveLocalDB(this.db);
       return saved;
     } catch (err) {
+      this.guardFallback(err);
       console.warn('[DB] Unable to create project in Supabase; using local storage.', err);
       this.db.projects.push(newProj);
       this.saveLocalDB(this.db);
@@ -1720,6 +1481,7 @@ export class SupabaseDBManager {
       this.saveLocalDB(this.db);
       return saved;
     } catch (err) {
+      this.guardFallback(err);
       console.warn('[DB] Unable to update project in Supabase; using local storage.', err);
       this.db.projects = this.db.projects.map((item) => (item.id === id ? merged : item));
       this.saveLocalDB(this.db);
@@ -1746,6 +1508,7 @@ export class SupabaseDBManager {
       this.saveLocalDB(this.db);
       return revisions;
     } catch (err) {
+      this.guardFallback(err);
       console.warn('[DB] Unable to read revisions from Supabase; using local storage.', err);
       let list = this.db.revisions;
       if (projectId) list = list.filter((item) => item.projectId === projectId);
@@ -1776,6 +1539,7 @@ export class SupabaseDBManager {
       this.saveLocalDB(this.db);
       return saved;
     } catch (err) {
+      this.guardFallback(err);
       console.warn('[DB] Unable to create revision in Supabase; using local storage.', err);
       this.db.revisions.push(newRev);
       this.saveLocalDB(this.db);
@@ -1801,6 +1565,7 @@ export class SupabaseDBManager {
       this.saveLocalDB(this.db);
       return saved;
     } catch (err) {
+      this.guardFallback(err);
       console.warn('[DB] Unable to update revision status in Supabase; using local storage.', err);
       this.db.revisions = this.db.revisions.map((item) => (item.id === id ? merged : item));
       this.saveLocalDB(this.db);
@@ -1826,6 +1591,7 @@ export class SupabaseDBManager {
       this.saveLocalDB(this.db);
       return invoices;
     } catch (err) {
+      this.guardFallback(err);
       console.warn('[DB] Unable to read invoices from Supabase; using local storage.', err);
       const list = clientId ? this.db.invoices.filter((item) => item.clientId === clientId) : this.db.invoices;
       return list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
@@ -1848,6 +1614,7 @@ export class SupabaseDBManager {
       this.saveLocalDB(this.db);
       return saved;
     } catch (err) {
+      this.guardFallback(err);
       console.warn('[DB] Unable to create invoice in Supabase; using local storage.', err);
       this.db.invoices.push(newInv);
       this.saveLocalDB(this.db);
@@ -1873,6 +1640,7 @@ export class SupabaseDBManager {
       this.saveLocalDB(this.db);
       return saved;
     } catch (err) {
+      this.guardFallback(err);
       console.warn('[DB] Unable to update invoice in Supabase; using local storage.', err);
       this.db.invoices = this.db.invoices.map((item) => (item.id === id ? merged : item));
       this.saveLocalDB(this.db);
@@ -1893,6 +1661,7 @@ export class SupabaseDBManager {
       this.saveLocalDB(this.db);
       return expenses;
     } catch (err) {
+      this.guardFallback(err);
       console.warn('[DB] Unable to read expenses from Supabase; using local storage.', err);
       return this.db.expenses.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
     }
@@ -1914,6 +1683,7 @@ export class SupabaseDBManager {
       this.saveLocalDB(this.db);
       return saved;
     } catch (err) {
+      this.guardFallback(err);
       console.warn('[DB] Unable to create expense in Supabase; using local storage.', err);
       this.db.expenses.push(newExp);
       this.saveLocalDB(this.db);
@@ -1937,6 +1707,7 @@ export class SupabaseDBManager {
       this.saveLocalDB(this.db);
       return this.db.expenses.length < initialLen;
     } catch (err) {
+      this.guardFallback(err);
       console.warn('[DB] Unable to delete expense in Supabase; using local storage.', err);
       const initialLen = this.db.expenses.length;
       this.db.expenses = this.db.expenses.filter((item) => item.id !== id);

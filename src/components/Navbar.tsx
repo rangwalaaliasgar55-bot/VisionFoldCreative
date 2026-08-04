@@ -1,4 +1,5 @@
 import React from 'react';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { VisionFoldLogo } from './VisionFoldLogo';
 import { useSfx } from '../context/SfxContext';
 import { Volume2, VolumeX, Mail, MessageCircle } from 'lucide-react';
@@ -10,22 +11,39 @@ interface NavbarProps {
 
 export const Navbar: React.FC<NavbarProps> = ({ currentPage, onNavigate }) => {
   const { sfxEnabled, toggleSfx, playHover, playClick } = useSfx();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const isHome = location.pathname === '/';
+
+  // On the homepage these scroll to the in-page section (matches original design).
+  // On any other page, navigate to the dedicated route instead, since the section
+  // ids only exist on the homepage.
+  const goToSection = (sectionId: string, pagePath: string) => {
+    playClick();
+    if (isHome) {
+      document.getElementById(sectionId)?.scrollIntoView({ behavior: 'smooth' });
+    } else {
+      navigate(pagePath);
+    }
+  };
 
   return (
     <nav className="sticky top-0 z-50 bg-[#0A0A0B]/90 backdrop-blur-md border-b border-[#222226]">
       <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
-        <div className="flex items-center gap-2 cursor-pointer interactive-hover" onClick={() => { playClick(); window.scrollTo({ top: 0, behavior: 'smooth' }); }} onMouseEnter={playHover}>
+        <Link to="/" className="flex items-center gap-2 cursor-pointer interactive-hover" onClick={() => { playClick(); window.scrollTo({ top: 0, behavior: 'smooth' }); }} onMouseEnter={playHover}>
           <VisionFoldLogo size="sm" variant="icon-only" color="white" />
           <span className="font-bold text-sm tracking-widest uppercase text-[#EDEDED]">Studio</span>
-        </div>
+        </Link>
 
         <div className="flex items-center gap-8">
           <div className="hidden lg:flex items-center gap-6 text-[10px] font-bold uppercase tracking-[0.15em]">
-            <button onClick={() => { playClick(); document.getElementById('work')?.scrollIntoView({ behavior: 'smooth' }); }} onMouseEnter={playHover} className="text-[#888891] hover:text-[#D4AF37] transition-colors interactive-hover">Work</button>
-            <button onClick={() => { playClick(); document.getElementById('transform')?.scrollIntoView({ behavior: 'smooth' }); }} onMouseEnter={playHover} className="text-[#888891] hover:text-[#D4AF37] transition-colors interactive-hover">Transform</button>
-            <button onClick={() => { playClick(); document.getElementById('services')?.scrollIntoView({ behavior: 'smooth' }); }} onMouseEnter={playHover} className="text-[#888891] hover:text-[#D4AF37] transition-colors interactive-hover">Services</button>
-            <button onClick={() => { playClick(); document.getElementById('process')?.scrollIntoView({ behavior: 'smooth' }); }} onMouseEnter={playHover} className="text-[#888891] hover:text-[#D4AF37] transition-colors interactive-hover">Process</button>
-            <button onClick={() => { playClick(); document.getElementById('estimator')?.scrollIntoView({ behavior: 'smooth' }); }} onMouseEnter={playHover} className="text-[#888891] hover:text-[#D4AF37] transition-colors interactive-hover">Pricing</button>
+            <Link to="/work" onClick={playClick} onMouseEnter={playHover} className="text-[#888891] hover:text-[#D4AF37] transition-colors interactive-hover">Work</Link>
+            <button onClick={() => goToSection('transform', '/')} onMouseEnter={playHover} className="text-[#888891] hover:text-[#D4AF37] transition-colors interactive-hover">Transform</button>
+            <Link to="/services" onClick={playClick} onMouseEnter={playHover} className="text-[#888891] hover:text-[#D4AF37] transition-colors interactive-hover">Services</Link>
+            <button onClick={() => goToSection('process', '/')} onMouseEnter={playHover} className="text-[#888891] hover:text-[#D4AF37] transition-colors interactive-hover">Process</button>
+            <Link to="/contact" onClick={playClick} onMouseEnter={playHover} className="text-[#888891] hover:text-[#D4AF37] transition-colors interactive-hover">Contact</Link>
+
+            <button onClick={() => goToSection('estimator', '/')} onMouseEnter={playHover} className="text-[#888891] hover:text-[#D4AF37] transition-colors interactive-hover">Pricing</button>
           </div>
 
           <div className="flex items-center gap-4 lg:border-l lg:border-[#222226] lg:pl-6">

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, useLocation, useNavigate } from 'react-router-dom';
 import { Navbar } from './components/Navbar';
 import { Footer } from './components/Footer';
 import { HomePage } from './components/PublicPages/HomePage';
@@ -96,25 +96,21 @@ const MainContent: React.FC = () => {
 };
 
 const AppRoutes: React.FC = () => {
-  const [isAdminRoute, setIsAdminRoute] = useState(() => window.location.pathname.startsWith('/admin'));
   const location = useLocation();
+  const navigate = useNavigate();
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === 'a') {
         e.preventDefault();
-        window.history.pushState({}, '', '/admin');
-        setIsAdminRoute(true);
+        navigate('/admin');
       }
     };
-    const handlePopState = () => setIsAdminRoute(window.location.pathname.startsWith('/admin'));
     window.addEventListener('keydown', handleKeyDown);
-    window.addEventListener('popstate', handlePopState);
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
-      window.removeEventListener('popstate', handlePopState);
     };
-  }, []);
+  }, [navigate]);
 
   // Show admin for /admin routes
   if (location.pathname.startsWith('/admin')) {
