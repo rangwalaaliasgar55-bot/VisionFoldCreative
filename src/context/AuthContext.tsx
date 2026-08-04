@@ -39,7 +39,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (!response.ok) {
         setUser(null);
-        setToken(null);
+        setTokenState(null);
         return;
       }
 
@@ -48,19 +48,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Validate response structure
       const validatedUser = UserSchema.parse(data.user);
       setUser(validatedUser);
-      setToken(data.token || null);
+      setTokenState(data.token || null);
       setError(null);
     } catch (err) {
       ErrorHandler.log(err, 'checkAuth');
       setUser(null);
-      setToken(null);
+      setTokenState(null);
       if (err instanceof AppError) {
         setError(err);
       }
     } finally {
       setIsLoading(false);
     }
-  }, [setToken]);
+  }, []);
 
   useEffect(() => {
     checkAuth();
@@ -90,7 +90,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       const validatedUser = UserSchema.parse(data.user);
       setUser(validatedUser);
-      setToken(data.token || null);
+      // Update both token state and API token
+      setTokenState(data.token || null);
+      setApiToken(data.token || null);
       setError(null);
 
       return { success: true };
@@ -113,7 +115,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       ErrorHandler.log(err, 'logout');
     } finally {
       setUser(null);
-      setToken(null);
+      setTokenState(null);
+      setApiToken(null);
       setError(null);
     }
   };
