@@ -27,12 +27,30 @@ export const UpdateUserSchema = CreateUserSchema.partial().omit({ password: true
 
 // Content Block Validation
 export const ContentBlockTypeSchema = z.enum(['text', 'richtext', 'image', 'list', 'price']);
+
+// List items can be strings, objects with title/description/icon, or headline/bullets structure
+export const ListItemSchema = z.union([
+  z.string(),
+  z.object({
+    title: z.string().optional(),
+    description: z.string().optional(),
+    icon: z.string().optional(),
+  }).passthrough(),
+]);
+
 export const ContentBlockSchema = z.object({
   id: z.string().min(1),
   page: z.enum(['home', 'about', 'services', 'portfolio', 'contact', 'global']),
   section_key: z.string().min(1),
   type: ContentBlockTypeSchema,
-  value: z.union([z.string(), z.array(z.string()), z.record(z.string(), z.any())]),
+  value: z.union([
+    z.string(), // text, richtext, image, price
+    z.array(ListItemSchema), // list items as array of strings or objects
+    z.object({
+      headline: z.string().optional(),
+      bullets: z.array(z.string()).optional(),
+    }).passthrough(), // list items as object with headline/bullets
+  ]),
   order: z.number().int().nonnegative(),
   visible: z.boolean(),
   updatedAt: z.string().datetime(),
