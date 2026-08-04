@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
-import { ErrorHandler, AppError } from '../lib/errors';
+import { ErrorHandler, AppError, ErrorCode } from '../lib/errors';
 import { setApiToken } from '../lib/api';
 import { UserSchema, LoginSchema } from '../lib/validation';
 import type { User } from '../lib/validation';
@@ -84,7 +84,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (!response.ok) {
         const errorMessage = data.error || 'Login failed';
-        setError(new AppError(errorMessage, 'UNAUTHORIZED', 401));
+        setError(new AppError(errorMessage, ErrorCode.UNAUTHORIZED, 401));
         return { success: false, error: errorMessage };
       }
 
@@ -97,7 +97,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Network error';
       ErrorHandler.log(err, 'login');
-      const appError = err instanceof AppError ? err : new AppError(message, 'NETWORK_ERROR', 0);
+      const appError = err instanceof AppError ? err : new AppError(message, ErrorCode.NETWORK_ERROR, 0);
       setError(appError);
       return { success: false, error: appError.message };
     }

@@ -54,7 +54,7 @@ export class ValidationError extends AppError {
   }
 
   static fromZod(error: ZodError): ValidationError {
-    const details = error.errors.reduce(
+    const details = error.issues.reduce(
       (acc, err) => {
         const path = err.path.join('.');
         acc[path] = err.message;
@@ -125,7 +125,7 @@ export class ErrorHandler {
         stack: this.isDevelopment ? error.stack : undefined,
       });
     } else if (error instanceof ZodError) {
-      console.error(`[VALIDATION ERROR]${contextStr} ${timestamp}:`, error.errors);
+      console.error(`[VALIDATION ERROR]${contextStr} ${timestamp}:`, error.issues);
     } else {
       console.error(`[ERROR]${contextStr} ${timestamp}:`, error);
     }

@@ -1,5 +1,5 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import { ErrorHandler, AppError } from '../lib/errors';
+import { ErrorHandler, AppError, ErrorCode } from '../lib/errors';
 import type { ContentBlock, PortfolioItem } from '../lib/validation';
 
 interface ContentContextValue {
@@ -52,7 +52,7 @@ export const ContentProvider: React.FC<{ children: React.ReactNode }> = ({ child
       setIsAuthenticated(false);
       setIsAdmin(false);
       setEditModeState(false);
-      setError(err instanceof AppError ? err : new AppError('Auth check failed', 'UNKNOWN_ERROR', 500));
+      setError(err instanceof AppError ? err : new AppError('Auth check failed', ErrorCode.UNKNOWN_ERROR, 500));
     }
   }, [clearError]);
 
@@ -124,7 +124,7 @@ export const ContentProvider: React.FC<{ children: React.ReactNode }> = ({ child
           });
 
       if (!response.ok) {
-        throw new AppError('Failed to save content block', 'SERVER_ERROR', response.status);
+        throw new AppError('Failed to save content block', ErrorCode.SERVER_ERROR, response.status);
       }
 
       const saved = await response.json();
@@ -137,7 +137,7 @@ export const ContentProvider: React.FC<{ children: React.ReactNode }> = ({ child
       clearError();
     } catch (err) {
       ErrorHandler.log(err, 'saveValue');
-      const appError = err instanceof AppError ? err : new AppError('Failed to save content', 'UNKNOWN_ERROR', 500);
+      const appError = err instanceof AppError ? err : new AppError('Failed to save content', ErrorCode.UNKNOWN_ERROR, 500);
       setError(appError);
       throw appError;
     }
@@ -152,14 +152,14 @@ export const ContentProvider: React.FC<{ children: React.ReactNode }> = ({ child
         body: JSON.stringify(item),
       });
       if (!response.ok) {
-        throw new AppError('Failed to save portfolio item', 'SERVER_ERROR', response.status);
+        throw new AppError('Failed to save portfolio item', ErrorCode.SERVER_ERROR, response.status);
       }
       const saved = await response.json();
       setPortfolio((prev) => [...prev, saved]);
       clearError();
     } catch (err) {
       ErrorHandler.log(err, 'savePortfolioItem');
-      const appError = err instanceof AppError ? err : new AppError('Failed to save portfolio', 'UNKNOWN_ERROR', 500);
+      const appError = err instanceof AppError ? err : new AppError('Failed to save portfolio', ErrorCode.UNKNOWN_ERROR, 500);
       setError(appError);
       throw appError;
     }
@@ -174,14 +174,14 @@ export const ContentProvider: React.FC<{ children: React.ReactNode }> = ({ child
         body: JSON.stringify(updates),
       });
       if (!response.ok) {
-        throw new AppError('Failed to update portfolio item', 'SERVER_ERROR', response.status);
+        throw new AppError('Failed to update portfolio item', ErrorCode.SERVER_ERROR, response.status);
       }
       const saved = await response.json();
       setPortfolio((prev) => prev.map((item) => (item.id === id ? saved : item)));
       clearError();
     } catch (err) {
       ErrorHandler.log(err, 'updatePortfolioItem');
-      const appError = err instanceof AppError ? err : new AppError('Failed to update portfolio', 'UNKNOWN_ERROR', 500);
+      const appError = err instanceof AppError ? err : new AppError('Failed to update portfolio', ErrorCode.UNKNOWN_ERROR, 500);
       setError(appError);
       throw appError;
     }
@@ -194,13 +194,13 @@ export const ContentProvider: React.FC<{ children: React.ReactNode }> = ({ child
         credentials: 'include',
       });
       if (!response.ok) {
-        throw new AppError('Failed to delete portfolio item', 'SERVER_ERROR', response.status);
+        throw new AppError('Failed to delete portfolio item', ErrorCode.SERVER_ERROR, response.status);
       }
       setPortfolio((prev) => prev.filter((item) => item.id !== id));
       clearError();
     } catch (err) {
       ErrorHandler.log(err, 'deletePortfolioItem');
-      const appError = err instanceof AppError ? err : new AppError('Failed to delete portfolio', 'UNKNOWN_ERROR', 500);
+      const appError = err instanceof AppError ? err : new AppError('Failed to delete portfolio', ErrorCode.UNKNOWN_ERROR, 500);
       setError(appError);
       throw appError;
     }

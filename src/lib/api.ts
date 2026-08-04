@@ -1,5 +1,5 @@
 import { ZodSchema } from 'zod';
-import { AppError, ErrorHandler, ValidationError, retryAsync } from './errors';
+import { AppError, ErrorHandler, ValidationError, retryAsync, ErrorCode } from './errors';
 
 export interface RequestConfig {
   method?: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH';
@@ -22,7 +22,7 @@ export interface ApiResponse<T> {
 }
 
 const DEFAULT_TIMEOUT = 30000; // 30 seconds
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:3000';
+const API_BASE_URL = (import.meta.env.VITE_API_URL as string | undefined) || 'http://localhost:3000';
 
 export class ApiClient {
   private baseUrl: string;
@@ -62,7 +62,7 @@ export class ApiClient {
 
   async request<T>(
     endpoint: string,
-    schema: ZodSchema,
+    schema: ZodSchema<T>,
     config: RequestConfig = {}
   ): Promise<T> {
     const {
@@ -99,7 +99,7 @@ export class ApiClient {
 
         // Validate response against schema
         try {
-          return schema.parse(data);
+          return schema.parse(data) as T;
         } catch (validationError) {
           if (validationError instanceof Error && validationError.name === 'ZodError') {
             throw ValidationError.fromZod(validationError as any);
@@ -108,11 +108,11 @@ export class ApiClient {
         }
       } catch (error) {
         if (error instanceof DOMException && error.name === 'AbortError') {
-          throw new AppError('Request timeout', 'TIMEOUT_ERROR', 408);
+          throw new AppError('Request timeout', ErrorCode.TIMEOUT_ERROR, 408);
         }
 
         if (error instanceof TypeError && error.message.includes('Failed to fetch')) {
-          throw new AppError('Network request failed', 'NETWORK_ERROR', 0);
+          throw new AppError('Network request failed', ErrorCode.NETWORK_ERROR, 0);
         }
 
         throw error;
@@ -126,13 +126,13 @@ export class ApiClient {
     return makeRequest();
   }
 
-  async get<T>(endpoint: string, schema: ZodSchema, config?: RequestConfig): Promise<T> {
+  async get<T>(endpoint: string, schema: ZodSchema<T>, config?: RequestConfig): Promise<T> {
     return this.request(endpoint, schema, { ...config, method: 'GET' });
   }
 
   async post<T>(
     endpoint: string,
-    schema: ZodSchema,
+    schema: ZodSchema<T>,
     body?: any,
     config?: RequestConfig
   ): Promise<T> {
@@ -148,7 +148,7 @@ export class ApiClient {
 
   async put<T>(
     endpoint: string,
-    schema: ZodSchema,
+    schema: ZodSchema<T>,
     body?: any,
     config?: RequestConfig
   ): Promise<T> {
@@ -162,13 +162,13 @@ export class ApiClient {
     });
   }
 
-  async delete<T>(endpoint: string, schema: ZodSchema, config?: RequestConfig): Promise<T> {
+  async delete<T>(endpoint: string, schema: ZodSchema<T>, config?: RequestConfig): Promise<T> {
     return this.request(endpoint, schema, { ...config, method: 'DELETE' });
   }
 
   async patch<T>(
     endpoint: string,
-    schema: ZodSchema,
+    schema: ZodSchema<T>,
     body?: any,
     config?: RequestConfig
   ): Promise<T> {
@@ -200,7 +200,7 @@ export function setApiToken(token: string | null): void {
 // Helper for server-side requests
 export async function serverFetch<T>(
   endpoint: string,
-  schema: ZodSchema,
+  schema: ZodSchema<T>,
   config: RequestConfig = {}
 ): Promise<[T | null, AppError | null]> {
   const client = getApiClient();
