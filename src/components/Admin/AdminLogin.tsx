@@ -15,6 +15,10 @@ export const AdminLogin: React.FC<{ onSuccess: () => void }> = ({ onSuccess }) =
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Prevent double submission
+    if (isLoading) return;
+    
     setIsLoading(true);
     setError('');
     setFieldErrors({});
@@ -57,6 +61,11 @@ export const AdminLogin: React.FC<{ onSuccess: () => void }> = ({ onSuccess }) =
       setIsLoading(false);
     }
   };
+
+  // Auto-focus email field on mount
+  React.useEffect(() => {
+    firstInputRef.current?.focus();
+  }, []);
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-[#0A0A0B] px-4 py-8">

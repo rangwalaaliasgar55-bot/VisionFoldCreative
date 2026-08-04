@@ -15,45 +15,7 @@ import { PortfolioPage } from './components/PublicPages/PortfolioPage';
 import { ServicesPage } from './components/PublicPages/ServicesPage';
 import { ContactPage } from './components/PublicPages/ContactPage';
 import { WorkDetailPage } from './components/PublicPages/WorkDetailPage';
-
-// Error Boundary Component
-class ErrorBoundary extends React.Component<
-  { children: React.ReactNode },
-  { hasError: boolean; error?: Error }
-> {
-  constructor(props: { children: React.ReactNode }) {
-    super(props);
-    this.state = { hasError: false };
-  }
-
-  static getDerivedStateFromError(error: Error) {
-    return { hasError: true, error };
-  }
-
-  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-    console.error('App Error:', error, errorInfo);
-  }
-
-  render() {
-    if (this.state.hasError) {
-      return (
-        <div className="min-h-screen bg-[#0A0A0B] flex items-center justify-center">
-          <div className="text-center p-8">
-            <h1 className="text-2xl font-bold text-[#D4AF37] mb-4">Something went wrong</h1>
-            <p className="text-[#A0A0A0] mb-6">{this.state.error?.message}</p>
-            <button
-              onClick={() => window.location.reload()}
-              className="px-6 py-3 bg-[#D4AF37] text-[#0A0A0B] font-semibold rounded-lg hover:bg-[#E5C04B] transition-colors"
-            >
-              Reload Page
-            </button>
-          </div>
-        </div>
-      );
-    }
-    return this.props.children;
-  }
-}
+import { ErrorBoundary } from './components/ErrorBoundary';
 
 const MainContent: React.FC = () => {
   const { editMode, isAdmin, setEditMode } = useContent();
