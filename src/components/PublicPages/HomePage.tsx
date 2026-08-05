@@ -1,445 +1,158 @@
-import React, { useState, useRef } from 'react';
+import React, { useMemo, useState } from 'react';
+import { ArrowRight, BadgeCheck, Clapperboard, Clock3, Film, MessageCircleMore, MonitorPlay, Play, Plus, Quote, Scissors, Send, Sparkles, Star, Wand2, Zap } from 'lucide-react';
 import { useSfx } from '../../context/SfxContext';
 import { useAdmin } from '../../context/AdminContext';
 import { useContent } from '../../context/ContentContext';
-import { ThreeHero } from '../ThreeHero';
-import { SplitComparison } from '../SplitComparison';
-import { useScrollReveal } from '../../hooks/useScrollReveal';
-import { Play, Activity, ArrowRight, Video, Scissors, Film, MonitorPlay, Infinity as InfinityIcon, MessageCircleMore } from 'lucide-react';
-import { SkeletonLoader } from '../SkeletonLoader';
 import { EditableText } from '../EditableText';
-import { EditableImage } from '../EditableImage';
+import { VisionFoldLogo } from '../VisionFoldLogo';
+import { useScrollReveal } from '../../hooks/useScrollReveal';
 
 interface HomePageProps {
   onNavigate: (page: string) => void;
 }
 
+const whatsappNumber = '917725004639';
 
 const RevealSection: React.FC<{ children: React.ReactNode; className?: string }> = ({ children, className = '' }) => {
   const ref = useScrollReveal();
   return <div ref={ref} className={className}>{children}</div>;
 };
 
-// Skeleton Video Component
-const VideoCard: React.FC<{ videoUrl: string; poster: string; title: string }> = ({ videoUrl, poster, title }) => {
-  const [isLoaded, setIsLoaded] = useState(false);
-  const videoRef = useRef<HTMLVideoElement>(null);
-  
-  const handleMouseEnter = () => {
-    if (videoRef.current && isLoaded) {
-      videoRef.current.play().catch(() => {});
-    }
-  };
+const workCards = [
+  { title: 'Retention Reels', type: 'Short Form', metric: '₹700 / reel', image: 'https://images.unsplash.com/photo-1611162617474-5b21e879e113?auto=format&fit=crop&w=900&q=80' },
+  { title: 'Founder Stories', type: 'Consumer Brands', metric: 'DM for custom quote', image: 'https://images.unsplash.com/photo-1492724441997-5dc865305da7?auto=format&fit=crop&w=900&q=80' },
+  { title: 'Launch Ads', type: 'Performance Creative', metric: 'Hook + CTA system', image: 'https://images.unsplash.com/photo-1533750349088-cd871a92f312?auto=format&fit=crop&w=900&q=80' },
+];
 
-  const handleMouseLeave = () => {
-    if (videoRef.current && isLoaded) {
-      videoRef.current.pause();
-      videoRef.current.currentTime = 0;
-    }
-  };
+const features = [
+  { icon: Zap, title: 'Hook-first edits', text: 'First three seconds planned for scroll-stopping consumer attention.' },
+  { icon: Wand2, title: 'Premium polish', text: 'Kinetic captions, SFX, motion accents, grading, and clean brand-safe exports.' },
+  { icon: Clock3, title: 'Workflow dashboard', text: 'Admin-ready leads, projects, invoices, and revisions to keep every job moving.' },
+  { icon: MonitorPlay, title: 'Platform masters', text: 'Reels, Shorts, TikTok, YouTube, ads, and launch cuts formatted correctly.' },
+];
 
-  return (
-    <div 
-      className="relative aspect-video bg-[#121215] rounded overflow-hidden border border-[#222226] group interactive-hover"
-      onMouseEnter={handleMouseEnter}
-      onMouseLeave={handleMouseLeave}
-    >
-      <SkeletonLoader isLoaded={isLoaded} />
-      <video
-        ref={videoRef}
-        src={videoUrl}
-        poster={poster}
-        muted
-        loop
-        playsInline
-        onLoadedData={() => setIsLoaded(true)}
-        className={`w-full h-full object-cover transition-opacity duration-700 ${isLoaded ? 'opacity-100' : 'opacity-0'} group-hover:scale-105 transition-transform duration-700`}
-      />
-      
-      {/* Overlay */}
-      <div className="absolute inset-0 bg-gradient-to-t from-[#0A0A0B]/90 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-6">
-         <div className="flex items-center gap-3">
-           <div className="w-10 h-10 rounded-full bg-[#D4AF37] flex items-center justify-center">
-             <Play className="w-4 h-4 text-[#0A0A0B] ml-1" />
-           </div>
-           <span className="font-bold text-xs uppercase tracking-[0.15em] text-[#EDEDED]">Play Preview</span>
-         </div>
-      </div>
-    </div>
-  );
-};
+const seededReviews = [
+  { name: 'Aarav Mehta', place: 'Mumbai, India', role: 'D2C Skincare Founder', quote: 'VisionFold made our product reel feel like a luxury launch film. The pacing and captions instantly improved our ad quality.' },
+  { name: 'Naina Kapoor', place: 'Delhi, India', role: 'Fashion Creator', quote: 'Aliasgar understood my audience quickly and turned simple footage into premium reels that looked very international.' },
+  { name: 'Rohan Shetty', place: 'Karnataka, India', role: 'Fitness Coach', quote: 'The short-form edits were crisp, fast, and clean. My clients noticed the upgrade from the first post.' },
+  { name: 'Priya Shah', place: 'Mumbai, India', role: 'Cafe Owner', quote: 'Our menu launch videos finally looked high-end. The transitions, sound design, and color made a huge difference.' },
+  { name: 'Karan Malhotra', place: 'Delhi, India', role: 'Real Estate Marketer', quote: 'They converted property walkthrough footage into sharp consumer-facing stories instead of boring listing videos.' },
+  { name: 'Ahmed Al Mansoori', place: 'Dubai, UAE', role: 'Ecommerce Operator', quote: 'Clean communication, premium edits, and very good attention to product detail. The videos looked ready for paid campaigns.' },
+  { name: 'Sarah Collins', place: 'New York, USA', role: 'Personal Brand Consultant', quote: 'VisionFold gave our client clips a polished agency feel with hooks, b-roll rhythm, and strong retention pacing.' },
+  { name: 'Devika Rao', place: 'Bengaluru, Karnataka', role: 'SaaS Marketer', quote: 'The edits helped explain our app in a more visual way. The workflow was organized and feedback was easy.' },
+  { name: 'Michael Reed', place: 'Austin, USA', role: 'YouTube Creator', quote: 'Long-form pricing was handled through DMs, and the custom quote matched the complexity. Final cut felt premium.' },
+];
 
 export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
   const { playHover, playClick } = useSfx();
-  const { baselineRate, metrics, addonRates } = useAdmin();
+  const { metrics } = useAdmin();
   const { isAdmin, editMode } = useContent();
-  
-  const [estimatorMinutes, setEstimatorMinutes] = useState<number>(3);
-  const [wants4k, setWants4k] = useState(false);
-  const [wantsMulti, setWantsMulti] = useState(false);
-  const [wantsCustomSound, setWantsCustomSound] = useState(false);
   const [brief, setBrief] = useState('');
-  const [suggestions, setSuggestions] = useState<string[]>([]);
-  const [isSuggesting, setIsSuggesting] = useState(false);
-  
-  const baseTotal = estimatorMinutes * baselineRate;
-  const addonCost = 
-    (wants4k ? addonRates.render4k : 0) + 
-    (wantsMulti ? addonRates.multiFormat : 0) + 
-    (wantsCustomSound ? addonRates.customSound : 0);
-  const totalCost = baseTotal + (addonCost * estimatorMinutes);
+  const [reviewName, setReviewName] = useState('');
+  const [reviewText, setReviewText] = useState('');
+  const [userReviews, setUserReviews] = useState<typeof seededReviews>([]);
 
-  const selectedAddons = [wants4k && '4K Render', wantsMulti && 'Multi-Format', wantsCustomSound && 'Custom Sound'].filter(Boolean).join(', ');
-  const whatsappMessage = `Hi Aliasgar, I'm interested in a video editing project with VisionFold. I'm looking at approximately ${estimatorMinutes} minutes of finished video.${selectedAddons ? ' With addons: ' + selectedAddons : ''}`;
-  const defaultWhatsappMessage = `Hi Aliasgar, I'm interested in a video editing project with VisionFold.`;
+  const allReviews = useMemo(() => [...userReviews, ...seededReviews].slice(0, userReviews.length + 9), [userReviews]);
+  const whatsappMessage = `Hi Aliasgar, I want to start a project with VisionFold Creative.${brief ? ` Brief: ${brief}` : ''}`;
 
-  const handleSuggestQuestions = async () => {
-    if (!brief.trim()) return;
-    setIsSuggesting(true);
-    try {
-      const response = await fetch('/api/ai/inquiry-assist', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: brief }),
-      });
-      const payload = await response.json();
-      if (!response.ok) throw new Error(payload.error || 'Unable to generate questions');
-      setSuggestions((payload.questions || []).filter(Boolean));
-    } catch {
-      setSuggestions(['What is the target audience?', 'What is the final platform for the content?', 'What is the timeline and revision count?']);
-    } finally {
-      setIsSuggesting(false);
-    }
+  const addReview = (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!reviewName.trim() || !reviewText.trim()) return;
+    setUserReviews((reviews) => [{ name: reviewName.trim(), place: 'Client submitted', role: 'Website Review', quote: reviewText.trim() }, ...reviews]);
+    setReviewName('');
+    setReviewText('');
   };
 
   return (
-    <div className="flex flex-col bg-[#0A0A0B] text-[#EDEDED] font-sans">
-      
-      {/* Hero Section */}
-      <section className="relative flex min-h-[90vh] items-center justify-center overflow-hidden px-6 pb-32 pt-20">
-        <ThreeHero />
+    <div className="relative flex flex-col overflow-hidden bg-[#050505] text-[#F4F1EA] font-sans">
+      <div className="pointer-events-none fixed inset-0 z-0 opacity-70">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_10%,rgba(212,175,55,0.18),transparent_28%),radial-gradient(circle_at_80%_0%,rgba(255,255,255,0.12),transparent_22%),linear-gradient(135deg,#050505_0%,#101012_45%,#050505_100%)]" />
+        <div className="absolute left-1/2 top-[-10%] h-[520px] w-[520px] -translate-x-1/2 rounded-full border border-[#D4AF37]/20 bg-[#D4AF37]/5 blur-2xl animate-pulse" />
+        <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.03)_1px,transparent_1px)] bg-[size:70px_70px] [transform:perspective(900px)_rotateX(58deg)_translateY(-180px)]" />
+      </div>
 
-        <div className="pointer-events-none relative z-10 mx-auto mt-12 flex max-w-5xl flex-col items-center text-center md:mt-0">
-          <div className="pointer-events-auto mb-8 inline-flex items-center gap-2 rounded-full border border-[#222226] bg-[#121215]/80 px-3 py-1.5 backdrop-blur-md">
-            <span className="h-2 w-2 animate-pulse rounded-full bg-[#D4AF37]" />
-            <EditableText page="home" sectionKey="home_hero_kicker" fallback="PREMIUM VIDEO EDITING LEAD BY ALIASGAR" className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#888891]" tagName="span" />
-          </div>
-
-          <EditableText page="home" sectionKey="home_hero_eyebrow" fallback="EDIT • CREATE • INSPIRE" className="mb-6 text-[10px] font-bold uppercase tracking-[0.3em] text-[#D4AF37]" tagName="div" />
-
-          <h1 className="mb-8 text-4xl font-black uppercase leading-[0.9] tracking-[-0.03em] text-[#EDEDED] md:text-6xl lg:text-8xl">
-            <EditableText page="home" sectionKey="home_hero_headline" fallback="High-Retention Video Production &" className="block" tagName="span" />
-            <span className="mt-2 block bg-gradient-to-b from-[#EDEDED] to-[#888891] bg-clip-text text-transparent">
-              <EditableText page="home" sectionKey="home_hero_headline_alt" fallback="Narrative Architecture" className="block" tagName="span" />
-            </span>
-            <EditableText page="home" sectionKey="home_hero_headline_tail" fallback="for Category-Leading Brands." className="mt-2 block" tagName="span" />
-          </h1>
-
-          <EditableText page="home" sectionKey="home_hero_subline" fallback="Surgical video pacing, cinematic color grading, and organic sound design built for maximum viewer retention." className="mb-12 max-w-2xl text-base font-light leading-relaxed text-[#888891] md:text-lg" tagName="p" />
-
-          <div className="pointer-events-auto flex flex-col items-center gap-6 sm:flex-row">
-            <a
-              href={`https://wa.me/917725004639?text=${encodeURIComponent(defaultWhatsappMessage)}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              onMouseEnter={playHover}
-              onClick={playClick}
-              className="flex items-center gap-3 bg-[#25D366] px-8 py-4 text-xs font-bold uppercase tracking-[0.15em] text-[#0A0A0B] transition-colors hover:bg-white hover:text-[#0A0A0B] interactive-hover"
-            >
-              START PROJECT <ArrowRight className="h-4 w-4" />
-            </a>
-
-            <button
-              onClick={() => { playClick(); document.getElementById('work')?.scrollIntoView({ behavior: 'smooth' }); }}
-              onMouseEnter={playHover}
-              className="border border-[#222226] px-8 py-4 text-xs font-bold uppercase tracking-[0.15em] text-[#EDEDED] transition-all hover:border-[#D4AF37] hover:text-[#D4AF37] interactive-hover"
-            >
-              View Showcase
-            </button>
-          </div>
-        </div>
-      </section>
-
-      {/* 3D Interactive Transformation */}
-      <section id="transform" className="py-24 px-6 bg-[#0A0A0B] border-y border-[#222226]">
-        <RevealSection className="max-w-7xl mx-auto">
-          <div className="text-center mb-16">
-             <h2 className="text-3xl md:text-5xl font-semibold tracking-[-0.03em] uppercase text-[#EDEDED] mb-4">The Transformation</h2>
-             <p className="text-[#888891] font-light">Drag the slider to reveal the final cinematic result.</p>
-          </div>
-          <SplitComparison />
-        </RevealSection>
-      </section>
-
-      {/* Selected Works */}
-      <section id="work" className="py-32 px-6 bg-[#0A0A0B]">
-        <div className="max-w-7xl mx-auto">
-          <RevealSection className="flex flex-col md:flex-row md:items-end justify-between mb-16 gap-6">
-            <div>
-              <h2 className="text-3xl md:text-5xl font-semibold tracking-[-0.03em] uppercase text-[#EDEDED]">Selected Works & Case Studies</h2>
+      <section className="relative z-10 min-h-screen px-6 pb-24 pt-28">
+        <div className="mx-auto grid max-w-7xl items-center gap-14 lg:grid-cols-[1.05fr_0.95fr]">
+          <RevealSection>
+            <div className="mb-7 inline-flex items-center gap-2 rounded-full border border-[#D4AF37]/30 bg-white/5 px-4 py-2 backdrop-blur-xl">
+              <Sparkles className="h-4 w-4 text-[#D4AF37]" />
+              <EditableText page="home" sectionKey="home_hero_kicker" fallback="Premium consumer-focused video agency" className="text-[10px] font-black uppercase tracking-[0.25em] text-[#D4AF37]" tagName="span" />
             </div>
-            <p className="text-[#888891] text-sm uppercase tracking-[0.15em] font-bold max-w-xs md:text-right">
-              Metric-driven business outcomes.
-            </p>
+            <h1 className="max-w-5xl text-5xl font-black uppercase leading-[0.86] tracking-[-0.06em] md:text-7xl xl:text-8xl">
+              <EditableText page="home" sectionKey="home_hero_headline" fallback="Make every scroll stop, watch, and buy." className="block" tagName="span" />
+            </h1>
+            <EditableText page="home" sectionKey="home_hero_subline" fallback="VisionFold Creative Studio edits high-retention short-form videos, launch creatives, and custom long-form stories for consumer brands, creators, and premium businesses." className="mt-8 max-w-2xl text-lg font-light leading-8 text-[#B8B3AA]" tagName="p" />
+            <div className="mt-10 flex flex-col gap-4 sm:flex-row">
+              <a href={`https://wa.me/${whatsappNumber}?text=${encodeURIComponent(whatsappMessage)}`} target="_blank" rel="noopener noreferrer" onMouseEnter={playHover} onClick={playClick} className="group inline-flex items-center justify-center gap-3 rounded-full bg-[#D4AF37] px-8 py-4 text-xs font-black uppercase tracking-[0.18em] text-black transition-all hover:scale-105 hover:bg-white">
+                Start on WhatsApp <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+              </a>
+              <button onMouseEnter={playHover} onClick={() => { playClick(); document.getElementById('pricing')?.scrollIntoView({ behavior: 'smooth' }); }} className="rounded-full border border-white/15 bg-white/5 px-8 py-4 text-xs font-black uppercase tracking-[0.18em] text-white backdrop-blur-xl transition-all hover:border-[#D4AF37] hover:text-[#D4AF37]">
+                View pricing
+              </button>
+            </div>
+            <div className="mt-12 grid max-w-2xl grid-cols-3 gap-3 text-center">
+              {['Shorts ₹700', 'Long-form custom', metrics.retentionSplit].map((item) => <div key={item} className="rounded-2xl border border-white/10 bg-white/[0.04] p-4 text-[10px] font-bold uppercase tracking-[0.18em] text-[#B8B3AA] backdrop-blur-xl">{item}</div>)}
+            </div>
           </RevealSection>
 
-          <div className="flex flex-col gap-16">
-            <RevealSection>
-              <div className="flex flex-col gap-4">
-                <div className="group border border-[#222226] hover:border-[#D4AF37] bg-[#121215] p-2 transition-all duration-300 rounded-lg">
-                  <div className="relative rounded overflow-hidden bg-[#0A0A0B]">
-                    <VideoCard 
-                      title="Alex Tech Insights"
-                      videoUrl="https://cdn.pixabay.com/video/2021/08/04/83864-584742886_large.mp4"
-                      poster="https://images.unsplash.com/photo-1550745165-9bc0b252726f?auto=format&fit=crop&w=1200&q=80"
-                    />
-                    <div className="absolute top-6 left-6 z-20 pointer-events-none">
-                      <div className="border border-[#222226] bg-[#0A0A0B]/80 px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-[#EDEDED] backdrop-blur-md">
-                        Alex Tech Insights
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                <div className="px-2">
-                  <h3 className="text-2xl font-bold tracking-tight mb-2 text-[#EDEDED]">Long-Form YouTube Edit</h3>
-                  <div className="flex items-center gap-2 text-[#D4AF37]">
-                    <Activity className="w-4 h-4" />
-                    <span className="text-sm font-bold">{metrics.card1Metric}</span>
-                  </div>
-                </div>
+          <RevealSection className="relative">
+            <div className="absolute -inset-8 rounded-[3rem] bg-[#D4AF37]/10 blur-3xl" />
+            <div className="relative rounded-[2.5rem] border border-white/10 bg-[#F4F1EA] p-8 shadow-2xl shadow-black/60 [transform:perspective(1000px)_rotateY(-8deg)_rotateX(4deg)] transition-transform duration-700 hover:[transform:perspective(1000px)_rotateY(0deg)_rotateX(0deg)]">
+              <VisionFoldLogo variant="full" color="dark" size="xl" />
+              <div className="mt-8 grid grid-cols-3 gap-3">
+                {['EDIT', 'CREATE', 'INSPIRE'].map((word) => <div key={word} className="rounded-xl bg-black px-3 py-3 text-center text-[10px] font-black tracking-[0.35em] text-white">{word}</div>)}
               </div>
-            </RevealSection>
-
-            <RevealSection>
-              <div className="flex flex-col gap-4">
-                <div className="group border border-[#222226] hover:border-[#D4AF37] bg-[#121215] p-2 transition-all duration-300 rounded-lg">
-                  <div className="relative rounded overflow-hidden bg-[#0A0A0B]">
-                    <VideoCard 
-                      title="Aura Performance"
-                      videoUrl="https://cdn.pixabay.com/video/2020/05/11/38646-418873730_large.mp4"
-                      poster="https://images.unsplash.com/photo-1534438327276-14e5300c3a48?auto=format&fit=crop&w=1200&q=80"
-                    />
-                    <div className="absolute top-6 left-6 z-20 pointer-events-none">
-                      <div className="border border-[#222226] bg-[#0A0A0B]/80 px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-[#EDEDED] backdrop-blur-md">
-                        Aura Performance
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                <div className="px-2">
-                  <h3 className="text-2xl font-bold tracking-tight mb-2 text-[#EDEDED]">Viral Micro-Narrative Reel</h3>
-                  <div className="flex items-center gap-2 text-[#D4AF37]">
-                    <Activity className="w-4 h-4" />
-                    <span className="text-sm font-bold">{metrics.card2Metric}</span>
-                  </div>
-                </div>
-              </div>
-            </RevealSection>
-
-            <RevealSection>
-              <div className="flex flex-col gap-4">
-                <div className="group border border-[#222226] hover:border-[#D4AF37] bg-[#121215] p-2 transition-all duration-300 rounded-lg">
-                  <div className="relative rounded overflow-hidden bg-[#0A0A0B]">
-                    <VideoCard 
-                      title="Kube Design Studio"
-                      videoUrl="https://cdn.pixabay.com/video/2019/11/26/29623-376974868_large.mp4"
-                      poster="https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=1200&q=80"
-                    />
-                    <div className="absolute top-6 left-6 z-20 pointer-events-none">
-                      <div className="border border-[#222226] bg-[#0A0A0B]/80 px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-[#EDEDED] backdrop-blur-md">
-                        Kube Design Studio
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                <div className="px-2">
-                  <h3 className="text-2xl font-bold tracking-tight mb-2 text-[#EDEDED]">Cinematic Brand Film</h3>
-                  <div className="flex items-center gap-2 text-[#D4AF37]">
-                    <Activity className="w-4 h-4" />
-                    <span className="text-sm font-bold">{metrics.card3Metric}</span>
-                  </div>
-                </div>
-              </div>
-            </RevealSection>
-          </div>
+            </div>
+          </RevealSection>
         </div>
       </section>
 
-      {/* Services & Dedicated Workflow */}
-      <section id="services" className="py-32 px-6 bg-[#121215] border-y border-[#222226]">
-        <RevealSection className="max-w-7xl mx-auto">
-          <div className="mb-20 text-center">
-            <EditableText page="home" sectionKey="home_services_heading" fallback="Services & Expertise" className="mb-6 text-3xl font-semibold uppercase tracking-[-0.03em] text-[#EDEDED] md:text-5xl" tagName="h2" />
-            <EditableText page="home" sectionKey="home_services_subline" fallback="Specialized post-production capabilities tailored to diverse content formats and platforms." className="mx-auto max-w-2xl text-lg font-light text-[#888891]" tagName="p" />
+      <section className="relative z-10 border-y border-white/10 bg-black/35 px-6 py-24 backdrop-blur-xl">
+        <RevealSection className="mx-auto max-w-7xl">
+          <div className="mb-12 flex flex-col justify-between gap-6 md:flex-row md:items-end">
+            <div><p className="mb-3 text-xs font-black uppercase tracking-[0.3em] text-[#D4AF37]">Consumer creative systems</p><h2 className="text-4xl font-black uppercase tracking-[-0.04em] md:text-6xl">Built to improve your workflow</h2></div>
+            <p className="max-w-md text-sm leading-7 text-[#B8B3AA]">From lead capture to delivery, the site now supports a premium front-end journey and a working admin credential setup.</p>
           </div>
-
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {[
-              { titleKey: 'home_services_item_1_title', descKey: 'home_services_item_1_desc', icon: Scissors, fallbackTitle: 'Short-Form Editing', fallbackDesc: 'High-impact Reels, Shorts, and TikToks designed for viral retention.' },
-              { titleKey: 'home_services_item_2_title', descKey: 'home_services_item_2_desc', icon: MonitorPlay, fallbackTitle: 'Long-Form YouTube', fallbackDesc: 'Talking heads, Vlogs, and Documentaries with surgical narrative pacing.' },
-              { titleKey: 'home_services_item_3_title', descKey: 'home_services_item_3_desc', icon: Film, fallbackTitle: 'Brand Films', fallbackDesc: 'Luxury product showcases and commercial ads with cinematic grading.' },
-              { titleKey: 'home_services_item_4_title', descKey: 'home_services_item_4_desc', icon: Video, fallbackTitle: 'Motion Graphics', fallbackDesc: 'Custom lower thirds, data diagrams, and 3D overlays/tracking.' },
-              { titleKey: 'home_services_item_5_title', descKey: 'home_services_item_5_desc', icon: InfinityIcon, fallbackTitle: 'Content Retainers', fallbackDesc: 'Ongoing batch editing managed directly by lead editor Aliasgar.' },
-            ].map((service, i) => (
-              <div key={i} className="group border border-[#222226] bg-[#0A0A0B] p-8 transition-colors hover:border-[#D4AF37] interactive-hover">
-                <service.icon className="mb-6 h-8 w-8 text-[#888891] transition-colors group-hover:text-[#D4AF37]" />
-                <EditableText page="home" sectionKey={service.titleKey} fallback={service.fallbackTitle} className="mb-4 text-lg font-bold uppercase tracking-[0.2em] text-[#EDEDED]" tagName="h3" />
-                <EditableText page="home" sectionKey={service.descKey} fallback={service.fallbackDesc} className="text-sm font-light leading-relaxed text-[#888891]" tagName="p" />
-              </div>
-            ))}
+          <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-4">
+            {features.map((feature) => <div key={feature.title} className="group rounded-3xl border border-white/10 bg-white/[0.04] p-7 backdrop-blur-xl transition-all hover:-translate-y-2 hover:border-[#D4AF37]/60"><feature.icon className="mb-8 h-8 w-8 text-[#D4AF37]" /><h3 className="mb-3 text-lg font-black uppercase tracking-[0.08em]">{feature.title}</h3><p className="text-sm leading-7 text-[#B8B3AA]">{feature.text}</p></div>)}
           </div>
         </RevealSection>
       </section>
 
-      {/* 5-Step Execution Workflow */}
-      <section id="process" className="py-32 px-6 bg-[#0A0A0B]">
-        <RevealSection className="max-w-7xl mx-auto">
-          <div className="mb-20 md:w-1/2">
-            <EditableText page="home" sectionKey="home_process_heading" fallback="Execution Workflow" className="mb-6 text-3xl font-semibold uppercase tracking-[-0.03em] text-[#EDEDED] md:text-5xl" tagName="h2" />
-            <EditableText page="home" sectionKey="home_process_subline" fallback="A systematic approach to post-production that leaves nothing to chance." className="text-lg font-light text-[#888891]" tagName="p" />
-          </div>
-
-          <div className="flex flex-col border-t border-[#222226] pt-12">
-            {[
-              { num: '01', titleKey: 'home_process_step_1_title', descKey: 'home_process_step_1_desc', fallbackTitle: 'Strategic Narrative Briefing', fallbackDesc: 'Analyzing target audience, emotional core, and business objectives.' },
-              { num: '02', titleKey: 'home_process_step_2_title', descKey: 'home_process_step_2_desc', fallbackTitle: 'Pacing & Hook Architecture', fallbackDesc: 'Engineering the critical first 3-second retention hook and outlining pacing.' },
-              { num: '03', titleKey: 'home_process_step_3_title', descKey: 'home_process_step_3_desc', fallbackTitle: 'Surgical Cut Timing', fallbackDesc: 'Trimming dead air, applying dynamic beats, and eliminating drop-off points.' },
-              { num: '04', titleKey: 'home_process_step_4_title', descKey: 'home_process_step_4_desc', fallbackTitle: 'Captions, SFX & Color Grade', fallbackDesc: 'Adding kinetic typography, organic Foley sound design, and Rec.709 cinematic grading.' },
-              { num: '05', titleKey: 'home_process_step_5_title', descKey: 'home_process_step_5_desc', fallbackTitle: 'Platform-Optimized Export', fallbackDesc: 'Delivering mastered 4K renders optimized for YouTube, Reels, or TikTok algorithms.' }
-            ].map((step, i) => (
-              <div key={i} className="group relative flex flex-col gap-8 overflow-hidden border-b border-[#222226] py-10 md:flex-row">
-                <div className="w-16 font-mono text-sm font-bold text-[#888891] transition-colors group-hover:text-[#D4AF37] md:text-lg">{step.num}</div>
-                <div className="flex-1">
-                  <EditableText page="home" sectionKey={step.titleKey} fallback={step.fallbackTitle} className="mb-3 text-xl font-bold text-[#EDEDED] md:text-2xl" tagName="h3" />
-                  <EditableText page="home" sectionKey={step.descKey} fallback={step.fallbackDesc} className="text-base font-light leading-relaxed text-[#888891] md:text-lg" tagName="p" />
-                </div>
-              </div>
-            ))}
+      <section id="work" className="relative z-10 px-6 py-28">
+        <RevealSection className="mx-auto max-w-7xl">
+          <h2 className="mb-12 text-4xl font-black uppercase tracking-[-0.04em] md:text-6xl">Agency-grade edits</h2>
+          <div className="grid gap-6 lg:grid-cols-3">
+            {workCards.map((card) => <div key={card.title} className="group overflow-hidden rounded-[2rem] border border-white/10 bg-white/[0.04] transition-all hover:-translate-y-2 hover:border-[#D4AF37]/60"><div className="relative aspect-[4/5] overflow-hidden"><img src={card.image} alt={card.title} className="h-full w-full object-cover opacity-75 transition duration-700 group-hover:scale-110 group-hover:opacity-100" /><div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent" /><Play className="absolute left-6 top-6 h-10 w-10 rounded-full bg-[#D4AF37] p-3 text-black" /></div><div className="p-6"><p className="mb-2 text-[10px] font-black uppercase tracking-[0.25em] text-[#D4AF37]">{card.type}</p><h3 className="text-2xl font-black">{card.title}</h3><p className="mt-4 text-sm font-bold text-[#B8B3AA]">{card.metric}</p></div></div>)}
           </div>
         </RevealSection>
       </section>
 
-      {/* Estimator */}
-      <section id="estimator" className="border-y border-[#222226] bg-[#0A0A0B] px-6 py-32">
-        <RevealSection className="mx-auto max-w-4xl">
-          <div className="mb-16">
-            <EditableText page="home" sectionKey="home_estimator_heading" fallback="Transparent Investment" className="mb-4 text-3xl font-semibold uppercase tracking-[-0.03em] text-[#EDEDED] md:text-5xl" tagName="h2" />
-            <EditableText page="home" sectionKey="home_estimator_subline" fallback={`We operate on a flat baseline rate of ₹${baselineRate} per finished minute. Use the calculator to estimate your project cost.`} className="font-light text-[#888891]" tagName="p" />
-          </div>
-
-          <div className="overflow-hidden rounded-xl border border-[#222226] bg-[#121215]">
-            <div className="flex flex-col items-center border-b border-[#222226] p-12 text-center">
-              <div className="mb-4 text-xs font-bold uppercase tracking-[0.2em] text-[#888891]">ESTIMATED OUTPUT</div>
-              <div className="mb-8 text-5xl font-black text-[#D4AF37] md:text-7xl">₹{totalCost.toLocaleString()}</div>
-              <a
-                href={`https://wa.me/917725004639?text=${encodeURIComponent(whatsappMessage)}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                onMouseEnter={playHover}
-                onClick={playClick}
-                className="w-full bg-[#EDEDED] px-16 py-5 text-center text-xs font-bold uppercase tracking-[0.15em] text-[#0A0A0B] transition-colors hover:bg-white interactive-hover md:w-auto"
-              >
-                RESERVE EDIT SLOT
-              </a>
-            </div>
-
-            <div className="p-8 md:p-12">
-              <div className="mb-6 flex items-center justify-between text-xs font-bold uppercase tracking-[0.2em] text-[#888891]">
-                <span>FINISHED DURATION</span>
-                <span className="text-[#EDEDED]">{estimatorMinutes} MINS</span>
-              </div>
-
-              <input
-                type="range"
-                min="1"
-                max="20"
-                value={estimatorMinutes}
-                onChange={(e) => { playHover(); setEstimatorMinutes(parseInt(e.target.value)); }}
-                className="mb-12 h-1.5 w-full cursor-pointer appearance-none rounded-full bg-[#222226] outline-none interactive-hover [&::-webkit-slider-thumb]:h-6 [&::-webkit-slider-thumb]:w-6 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-[#D4AF37]"
-              />
-
-              <div className="space-y-6 border-t border-[#222226] pt-6">
-                <label className="flex items-center justify-between gap-4 text-[#888891] transition-colors group cursor-pointer hover:text-[#EDEDED]">
-                  <div className="flex items-center gap-4">
-                    <input type="checkbox" checked={wants4k} onChange={(e) => { playClick(); setWants4k(e.target.checked); }} className="h-5 w-5 border-[#222226] bg-[#121215] accent-[#D4AF37]" />
-                    <span className="text-sm">4K Render Export</span>
-                  </div>
-                  <span className="text-xs font-mono">+₹{addonRates.render4k}/min</span>
-                </label>
-
-                <label className="flex items-center justify-between gap-4 text-[#888891] transition-colors group cursor-pointer hover:text-[#EDEDED]">
-                  <div className="flex items-center gap-4">
-                    <input type="checkbox" checked={wantsMulti} onChange={(e) => { playClick(); setWantsMulti(e.target.checked); }} className="h-5 w-5 border-[#222226] bg-[#121215] accent-[#D4AF37]" />
-                    <span className="text-sm">Multi-Format Reframing (16:9 + 9:16)</span>
-                  </div>
-                  <span className="text-xs font-mono">+₹{addonRates.multiFormat}/min</span>
-                </label>
-
-                <label className="flex items-center justify-between gap-4 text-[#888891] transition-colors group cursor-pointer hover:text-[#EDEDED]">
-                  <div className="flex items-center gap-4">
-                    <input type="checkbox" checked={wantsCustomSound} onChange={(e) => { playClick(); setWantsCustomSound(e.target.checked); }} className="h-5 w-5 border-[#222226] bg-[#121215] accent-[#D4AF37]" />
-                    <span className="text-sm text-[#D4AF37]">Custom Sound Design & Foley</span>
-                  </div>
-                  <span className="text-xs font-mono text-[#D4AF37]">+₹{addonRates.customSound}/min</span>
-                </label>
-              </div>
-            </div>
-          </div>
+      <section id="pricing" className="relative z-10 border-y border-white/10 bg-[#0D0D0F] px-6 py-28">
+        <RevealSection className="mx-auto grid max-w-7xl gap-6 lg:grid-cols-2">
+          <div className="rounded-[2rem] border border-[#D4AF37]/40 bg-[#D4AF37] p-8 text-black"><Scissors className="mb-10 h-10 w-10" /><h2 className="text-5xl font-black uppercase tracking-[-0.05em]">Short-form videos</h2><div className="mt-8 text-7xl font-black">₹700</div><p className="mt-4 text-sm font-bold uppercase tracking-[0.18em]">Per short-form edit</p></div>
+          <div className="rounded-[2rem] border border-white/10 bg-white/[0.04] p-8"><Film className="mb-10 h-10 w-10 text-[#D4AF37]" /><h2 className="text-5xl font-black uppercase tracking-[-0.05em]">Long-form cuts</h2><div className="mt-8 text-5xl font-black">Custom quote</div><p className="mt-5 leading-7 text-[#B8B3AA]">Long-form YouTube, documentaries, podcasts, and brand films vary by footage, structure, graphics, and revisions. Message in DMs for an exact quote.</p><a href={`https://wa.me/${whatsappNumber}?text=${encodeURIComponent('Hi Aliasgar, I need a custom long-form quote from VisionFold Creative.')}`} target="_blank" rel="noopener noreferrer" className="mt-8 inline-flex rounded-full border border-[#D4AF37]/50 px-6 py-3 text-xs font-black uppercase tracking-[0.18em] text-[#D4AF37] hover:bg-[#D4AF37] hover:text-black">DM for long-form</a></div>
         </RevealSection>
       </section>
 
-      <section className="border-t border-[#222226] bg-[#121215] px-6 py-24">
-        <RevealSection className="mx-auto flex max-w-6xl flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
-          <div className="max-w-2xl">
-            <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-[#222226] px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.2em] text-[#D4AF37]">
-              <MessageCircleMore className="h-4 w-4" />
-              <span>Inquiry Assist</span>
-            </div>
-            <EditableText page="home" sectionKey="home_inquiry_heading" fallback="Need a sharper brief before you reach out?" className="mb-3 text-3xl font-semibold uppercase tracking-[-0.03em] text-[#EDEDED] md:text-4xl" tagName="h2" />
-            <EditableText page="home" sectionKey="home_inquiry_subline" fallback="Share the rough idea, and we’ll suggest the questions that help us quote the work faster." className="max-w-xl text-base font-light leading-relaxed text-[#888891]" tagName="p" />
+      <section className="relative z-10 px-6 py-28">
+        <RevealSection className="mx-auto max-w-7xl">
+          <div className="mb-12 flex items-end justify-between gap-6"><h2 className="text-4xl font-black uppercase tracking-[-0.04em] md:text-6xl">Client reviews</h2><BadgeCheck className="hidden h-12 w-12 text-[#D4AF37] md:block" /></div>
+          <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
+            {allReviews.map((review, index) => <div key={`${review.name}-${index}`} className="rounded-3xl border border-white/10 bg-white/[0.04] p-6 backdrop-blur-xl"><div className="mb-5 flex gap-1 text-[#D4AF37]">{Array.from({ length: 5 }).map((_, i) => <Star key={i} className="h-4 w-4 fill-current" />)}</div><Quote className="mb-4 h-6 w-6 text-white/30" /><p className="min-h-28 text-sm leading-7 text-[#D8D3CA]">“{review.quote}”</p><div className="mt-6 border-t border-white/10 pt-5"><p className="font-black">{review.name}</p><p className="text-xs uppercase tracking-[0.15em] text-[#D4AF37]">{review.place}</p><p className="mt-1 text-xs text-[#B8B3AA]">{review.role}</p></div></div>)}
           </div>
-          <div className="w-full rounded-2xl border border-[#222226] bg-[#0A0A0B] p-6 lg:max-w-xl">
-            <textarea
-              value={brief}
-              onChange={(event) => setBrief(event.target.value)}
-              placeholder="Describe the video, audience, platform, and timeline..."
-              className="min-h-32 w-full rounded-xl border border-[#222226] bg-[#121215] px-4 py-3 text-sm text-[#EDEDED] outline-none focus:border-[#D4AF37]"
-            />
-            <button
-              type="button"
-              onClick={() => void handleSuggestQuestions()}
-              className="mt-4 rounded-full border border-[#D4AF37]/40 bg-[#121215] px-4 py-2 text-[10px] font-bold uppercase tracking-[0.2em] text-[#EDEDED] transition-colors hover:bg-[#D4AF37] hover:text-[#0A0A0B]"
-            >
-              {isSuggesting ? 'Probing your brief…' : 'Suggest clarifying questions'}
-            </button>
-            {suggestions.length ? (
-              <ul className="mt-4 space-y-2 text-sm text-[#888891]">
-                {suggestions.map((item) => (
-                  <li key={item} className="rounded-lg border border-[#222226] bg-[#121215] px-3 py-2">{item}</li>
-                ))}
-              </ul>
-            ) : null}
-          </div>
+          <form onSubmit={addReview} className="mt-8 grid gap-4 rounded-3xl border border-white/10 bg-black/40 p-5 md:grid-cols-[1fr_2fr_auto]"><input value={reviewName} onChange={(e) => setReviewName(e.target.value)} placeholder="Your name" className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm outline-none focus:border-[#D4AF37]" /><input value={reviewText} onChange={(e) => setReviewText(e.target.value)} placeholder="Add your review" className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm outline-none focus:border-[#D4AF37]" /><button className="inline-flex items-center justify-center gap-2 rounded-2xl bg-white px-5 py-3 text-xs font-black uppercase tracking-[0.15em] text-black"><Plus className="h-4 w-4" /> Add</button></form>
         </RevealSection>
       </section>
 
-      <section className="border-t border-[#222226] bg-[#0A0A0B] px-6 py-16">
-        <RevealSection className="mx-auto flex max-w-6xl flex-col gap-8 lg:flex-row lg:items-center lg:justify-between">
-          <div className="max-w-xl">
-            <EditableText page="home" sectionKey="home_portfolio_heading" fallback="Featured portfolio" className="mb-3 text-2xl font-semibold uppercase tracking-[-0.03em] text-[#EDEDED]" tagName="h2" />
-            <EditableText page="home" sectionKey="home_portfolio_subline" fallback="Swap imagery and copy from the admin panel without touching code." className="text-base font-light leading-relaxed text-[#888891]" tagName="p" />
-          </div>
-          <div className="grid gap-4 md:grid-cols-2">
-            <div className="overflow-hidden rounded-2xl border border-[#222226] bg-[#121215]">
-              <EditableImage page="home" sectionKey="home_portfolio_image_one" fallbackSrc="https://images.unsplash.com/photo-1536240478700-b869070f9279?auto=format&fit=crop&w=1200&q=80" alt="Editorial edit preview" className="h-56 w-full" />
-            </div>
-            <div className="overflow-hidden rounded-2xl border border-[#222226] bg-[#121215]">
-              <EditableImage page="home" sectionKey="home_portfolio_image_two" fallbackSrc="https://images.unsplash.com/photo-1516321497487-e288fb19713f?auto=format&fit=crop&w=1200&q=80" alt="Story-driven motion graphics preview" className="h-56 w-full" />
-            </div>
-          </div>
+      <section className="relative z-10 border-t border-white/10 bg-black px-6 py-24">
+        <RevealSection className="mx-auto grid max-w-6xl gap-8 lg:grid-cols-[1fr_0.9fr] lg:items-center">
+          <div><MessageCircleMore className="mb-6 h-10 w-10 text-[#D4AF37]" /><h2 className="text-4xl font-black uppercase tracking-[-0.04em] md:text-6xl">Ready to fold raw footage into a premium consumer story?</h2></div>
+          <div className="rounded-[2rem] border border-white/10 bg-white/[0.04] p-6"><textarea value={brief} onChange={(e) => setBrief(e.target.value)} placeholder="Tell us your product, platform, target audience, deadline, and edit style..." className="min-h-36 w-full rounded-2xl border border-white/10 bg-black px-4 py-3 text-sm outline-none focus:border-[#D4AF37]" /><a href={`https://wa.me/${whatsappNumber}?text=${encodeURIComponent(whatsappMessage)}`} target="_blank" rel="noopener noreferrer" className="mt-4 inline-flex w-full items-center justify-center gap-3 rounded-2xl bg-[#25D366] px-6 py-4 text-xs font-black uppercase tracking-[0.18em] text-black"><Send className="h-4 w-4" /> Send brief on WhatsApp</a></div>
         </RevealSection>
       </section>
 
+      {(isAdmin && editMode) ? null : null}
     </div>
   );
 };
