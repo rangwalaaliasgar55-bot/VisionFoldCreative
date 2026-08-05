@@ -1,0 +1,40 @@
+name: TODO Comment Checker
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    types: [opened, synchronize]
+  workflow_dispatch:
+
+jobs:
+  todo-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Find TODO comments
+        run: |
+          echo "## TODO/FIXME Report" >> $GITHUB_STEP_SUMMARY
+          
+          # Find TODO and FIXME comments
+          todos=$(grep -rn "TODO:" --include="*.ts" --include="*.tsx" --include="*.js" --include="*.jsx" . 2>/dev/null | head -20)
+          fixmes=$(grep -rn "FIXME:" --include="*.ts" --include="*.tsx" --include="*.js" --include="*.jsx" . 2>/dev/null | head -20)
+          
+          if [ -n "$todos" ]; then
+            echo "### TODO Comments" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            echo "$todos" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          if [ -n "$fixmes" ]; then
+            echo "### FIXME Comments" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            echo "$fixmes" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          if [ -z "$todos" ] && [ -z "$fixmes" ]; then
+            echo "✅ No TODO/FIXME comments found" >> $GITHUB_STEP_SUMMARY
+          fi

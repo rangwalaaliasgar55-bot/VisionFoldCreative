@@ -1,0 +1,40 @@
+name: Backport Request
+
+on:
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: 'PR Number to backport'
+        required: true
+      target_branch:
+        description: 'Target branch'
+        required: true
+
+jobs:
+  backport:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Create backport
+        run: |
+          echo "## Backport Request" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**PR:** #${{ github.event.inputs.pr_number }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Target Branch:** ${{ github.event.inputs.target_branch }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          # Get PR details
+          pr=$(curl -s -H "Authorization: token $GITHUB_TOKEN" \
+            "https://api.github.com/repos/${{ github.repository }}/pulls/${{ github.event.inputs.pr_number }}" | \
+            jq '{title, body, head}' 2>/dev/null)
+          
+          echo "**PR Title:** $(echo $pr | jq -r '.title')" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          echo "### Manual Steps Required" >> $GITHUB_STEP_SUMMARY
+          echo "1. Create branch: \`git checkout -b backport/${{ github.event.inputs.pr_number }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "2. Cherry-pick commit: \`git cherry-pick <commit-sha>\`" >> $GITHUB_STEP_SUMMARY
+          echo "3. Push and create PR" >> $GITHUB_STEP_SUMMARY
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

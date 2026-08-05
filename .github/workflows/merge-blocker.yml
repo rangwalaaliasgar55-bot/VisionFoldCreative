@@ -1,0 +1,56 @@
+name: Merge Block Rules
+
+on:
+  pull_request:
+    types: [opened, synchronize, labeled, unlabeled]
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check merge blockers
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const pr = context.payload.pull_request;
+            const labels = pr.labels.map(l => l.name);
+            
+            let canMerge = true;
+            const blockers = [];
+            
+            // Check for blocking labels
+            if (labels.includes('blocked')) {
+              blockers.push('PR is explicitly blocked');
+              canMerge = false;
+            }
+            
+            // Check for draft
+            if (pr.draft) {
+              blockers.push('PR is in draft state');
+            }
+            
+            // Check for conflicts
+            if (pr.mergeable === false) {
+              blockers.push('PR has merge conflicts');
+              canMerge = false;
+            }
+            
+            // Check CI status
+            const checks = await github.rest.checks.listForRef({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              ref: pr.head.sha
+            });
+            
+            const failedChecks = checks.data.check_runs.filter(c => c.conclusion === 'failure');
+            if (failedChecks.length > 0) {
+              blockers.push(`${failedChecks.length} checks are failing`);
+              canMerge = false;
+            }
+            
+            if (blockers.length > 0) {
+              console.log('Merge blockers found:', blockers);
+            }
+            
+            console.log('Can merge:', canMerge);

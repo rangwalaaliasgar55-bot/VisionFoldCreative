@@ -1,0 +1,39 @@
+name: Size Limit Check
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  size:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Run size limit
+        run: |
+          echo "## Size Limit Check" >> $GITHUB_STEP_SUMMARY
+          
+          if command -v size-limit &> /dev/null; then
+            npx size-limit
+          else
+            echo "size-limit package not installed"
+            echo "Install with: npm install --save-dev @size-limit/preset-app"
+          fi
+
+      - name: Compare sizes
+        if: github.event_name == 'pull_request'
+        run: |
+          echo "### Size Comparison" >> $GITHUB_STEP_SUMMARY
+          echo "Comparing with base branch..." >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Note:** Full comparison requires @size-limit/plugin-github-action" >> $GITHUB_STEP_SUMMARY

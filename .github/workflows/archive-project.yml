@@ -1,0 +1,45 @@
+name: Archive Project Items
+
+on:
+  schedule:
+    - cron: '0 0 1 * *'  # Monthly
+  workflow_dispatch:
+
+jobs:
+  archive:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Archive old items
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            
+            // Archive old closed issues
+            const { data: issues } = await github.rest.issues.listForRepo({
+              owner,
+              repo,
+              state: 'closed',
+              since: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString(),
+              per_page: 100
+            });
+            
+            let archived = 0;
+            for (const issue of issues) {
+              if (!issue.labels.some(l => l.name === 'archived')) {
+                await github.rest.issues.addLabels({
+                  owner,
+                  repo,
+                  issue_number: issue.number,
+                  labels: ['archived']
+                });
+                archived++;
+              }
+            }
+            
+            console.log(`Archived ${archived} items`);
+            
+            // Summary
+            console.log(`## Archive Summary` >> $GITHUB_STEP_SUMMARY);
+            console.log(`Items archived: ${archived}` >> $GITHUB_STEP_SUMMARY);

@@ -1,0 +1,33 @@
+name: File Size Checker
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    types: [opened, synchronize]
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check file sizes
+        run: |
+          echo "## File Size Report" >> $GITHUB_STEP_SUMMARY
+          
+          echo "### Large Files (>1MB)" >> $GITHUB_STEP_SUMMARY
+          
+          large=$(find . -type f -size +1M \( -name "*.js" -o -name "*.ts" -o -name "*.json" -o -name "*.css" \) -not -path "./node_modules/*" -exec ls -lh {} \; 2>/dev/null | awk '{print $5, $9}')
+          
+          if [ -n "$large" ]; then
+            echo "$large" >> $GITHUB_STEP_SUMMARY
+            echo "⚠️ Large files detected!" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "✅ No large files found" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Repository Size" >> $GITHUB_STEP_SUMMARY
+          du -sh . 2>/dev/null >> $GITHUB_STEP_SUMMARY

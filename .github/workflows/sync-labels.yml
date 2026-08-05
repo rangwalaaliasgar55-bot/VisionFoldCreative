@@ -1,0 +1,61 @@
+name: Sync Issue/PR Labels
+
+on:
+  issues:
+    types: [labeled, unlabeled]
+  pull_request:
+    types: [labeled, unlabeled]
+  workflow_dispatch:
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Sync labels
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const isPR = !!context.payload.pull_request;
+            const number = isPR ? context.payload.pull_request.number : context.payload.issue.number;
+            
+            // Get all labels
+            const { data: labels } = await github.rest.issues.listLabelsForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              per_page: 100
+            });
+            
+            const labelNames = labels.map(l => l.name);
+            
+            // Get current labels
+            const { data: issueOrPR } = isPR 
+              ? await github.rest.pulls.get({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  pull_number: number
+                })
+              : await github.rest.issues.get({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: number
+                });
+            
+            const currentLabels = issueOrPR.labels.map(l => l.name);
+            
+            // Check for conflicting labels
+            const conflicts = [];
+            
+            // Priority labels
+            if (currentLabels.includes('priority:high') && currentLabels.includes('priority:low')) {
+              conflicts.push('Multiple priority levels');
+            }
+            
+            // Size labels
+            const sizes = currentLabels.filter(l => l.startsWith('size:'));
+            if (sizes.length > 1) {
+              conflicts.push('Multiple sizes');
+            }
+            
+            if (conflicts.length > 0) {
+              console.log(`Conflicts found: ${conflicts.join(', ')}`);
+            }

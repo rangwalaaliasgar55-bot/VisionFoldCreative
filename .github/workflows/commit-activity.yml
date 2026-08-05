@@ -1,0 +1,43 @@
+name: Commit Activity Tracker
+
+on:
+  schedule:
+    - cron: '0 0 * * *'  # Daily at midnight
+  workflow_dispatch:
+
+jobs:
+  track:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Track commit activity
+        run: |
+          echo "## Commit Activity Report - $(date +'%Y-%m-%d')" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          echo "### Today" >> $GITHUB_STEP_SUMMARY
+          today=$(date +'%Y-%m-%d')
+          commits=$(git log --since="00:00" --format='%h %s' | wc -l)
+          echo "- Commits: $commits" >> $GITHUB_STEP_SUMMARY
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### This Week" >> $GITHUB_STEP_SUMMARY
+          week=$(date -d '7 days ago' +%Y-%m-%d)
+          commits_week=$(git log --since="$week" --format='%h' | wc -l)
+          echo "- Commits: $commits_week" >> $GITHUB_STEP_SUMMARY
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Contributors This Week" >> $GITHUB_STEP_SUMMARY
+          git log --since="$week" --format='%aN' | sort | uniq -c | sort -rn >> $GITHUB_STEP_SUMMARY
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Activity Graph" >> $GITHUB_STEP_SUMMARY
+          for i in {0..6}; do
+            day=$(date -d "$i days ago" +%Y-%m-%d)
+            count=$(git log --since="$day" --until="$(date -d "$((i-1)) days ago" +%Y-%m-%d)" --format='%h' 2>/dev/null | wc -l)
+            bar=$(printf '#%.0s' $(seq 1 $((count > 10 ? 10 : count))))
+            echo "$day: $bar ($count)" >> $GITHUB_STEP_SUMMARY
+          done

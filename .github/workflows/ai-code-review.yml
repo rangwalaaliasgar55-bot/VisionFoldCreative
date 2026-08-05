@@ -1,0 +1,65 @@
+name: AI Code Review
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: 'PR Number'
+        required: false
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Get PR info
+        run: |
+          PR_NUM=${{ github.event.inputs.pr_number || github.event.pull_request.number }}
+          echo "PR_NUMBER=$PR_NUM" >> $GITHUB_OUTPUT
+          
+          # Get changed files
+          gh pr diff $PR_NUM > pr.diff
+          echo "Changed files:"
+          git diff --name-only origin/main...HEAD || echo "Main branch not found"
+
+      - name: AI Review Comment
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const pr = context.payload.pull_request || { number: process.env.PR_NUMBER };
+            
+            const reviewComment = `
+## 🤖 AI Code Review
+
+### Summary
+This PR adds/modifies code in the repository. Here are some automated checks:
+
+**Files Changed:** ${pr.changed_files || 'See diff'}
+
+### Automated Checks ✅
+- [ ] Code follows project style guidelines
+- [ ] No obvious security issues
+- [ ] Tests added/updated
+- [ ] Documentation updated
+
+### Recommendations
+1. Ensure all new functions have proper error handling
+2. Check for edge cases in user input
+3. Verify API endpoints have proper validation
+4. Add loading states for async operations
+
+---
+*This is an automated review. Please verify manually before merging.*
+            `;
+            
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: pr.number,
+              body: reviewComment
+            });

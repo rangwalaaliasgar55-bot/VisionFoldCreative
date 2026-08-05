@@ -1,0 +1,43 @@
+name: Code Freeze Manager
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Action'
+        type: choice
+        default: 'status'
+        options:
+          - status
+          - enable
+          - disable
+
+jobs:
+  freeze:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Manage code freeze
+        run: |
+          echo "## Code Freeze Status" >> $GITHUB_STEP_SUMMARY
+          
+          action=${{ github.event.inputs.action || 'status' }}
+          
+          if [ "$action" = "enable" ]; then
+            echo "🧊 **Code Freeze: ENABLED**" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "No new PRs should be merged during code freeze." >> $GITHUB_STEP_SUMMARY
+            echo "Emergency releases require approval." >> $GITHUB_STEP_SUMMARY
+            
+            # Create freeze label
+            echo "freeze_enabled=true" >> $GITHUB_OUTPUT
+          elif [ "$action" = "disable" ]; then
+            echo "🧊 **Code Freeze: DISABLED**" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Normal operations resumed." >> $GITHUB_STEP_SUMMARY
+            
+            echo "freeze_enabled=false" >> $GITHUB_OUTPUT
+          else
+            echo "📊 **Code Freeze: INACTIVE**" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "No active code freeze." >> $GITHUB_STEP_SUMMARY
+          fi

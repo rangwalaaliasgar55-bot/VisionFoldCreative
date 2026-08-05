@@ -1,0 +1,51 @@
+name: Deploy Notification
+
+on:
+  push:
+    branches: [main]
+  release:
+    types: [published, created]
+  workflow_dispatch:
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create deployment notification
+        run: |
+          echo "## 🚀 Deployment Notification" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Commit:** ${GITHUB_SHA}" >> $GITHUB_STEP_SUMMARY
+          echo "**Branch:** ${GITHUB_REF}" >> $GITHUB_STEP_SUMMARY
+          echo "**Actor:** ${GITHUB_ACTOR}" >> $GITHUB_STEP_SUMMARY
+          echo "**Time:** $(date)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Environment:** Production" >> $GITHUB_STEP_SUMMARY
+          echo "**URL:** https://work-1-adsjgxgbreemmjqb.prod-runtime.all-hands.dev" >> $GITHUB_STEP_SUMMARY
+          
+      - name: Get commit info
+        run: |
+          echo "### Latest Commit" >> $GITHUB_STEP_SUMMARY
+          git log -1 --format="- **Message:** %s%n- **Author:** %an%n- **Date:** %ai" >> $GITHUB_STEP_SUMMARY
+          
+      - name: Get changed files summary
+        run: |
+          echo "### Changes" >> $GITHUB_STEP_SUMMARY
+          git diff --name-only origin/main...HEAD | head -20 >> $GITHUB_STEP_SUMMARY || echo "No previous commit to compare" >> $GITHUB_STEP_SUMMARY
+
+      - name: Notify deployment
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const isRelease = context.eventName === 'release';
+            const title = isRelease 
+              ? `🎉 Release ${context.payload.release.tag_name} Deployed!`
+              : `🚀 New Deployment - ${context.sha.substring(0, 7)}`;
+            
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: title,
+              body: `Deployment completed successfully!\n\n**URL:** https://work-1-adsjgxgbreemmjqb.prod-runtime.all-hands.dev\n\nCheck workflow summary for details.`,
+              labels: ['deploy', 'automated']
+            });

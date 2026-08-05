@@ -1,0 +1,53 @@
+name: Changelog Generator
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      from_tag:
+        description: 'From tag'
+        required: false
+      to_tag:
+        description: 'To tag'
+        required: false
+
+jobs:
+  changelog:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Generate changelog
+        run: |
+          FROM_TAG=${{ github.event.inputs.from_tag || 'HEAD~10' }}
+          TO_TAG=${{ github.event.inputs.to_tag || github.event.ref }}
+          
+          echo "## Changelog" >> CHANGELOG.md
+          echo "" >> CHANGELOG.md
+          echo "# ${TO_TAG}" >> CHANGELOG.md
+          echo "" >> CHANGELOG.md
+          
+          echo "### Features" >> CHANGELOG.md
+          git log $FROM_TAG..$TO_TAG --format="- %s" --grep="feat" | head -10 >> CHANGELOG.md || echo "No features" >> CHANGELOG.md
+          
+          echo "" >> CHANGELOG.md
+          echo "### Bug Fixes" >> CHANGELOG.md
+          git log $FROM_TAG..$TO_TAG --format="- %s" --grep="fix" | head -10 >> CHANGELOG.md || echo "No fixes" >> CHANGELOG.md
+          
+          echo "" >> CHANGELOG.md
+          echo "### Other Changes" >> CHANGELOG.md
+          git log $FROM_TAG..$TO_TAG --format="- %s" | head -20 >> CHANGELOG.md
+          
+          cat CHANGELOG.md
+
+      - name: Create release
+        uses: softprops/action-gh-release@v1
+        with:
+          body_path: CHANGELOG.md
+          draft: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

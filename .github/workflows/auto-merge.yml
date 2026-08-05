@@ -1,0 +1,44 @@
+name: Auto Merge Dependencies
+
+on:
+  schedule:
+    - cron: '0 10 * * 1'  # Mondays at 10 AM
+  workflow_dispatch:
+
+jobs:
+  auto-merge:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Enable auto-merge
+        run: |
+          gh auth setup-git
+          gh repo set-default ${{ github.repository }}
+          
+      - name: Check for dependency PRs
+        run: |
+          echo "## Dependency Update PRs" >> $GITHUB_STEP_SUMMARY
+          
+          # Get dependency update PRs
+          prs=$(gh pr list --label dependencies --state open --json number,title,author --jq '.')
+          count=$(echo "$prs" | jq length)
+          
+          echo "Found $count dependency PRs" >> $GITHUB_STEP_SUMMARY
+          
+          if [ "$count" -gt 0 ]; then
+            echo "$prs" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Auto-merge dependency PRs
+        if: false  # Set to true to auto-merge
+        run: |
+          for pr in $(gh pr list --label dependencies --state open --json number --jq '.[].number'); do
+            gh pr merge $pr --squash --delete-branch --auto
+          done

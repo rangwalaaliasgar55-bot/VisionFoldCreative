@@ -1,0 +1,26 @@
+name: Lighthouse Performance Audit
+
+on:
+  schedule:
+    - cron: '0 10 * * 1'  # Weekly on Monday
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+jobs:
+  lighthouse:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Lighthouse Audit
+        uses: foo-software/lighthouse-check-action@master
+        with:
+          urls: 'https://work-1-adsjgxgbreemmjqb.prod-runtime.all-hands.dev'
+          budgetPath: ./lighthouse-budget.json
+        continue-on-server-error: true
+        failOnColors: true
+
+      - name: Upload results
+        uses: actions/upload-artifact@v4
+        with:
+          name: lighthouse-report
+          path: lighthouse-report.json

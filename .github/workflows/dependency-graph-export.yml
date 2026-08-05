@@ -1,0 +1,34 @@
+name: Dependency Graph Export
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Generate dependency graph
+        run: |
+          echo "## Dependency Graph" >> $GITHUB_STEP_SUMMARY
+          
+          if [ -f package.json ]; then
+            echo "### Dependencies" >> $GITHUB_STEP_SUMMARY
+            cat package.json | jq -r '.dependencies | to_entries[] | "- \(.key): \(.value)"' >> $GITHUB_STEP_SUMMARY
+            
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### Dev Dependencies" >> $GITHUB_STEP_SUMMARY
+            cat package.json | jq -r '.devDependencies | to_entries[] | "- \(.key): \(.value)"' >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          # Generate mermaid graph
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Mermaid Graph" >> $GITHUB_STEP_SUMMARY
+          echo '```mermaid' >> $GITHUB_STEP_SUMMARY
+          echo "graph TD" >> $GITHUB_STEP_SUMMARY
+          echo "A[VisionFold Creative] --> B[Core Dependencies]" >> $GITHUB_STEP_SUMMARY
+          cat package.json | jq -r '.dependencies | keys[] | "B --> \(.)"' >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY

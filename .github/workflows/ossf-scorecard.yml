@@ -1,0 +1,27 @@
+name: OSSF Scorecard
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  scorecard:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Run Scorecard
+        uses: ossf/scorecard-action@v2
+        with:
+          results_file: results.json
+          results_export: results-data.csv
+
+      - name: Upload results
+        uses: actions/upload-artifact@v4
+        with:
+          name: scorecard-results
+          path: results.json
+
+      - name: Publish to Dashboard
+        uses: ossf/scorecard-action@v2
+        with:
+          publish_results: true

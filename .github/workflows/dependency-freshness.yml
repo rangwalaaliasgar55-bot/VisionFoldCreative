@@ -1,0 +1,28 @@
+name: Dependency Freshness Check
+
+on:
+  schedule:
+    - cron: '0 9 * * 1'  # Weekly on Monday
+  workflow_dispatch:
+
+jobs:
+  freshness:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check dependency age
+        run: |
+          echo "## Dependency Freshness Report" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if [ -f package.json ]; then
+            # Get npm registry dates
+            echo "### Recently Updated" >> $GITHUB_STEP_SUMMARY
+            npm view react version 2>/dev/null && echo "- react: $(npm view react version 2>/dev/null)" >> $GITHUB_STEP_SUMMARY
+            npm view typescript version 2>/dev/null && echo "- typescript: $(npm view typescript version 2>/dev/null)" >> $GITHUB_STEP_SUMMARY
+            
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### Recommendations" >> $GITHUB_STEP_SUMMARY
+            echo "Run \`npm outdated\` to see outdated packages" >> $GITHUB_STEP_SUMMARY
+          fi

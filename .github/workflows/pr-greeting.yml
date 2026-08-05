@@ -1,0 +1,43 @@
+name: Welcome New Contributors
+
+on:
+  pull_request:
+    types: [opened]
+  issues:
+    types: [opened]
+  workflow_dispatch:
+
+jobs:
+  welcome:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Greet contributor
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const isPR = !!context.payload.pull_request;
+            const sender = context.payload.sender.login;
+            const type = isPR ? 'pull request' : 'issue';
+            
+            // Check if first contribution
+            const { data: events } = await github.rest.activity.listEventsForAuthenticatedUser({
+              username: sender,
+              per_page: 100
+            });
+            
+            const isFirstContribution = !events.some(e => 
+              e.type === 'PullRequestEvent' && e.payload.action === 'opened'
+            );
+            
+            const welcomeMessage = isFirstContribution 
+              ? `🎉 Thanks for your first contribution, @${sender}! We're excited to have you here.`
+              : `👋 Thanks for another contribution, @${sender}!`;
+            
+            if (isPR) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.payload.pull_request.number,
+                body: `${welcomeMessage}\n\nPlease make sure to:\n- [ ] Follow our contribution guidelines\n- [ ] Tests pass\n- [ ] Code is properly formatted\n\nNeed help? Check our contributing guide!`
+              });
+            }

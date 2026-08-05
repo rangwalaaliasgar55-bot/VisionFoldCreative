@@ -1,0 +1,30 @@
+name: Deployment Checklist
+
+on:
+  workflow_dispatch:
+
+jobs:
+  checklist:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Generate deployment checklist
+        run: |
+          echo "## Deployment Checklist" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Pre-Deployment" >> $GITHUB_STEP_SUMMARY
+          echo "- [ ] All tests passing" >> $GITHUB_STEP_SUMMARY
+          echo "- [ ] Code reviewed" >> $GITHUB_STEP_SUMMARY
+          echo "- [ ] No critical bugs" >> $GITHUB_STEP_SUMMARY
+          echo "- [ ] Database migrations tested" >> $GITHUB_STEP_SUMMARY
+          echo "- [ ] Rollback plan ready" >> $GITHUB_STEP_SUMMARY
+          echo "- [ ] Stakeholders notified" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Post-Deployment" >> $GITHUB_STEP_SUMMARY
+          echo "- [ ] Verify site loads" >> $GITHUB_STEP_SUMMARY
+          echo "- [ ] Check error logs" >> $GITHUB_STEP_SUMMARY
+          echo "- [ ] Monitor performance" >> $GITHUB_STEP_SUMMARY
+          echo "- [ ] Test critical features" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### URLs to Test" >> $GITHUB_STEP_SUMMARY
+          echo "- https://work-1-adsjgxgbreemmjqb.prod-runtime.all-hands.dev" >> $GITHUB_STEP_SUMMARY
+          echo "- https://work-2-adsjgxgbreemmjqb.prod-runtime.all-hands.dev" >> $GITHUB_STEP_SUMMARY

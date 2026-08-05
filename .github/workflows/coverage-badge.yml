@@ -1,0 +1,38 @@
+name: Update Coverage Badge
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  badge:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Calculate coverage
+        run: |
+          npm ci
+          npm run test:coverage || npm run test || echo "No tests"
+          
+          if [ -f coverage/lcov.info ]; then
+            npx coverage-badges --output ./badges
+          fi
+
+      - name: Commit badge
+        run: |
+          if [ -d badges ]; then
+            git config user.name "OpenHands Bot"
+            git config user.email "openhands@all-hands.dev"
+            git add badges/
+            git commit -m "docs: update coverage badges" || echo "No changes"
+            git push || echo "Push skipped"
+          fi

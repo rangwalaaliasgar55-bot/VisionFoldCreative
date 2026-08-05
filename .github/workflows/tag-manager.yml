@@ -1,0 +1,61 @@
+name: Tag Manager
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      version_type:
+        description: 'Version type'
+        type: choice
+        default: 'patch'
+        options:
+          - major
+          - minor
+          - patch
+
+jobs:
+  tag:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Get current version
+        run: |
+          git fetch --tags
+          current=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+          echo "Current version: $current"
+          
+          # Parse version
+          major=$(echo $current | cut -d. -f1 | tr -d 'v')
+          minor=$(echo $current | cut -d. -f2)
+          patch=$(echo $current | cut -d. -f3)
+          
+          # Bump version
+          VERSION_TYPE=${{ github.event.inputs.version_type || 'patch' }}
+          case $VERSION_TYPE in
+            major)
+              major=$((major + 1))
+              minor=0
+              patch=0
+              ;;
+            minor)
+              minor=$((minor + 1))
+              patch=0
+              ;;
+            patch)
+              patch=$((patch + 1))
+              ;;
+          esac
+          
+          new_version="v${major}.${minor}.${patch}"
+          echo "New version: $new_version"
+          echo "VERSION=$new_version" >> $GITHUB_OUTPUT
+
+      - name: Create tag
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          git config user.name "OpenHands Bot"
+          git config user.email "openhands@all-hands.dev"
+          git tag ${{ env.VERSION }}
+          git push origin ${{ env.VERSION }}

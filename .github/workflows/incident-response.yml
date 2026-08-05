@@ -1,0 +1,77 @@
+name: Incident Response
+
+on:
+  workflow_dispatch:
+    inputs:
+      severity:
+        description: 'Severity'
+        type: choice
+        default: 'medium'
+        options:
+          - critical
+          - high
+          - medium
+          - low
+      title:
+        description: 'Incident title'
+        required: true
+
+jobs:
+  respond:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create incident response
+        run: |
+          echo "## Incident Response" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Incident:** ${{ github.event.inputs.title }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Severity:** ${{ github.event.inputs.severity }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Time:** $(date)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          echo "### Response Steps" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "1. **Identify** - Understand the issue" >> $GITHUB_STEP_SUMMARY
+          echo "2. **Contain** - Stop the bleeding" >> $GITHUB_STEP_SUMMARY
+          echo "3. **Investigate** - Find root cause" >> $GITHUB_STEP_SUMMARY
+          echo "4. **Resolve** - Fix the issue" >> $GITHUB_STEP_SUMMARY
+          echo "5. **Review** - Document learnings" >> $GITHUB_STEP_SUMMARY
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Team Contacts" >> $GITHUB_STEP_SUMMARY
+          echo "- On-call: @rangwalaaliasgar55-bot" >> $GITHUB_STEP_SUMMARY
+          echo "- Backup: Check rotation schedule" >> $GITHUB_STEP_SUMMARY
+
+      - name: Create incident issue
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `🚨 Incident: ${context.inputs.title}`,
+              body: `## Incident Report
+
+**Severity:** ${context.inputs.severity}
+**Time:** ${new Date().toISOString()}
+
+### Status
+- [ ] Identified
+- [ ] Contained
+- [ ] Resolved
+- [ ] Review Complete
+
+### Timeline
+- 
+
+### Root Cause
+
+
+### Resolution
+
+
+### Action Items
+- [ ] 
+`,
+              labels: ['incident', 'automated']
+            });

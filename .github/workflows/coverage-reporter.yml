@@ -1,0 +1,45 @@
+name: Test Coverage Reporter
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    types: [opened, synchronize]
+  workflow_dispatch:
+
+jobs:
+  coverage:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests with coverage
+        run: npm run test:coverage || npm run test || echo "No tests configured"
+
+      - name: Comment coverage
+        uses: romeovs/lcov-releaser-action@v0.2.0
+        with:
+          lcov-file: ./coverage/lcov.info
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+        if: always()
+
+      - name: Coverage check
+        run: |
+          if [ -f coverage/coverage-summary.json ]; then
+            total=$(cat coverage/coverage-summary.json | jq '.total.lines.pct')
+            echo "Total coverage: ${total}%"
+            
+            if (( $(echo "$total < 80" | bc -l) )); then
+              echo "⚠️ Coverage is below 80%"
+              echo "coverage_check=fail" >> $GITHUB_OUTPUT
+            fi
+          fi

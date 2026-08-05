@@ -1,0 +1,35 @@
+name: Lockfile Checker
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  lockfile:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check lockfile
+        run: |
+          echo "## Lockfile Status" >> $GITHUB_STEP_SUMMARY
+          
+          if [ -f package-lock.json ]; then
+            echo "✅ package-lock.json found" >> $GITHUB_STEP_SUMMARY
+            echo "Lockfile version: $(cat package-lock.json | jq '.version' 2>/dev/null || echo 'Unknown')" >> $GITHUB_STEP_SUMMARY
+            echo "Packages locked: $(cat package-lock.json | jq '.packages | length' 2>/dev/null || echo 'Unknown')" >> $GITHUB_STEP_SUMMARY
+          elif [ -f yarn.lock ]; then
+            echo "✅ yarn.lock found" >> $GITHUB_STEP_SUMMARY
+          elif [ -f bun.lock ]; then
+            echo "✅ bun.lock found" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ No lockfile found!" >> $GITHUB_STEP_SUMMARY
+            echo "lockfile_missing=true" >> $GITHUB_OUTPUT
+          fi
+          
+          if [ -f pnpm-lock.yaml ]; then
+            echo "✅ pnpm-lock.yaml found" >> $GITHUB_STEP_SUMMARY
+          fi
