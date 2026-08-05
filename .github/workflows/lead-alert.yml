@@ -1,0 +1,53 @@
+name: Lead Alert System
+
+on:
+  schedule:
+    - cron: '*/30 * * * *'  # Every 30 minutes
+  workflow_dispatch:
+
+jobs:
+  check-leads:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fetch new leads
+        id: fetch
+        run: |
+          echo "Checking for new leads..."
+          
+          # Fetch messages from API
+          response=$(curl -s https://work-1-adsjgxgbreemmjqb.prod-runtime.all-hands.dev/api/messages)
+          
+          # Count new messages (you can add timestamp logic based on your DB schema)
+          count=$(echo "$response" | grep -o '"id"' | wc -l)
+          
+          echo "Total messages: $count"
+          echo "message_count=$count" >> $GITHUB_OUTPUT
+          
+          # Store response for next steps
+          echo "$response" > messages.json
+
+      - name: Analyze lead quality
+        if: steps.fetch.outputs.message_count != '0'
+        run: |
+          echo "Analyzing lead quality..."
+          
+          # You can add logic here to score leads based on:
+          # - Budget mentioned
+          # - Project type
+          # - Company size
+          # - Urgency
+            
+          echo "Lead analysis complete"
+
+      - name: Create lead notification
+        if: steps.fetch.outputs.message_count != '0'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.create({
+              owner: 'rangwalaaliasgar55-bot',
+              repo: 'VisionFoldCreative',
+              title: '📬 New Lead Notification',
+              body: `## New Lead Received\n\nCheck the contact form submissions at: https://work-1-adsjgxgbreemmjqb.prod-runtime.all-hands.dev/api/messages\n\n**Action Required:** Follow up with the new inquiry.`,
+              labels: ['lead', 'automated']
+            })

@@ -1,0 +1,50 @@
+name: Weekly Summary Generator
+
+on:
+  schedule:
+    - cron: '0 10 * * 1'  # Mondays at 10 AM
+  workflow_dispatch:
+
+jobs:
+  weekly-summary:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Gather week statistics
+        run: |
+          echo "## VisionFold Creative - Weekly Report" >> $GITHUB_STEP_SUMMARY
+          echo "**Week of: $(date -v-7d +%Y-%m-%d) to $(date +%Y-%m-%d)**" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          # Commits this week
+          commits=$(git log --since="$(date -v-7d +%Y-%m-%d)" --oneline | wc -l)
+          echo "### Development" >> $GITHUB_STEP_SUMMARY
+          echo "- Commits: $commits" >> $GITHUB_STEP_SUMMARY
+          
+          # Check for new leads
+          echo "### Leads & Sales" >> $GITHUB_STEP_SUMMARY
+          messages=$(curl -s https://work-1-adsjgxgbreemmjqb.prod-runtime.all-hands.dev/api/messages || echo "[]")
+          lead_count=$(echo "$messages" | grep -o '"id"' | wc -l || echo "0")
+          echo "- New inquiries: $lead_count" >> $GITHUB_STEP_SUMMARY
+          
+          echo "### Website Health" >> $GITHUB_STEP_SUMMARY
+          site_status=$(curl -s -o /dev/null -w "%{http_code}" https://work-1-adsjgxgbreemmjqb.prod-runtime.all-hands.dev)
+          echo "- Site status: $site_status" >> $GITHUB_STEP_SUMMARY
+          
+          echo "### Tasks" >> $GITHUB_STEP_SUMMARY
+          echo "- [ ] Review all open PRs" >> $GITHUB_STEP_SUMMARY
+          echo "- [ ] Follow up on new leads" >> $GITHUB_STEP_SUMMARY
+          echo "- [ ] Check deployment status" >> $GITHUB_STEP_SUMMARY
+
+      - name: Create weekly issue
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.create({
+              owner: 'rangwalaaliasgar55-bot',
+              repo: 'VisionFoldCreative',
+              title: '📊 Weekly Status Report - $(date +%Y-%m-%d)',
+              body: 'Weekly summary generated. Check workflow summary for details.',
+              labels: ['report', 'automated', 'weekly']
+            })

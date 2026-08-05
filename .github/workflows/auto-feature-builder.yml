@@ -1,0 +1,94 @@
+name: Auto Feature Builder
+
+on:
+  workflow_dispatch:
+    inputs:
+      feature_type:
+        description: 'Feature type'
+        required: true
+        default: 'api-endpoint'
+        type: choice
+        options:
+          - api-endpoint
+          - component
+          - utility-function
+          - test
+
+jobs:
+  build-feature:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Analyze project structure
+        run: |
+          echo "Project structure:"
+          find . -type f -name "*.js" -o -name "*.ts" -o -name "*.jsx" -o -name "*.tsx" 2>/dev/null | head -20
+
+      - name: Generate API endpoint
+        if: inputs.feature_type == 'api-endpoint'
+        run: |
+          echo "Generating API endpoint..."
+          # Create a new API endpoint file
+          cat > src/api/generated-endpoint.js << 'EOF'
+// Auto-generated API endpoint
+// Generated: {{ timestamp }}
+// TODO: Implement your endpoint logic
+
+export default async function handler(req, res) {
+  if (req.method === 'GET') {
+    res.status(200).json({ 
+      success: true, 
+      message: 'Endpoint working',
+      timestamp: new Date().toISOString()
+    });
+  } else {
+    res.status(405).json({ error: 'Method not allowed' });
+  }
+}
+EOF
+          echo "✅ API endpoint created at src/api/generated-endpoint.js"
+
+      - name: Generate component
+        if: inputs.feature_type == 'component'
+        run: |
+          echo "Generating component..."
+          cat > src/components/generated-component.jsx << 'EOF'
+// Auto-generated React component
+// Generated: {{ timestamp }}
+// TODO: Implement your component
+
+export default function GeneratedComponent({ title }) {
+  return (
+    <div className="generated-component">
+      <h2>{title || 'Generated Component'}</h2>
+      <p>This component was auto-generated.</p>
+    </div>
+  );
+}
+EOF
+          echo "✅ Component created at src/components/generated-component.jsx"
+
+      - name: Generate test
+        if: inputs.feature_type == 'test'
+        run: |
+          echo "Generating test..."
+          mkdir -p tests/generated
+          cat > tests/generated/auto-test.spec.js << 'EOF'
+// Auto-generated test
+// Generated: {{ timestamp }}
+
+describe('Auto Generated Tests', () => {
+  test('placeholder test', () => {
+    expect(true).toBe(true);
+  });
+});
+EOF
+          echo "✅ Test created at tests/generated/auto-test.spec.js"
+
+      - name: Create PR with generated code
+        run: |
+          git checkout -b chore/generated-feature
+          git add -A
+          git commit -m "chore: add generated feature"
+          git push -u origin chore/generated-feature || echo "Push skipped"

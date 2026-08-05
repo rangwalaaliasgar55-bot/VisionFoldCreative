@@ -1,0 +1,57 @@
+name: Mobile Usability Checker
+
+on:
+  schedule:
+    - cron: '0 11 * * 1'  # Mondays at 11 AM
+  workflow_dispatch:
+
+jobs:
+  mobile-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check mobile viewport
+        run: |
+          echo "## Mobile Usability Report" >> $GITHUB_STEP_SUMMARY
+          
+          # Test with mobile user agent
+          mobile_response=$(curl -s -o /dev/null -w "%{http_code}" -A "Mozilla/5.0 (iPhone; CPU iPhone OS 14_0 like Mac OS X) AppleWebKit/605.1.15" "https://work-1-adsjgxgbreemmjqb.prod-runtime.all-hands.dev")
+          
+          echo "### Mobile Response" >> $GITHUB_STEP_SUMMARY
+          echo "- Mobile status: $mobile_response" >> $GITHUB_STEP_SUMMARY
+          
+          if [ "$mobile_response" = "200" ]; then
+            echo "✅ Site loads on mobile" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Check responsive elements
+        run: |
+          echo "### Responsive Design Check" >> $GITHUB_STEP_SUMMARY
+          
+          # Check for viewport meta tag
+          viewport=$(curl -s "https://work-1-adsjgxgbreemmjqb.prod-runtime.all-hands.dev" | grep -i "viewport" | head -1)
+          
+          if [ -n "$viewport" ]; then
+            echo "✅ Viewport meta tag found" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⚠️ Viewport meta tag missing" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Generate recommendations
+        run: |
+          echo "### Mobile Recommendations" >> $GITHUB_STEP_SUMMARY
+          echo "- [ ] Test touch interactions" >> $GITHUB_STEP_SUMMARY
+          echo "- [ ] Check button sizes (min 44px)" >> $GITHUB_STEP_SUMMARY
+          echo "- [ ] Verify text readability" >> $GITHUB_STEP_SUMMARY
+          echo "- [ ] Test on multiple devices" >> $GITHUB_STEP_SUMMARY
+
+      - name: Create mobile issue
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.create({
+              owner: 'rangwalaaliasgar55-bot',
+              repo: 'VisionFoldCreative',
+              title: '📱 Mobile Usability Check',
+              body: 'Weekly mobile usability review needed.',
+              labels: ['mobile', 'automated', 'ux']
+            })

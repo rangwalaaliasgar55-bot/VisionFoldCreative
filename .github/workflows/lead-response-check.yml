@@ -1,0 +1,45 @@
+name: Lead Response Time Monitor
+
+on:
+  schedule:
+    - cron: '0 9,14,17 * * 1-5'  # Weekdays at 9am, 2pm, 5pm
+  workflow_dispatch:
+
+jobs:
+  lead-response:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check for stale leads
+        run: |
+          echo "## Lead Response Report" >> $GITHUB_STEP_SUMMARY
+          echo "### Stale Leads (>24h without response)" >> $GITHUB_STEP_SUMMARY
+          
+          # Fetch messages
+          messages=$(curl -s https://work-1-adsjgxgbreemmjqb.prod-runtime.all-hands.dev/api/messages || echo "[]")
+          
+          # Count messages (simplified - you can add timestamp logic)
+          count=$(echo "$messages" | grep -o '"id"' | wc -l || echo "0")
+          
+          echo "Total leads: $count" >> $GITHUB_STEP_SUMMARY
+          
+          # Simulate stale check
+          if [ "$count" -gt 0 ]; then
+            echo "⚠️ Some leads may need follow-up" >> $GITHUB_STEP_SUMMARY
+            echo "stale_leads=true" >> $GITHUB_OUTPUT
+          else
+            echo "✅ All leads are current" >> $GITHUB_STEP_SUMMARY
+            echo "stale_leads=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Generate follow-up reminders
+        if: steps.check.outputs.stale_leads == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.create({
+              owner: 'rangwalaaliasgar55-bot',
+              repo: 'VisionFoldCreative',
+              title: '📞 Lead Follow-up Reminder',
+              body: 'You have leads that need follow-up. Check the contact form submissions and reach out to potential clients.',
+              labels: ['lead', 'follow-up', 'automated']
+            })

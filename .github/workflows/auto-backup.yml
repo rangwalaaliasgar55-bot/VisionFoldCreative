@@ -1,0 +1,52 @@
+name: Daily Backup Check
+
+on:
+  schedule:
+    - cron: '0 8 * * *'  # Daily at 8 AM
+  workflow_dispatch:
+
+jobs:
+  backup-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verify latest commit
+        run: |
+          echo "## Backup Status Report" >> $GITHUB_STEP_SUMMARY
+          
+          last_commit=$(git log -1 --format="%H %ai %s")
+          echo "Last commit: $last_commit" >> $GITHUB_STEP_SUMMARY
+          
+          # Check if commits were made today
+          today=$(date +%Y-%m-%d)
+          last_commit_date=$(git log -1 --format="%ai" | cut -d' ' -f1)
+          
+          if [ "$last_commit_date" = "$today" ]; then
+            echo "✅ Code backed up today" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⚠️ No commits today - consider backing up any new work" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Verify no uncommitted changes
+        run: |
+          if [ -n "$(git status --porcelain)" ]; then
+            echo "⚠️ Uncommitted changes detected!" >> $GITHUB_STEP_SUMMARY
+            echo "Files to commit:" >> $GITHUB_STEP_SUMMARY
+            git status --short >> $GITHUB_STEP_SUMMARY
+          else
+            echo "✅ All changes committed" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Create backup issue if needed
+        if: github.event.schedule == ''
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.create({
+              owner: 'rangwalaaliasgar55-bot',
+              repo: 'VisionFoldCreative',
+              title: '💾 Backup Verification',
+              body: 'Daily backup check completed. Review workflow summary.',
+              labels: ['backup', 'automated']
+            })

@@ -1,0 +1,62 @@
+name: Weekly SEO Report
+
+on:
+  schedule:
+    - cron: '0 10 * * 1'  # Mondays at 10 AM
+  workflow_dispatch:
+
+jobs:
+  seo-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check page titles
+        run: |
+          echo "## SEO Audit Report" >> $GITHUB_STEP_SUMMARY
+          echo "### Page Titles" >> $GITHUB_STEP_SUMMARY
+          
+          title=$(curl -s https://work-1-adsjgxgbreemmjqb.prod-runtime.all-hands.dev | grep -o '<title>.*</title>' | head -1)
+          echo "- Homepage title: $title" >> $GITHUB_STEP_SUMMARY
+          
+          if [ -z "$title" ]; then
+            echo "⚠️ Warning: No title tag found" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Check meta descriptions
+        run: |
+          echo "### Meta Descriptions" >> $GITHUB_STEP_SUMMARY
+          
+          desc=$(curl -s https://work-1-adsjgxgbreemmjqb.prod-runtime.all-hands.dev | grep -o 'meta name="description"[^>]*' | head -1)
+          echo "- Status: $(if [ -z "$desc" ]; then echo "❌ Missing"; else echo "✅ Found"; fi)" >> $GITHUB_STEP_SUMMARY
+
+      - name: Check sitemap
+        run: |
+          echo "### Sitemap" >> $GITHUB_STEP_SUMMARY
+          
+          sitemap=$(curl -s -o /dev/null -w "%{http_code}" https://work-1-adsjgxgbreemmjqb.prod-runtime.all-hands.dev/sitemap.xml)
+          echo "- sitemap.xml status: $sitemap" >> $GITHUB_STEP_SUMMARY
+
+      - name: Check robots.txt
+        run: |
+          echo "### robots.txt" >> $GITHUB_STEP_SUMMARY
+          
+          robots=$(curl -s -o /dev/null -w "%{http_code}" https://work-1-adsjgxgbreemmjqb.prod-runtime.all-hands.dev/robots.txt)
+          echo "- robots.txt status: $robots" >> $GITHUB_STEP_SUMMARY
+
+      - name: Check SSL certificate
+        run: |
+          echo "### SSL Certificate" >> $GITHUB_STEP_SUMMARY
+          
+          expiry=$(echo | openssl s_client -servername work-1-adsjgxgbreemmjqb.prod-runtime.all-hands.dev -connect work-1-adsjgxgbreemmjqb.prod-runtime.all-hands.dev:443 2>/dev/null | openssl x509 -noout -dates 2>/dev/null | grep notAfter)
+          echo "- Expiry: $expiry" >> $GITHUB_STEP_SUMMARY
+
+      - name: Create SEO issue if problems found
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.create({
+              owner: 'rangwalaaliasgar55-bot',
+              repo: 'VisionFoldCreative',
+              title: '📊 Weekly SEO Report Ready',
+              body: 'SEO audit completed. Check the workflow summary for results.',
+              labels: ['seo', 'automated', 'report']
+            })

@@ -1,0 +1,39 @@
+name: Health Check Monitor
+
+on:
+  schedule:
+    - cron: '*/15 * * * *'  # Every 15 minutes
+  workflow_dispatch:  # Manual trigger
+
+jobs:
+  health-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check website health
+        run: |
+          echo "Checking website health..."
+          response=$(curl -s -o /dev/null -w "%{http_code}" https://work-1-adsjgxgbreemmjqb.prod-runtime.all-hands.dev/api/health)
+          if [ "$response" = "200" ]; then
+            echo "✅ Website is healthy"
+          else
+            echo "❌ Website returned: $response"
+            # Send alert
+            echo "ALERT: Website health check failed with status $response" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+      - name: Check secondary site
+        run: |
+          response=$(curl -s -o /dev/null -w "%{http_code}" https://work-2-adsjgxgbreemmjqb.prod-runtime.all-hands.dev/api/health)
+          if [ "$response" = "200" ]; then
+            echo "✅ Secondary site healthy"
+          else
+            echo "❌ Secondary site status: $response"
+          fi
+
+      - name: Measure response time
+        run: |
+          time=$(curl -s -o /dev/null -w "%{time_total}" https://work-1-adsjgxgbreemmjqb.prod-runtime.all-hands.dev)
+          echo "Response time: ${time}s"
+          if (( $(echo "$time > 2.0" | bc -l) )); then
+            echo "⚠️ Response time exceeds 2 seconds"
+          fi

@@ -1,0 +1,44 @@
+name: Broken Link Checker
+
+on:
+  schedule:
+    - cron: '0 11 * * 1'  # Mondays at 11 AM
+  workflow_dispatch:
+
+jobs:
+  check-links:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check internal pages
+        run: |
+          echo "## Broken Link Report" >> $GITHUB_STEP_SUMMARY
+          
+          pages=("/" "/about" "/portfolio" "/services" "/contact")
+          broken=0
+          
+          for page in "${pages[@]}"; do
+            status=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 "https://work-1-adsjgxgbreemmjqb.prod-runtime.all-hands.dev$page")
+            if [ "$status" != "200" ]; then
+              echo "❌ $page - Status: $status" >> $GITHUB_STEP_SUMMARY
+              broken=$((broken+1))
+            else
+              echo "✅ $page" >> $GITHUB_STEP_SUMMARY
+            fi
+          done
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Total broken links: $broken**" >> $GITHUB_STEP_SUMMARY
+          echo "broken_count=$broken" >> $GITHUB_OUTPUT
+
+      - name: Create issue if links broken
+        if: steps.check.outputs.broken_count != '0'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.create({
+              owner: 'rangwalaaliasgar55-bot',
+              repo: 'VisionFoldCreative',
+              title: '🔗 Broken Links Detected',
+              body: 'Broken links found during weekly check. Please fix them.',
+              labels: ['bug', 'automated']
+            })

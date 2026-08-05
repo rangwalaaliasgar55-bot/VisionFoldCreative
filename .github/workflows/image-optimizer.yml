@@ -1,0 +1,61 @@
+name: Image Optimization Checker
+
+on:
+  schedule:
+    - cron: '0 10 * * 1'  # Mondays at 10 AM
+  workflow_dispatch:
+
+jobs:
+  image-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check homepage images
+        run: |
+          echo "## Image Optimization Report" >> $GITHUB_STEP_SUMMARY
+          
+          # Fetch homepage
+          html=$(curl -s "https://work-1-adsjgxgbreemmjqb.prod-runtime.all-hands.dev")
+          
+          # Count images
+          img_count=$(echo "$html" | grep -o '<img' | wc -l)
+          echo "### Images Found" >> $GITHUB_STEP_SUMMARY
+          echo "- Total images: $img_count" >> $GITHUB_STEP_SUMMARY
+          
+          # Check for alt tags
+          alt_missing=$(echo "$html" | grep '<img' | grep -v 'alt=' | wc -l)
+          echo "- Images missing alt tags: $alt_missing" >> $GITHUB_STEP_SUMMARY
+          
+          if [ "$alt_missing" -gt 0 ]; then
+            echo "⚠️ Accessibility issue: $alt_missing images missing alt text" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Check lazy loading
+        run: |
+          echo "### Performance" >> $GITHUB_STEP_SUMMARY
+          
+          lazy_loaded=$(echo "$html" | grep -c 'loading="lazy"' || echo "0")
+          echo "- Lazy loaded images: $lazy_loaded" >> $GITHUB_STEP_SUMMARY
+          
+          # Check for WebP
+          webp_count=$(echo "$html" | grep -ic '\.webp' || echo "0")
+          echo "- WebP images: $webp_count" >> $GITHUB_STEP_SUMMARY
+
+      - name: Generate recommendations
+        run: |
+          echo "### Recommendations" >> $GITHUB_STEP_SUMMARY
+          echo "1. Add alt text to all images for accessibility" >> $GITHUB_STEP_SUMMARY
+          echo "2. Use lazy loading for below-fold images" >> $GITHUB_STEP_SUMMARY
+          echo "3. Convert images to WebP for faster loading" >> $GITHUB_STEP_SUMMARY
+          echo "4. Compress images using tools like TinyPNG" >> $GITHUB_STEP_SUMMARY
+
+      - name: Create image issue
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.create({
+              owner: 'rangwalaaliasgar55-bot',
+              repo: 'VisionFoldCreative',
+              title: '🖼️ Image Optimization Needed',
+              body: 'Check workflow summary for image optimization recommendations.',
+              labels: ['images', 'automated', 'performance']
+            })

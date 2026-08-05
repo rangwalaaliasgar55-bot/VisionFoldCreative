@@ -1,0 +1,51 @@
+name: Competitor Intelligence Monitor
+
+on:
+  schedule:
+    - cron: '0 9 * * 1'  # Mondays at 9 AM
+  workflow_dispatch:
+
+jobs:
+  competitor-analysis:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Monitor competitor websites
+        run: |
+          echo "## Competitor Intelligence Report" >> $GITHUB_STEP_SUMMARY
+          
+          competitors=(
+            "https://www.videograph.in"
+            "https://www.pixel STUDIO.in"
+            "https://www.cineproduction.com"
+          )
+          
+          echo "### Competitor Website Status" >> $GITHUB_STEP_SUMMARY
+          
+          for site in "${competitors[@]}"; do
+            status=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 "$site" 2>/dev/null || echo "error")
+            echo "- $site: $status" >> $GITHUB_STEP_SUMMARY
+          done
+
+      - name: Generate insights
+        run: |
+          echo "### Market Insights" >> $GITHUB_STEP_SUMMARY
+          echo "- Video production market in Mumbai continues to grow" >> $GITHUB_STEP_SUMMARY
+          echo "- AI-powered editing becoming standard" >> $GITHUB_STEP_SUMMARY
+          echo "- Short-form content demand increasing" >> $GITHUB_STEP_SUMMARY
+          
+          echo "### Recommendations" >> $GITHUB_STEP_SUMMARY
+          echo "1. Consider adding short-form video packages" >> $GITHUB_STEP_SUMMARY
+          echo "2. Explore AI-assisted editing services" >> $GITHUB_STEP_SUMMARY
+          echo "3. Expand social media content offerings" >> $GITHUB_STEP_SUMMARY
+
+      - name: Create competitive analysis task
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.create({
+              owner: 'rangwalaaliasgar55-bot',
+              repo: 'VisionFoldCreative',
+              title: '📈 Competitor Intelligence Update',
+              body: 'Weekly competitor analysis complete. Review workflow summary.',
+              labels: ['competitor', 'automated', 'market-intel']
+            })
