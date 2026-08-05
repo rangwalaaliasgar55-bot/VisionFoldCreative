@@ -1,0 +1,73 @@
+name: Dependency Update Monitor
+
+on:
+  schedule:
+    - cron: '0 10 * * 1'  # Mondays at 10 AM
+  workflow_dispatch:
+
+jobs:
+  check-updates:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check npm outdated
+        run: |
+          echo "## Dependency Update Report" >> $GITHUB_STEP_SUMMARY
+          
+          # Install dependencies if needed
+          npm install --silent 2>/dev/null || true
+          
+          # Check for outdated packages
+          npm outdated --json > outdated.json 2>&1 || true
+          
+          # Count outdated
+          outdated_count=$(cat outdated.json | grep -c '"' || echo "0")
+          
+          echo "### Outdated Packages: $outdated_count" >> $GITHUB_STEP_SUMMARY
+          
+          if [ "$outdated_count" -gt 0 ]; then
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Packages to update:" >> $GITHUB_STEP_SUMMARY
+            cat outdated.json | head -50 >> $GITHUB_STEP_SUMMARY || echo "See JSON file" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "✅ All dependencies are up to date" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Create PR for updates
+        if: outdated_count != '0'
+        run: |
+          # Create a branch for updates
+          git checkout -b chore/update-dependencies
+          
+          # Update dependencies
+          npm update
+          npm install
+          
+          # Commit
+          git config user.name "OpenHands Bot"
+          git config user.email "openhands@all-hands.dev"
+          git add package.json package-lock.json
+          git commit -m "chore: update dependencies"
+          
+          # Push
+          git push -u origin chore/update-dependencies || echo "Push skipped"
+
+      - name: Create issue for manual review
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.create({
+              owner: 'rangwalaaliasgar55-bot',
+              repo: 'VisionFoldCreative',
+              title: '📦 Dependency Update Report Ready',
+              body: 'Weekly dependency check completed. Review the workflow summary for details.',
+              labels: ['dependencies', 'automated']
+            })
+
+      - name: Upload outdated report
+        uses: actions/upload-artifact@v4
+        with:
+          name: outdated-packages
+          path: outdated.json

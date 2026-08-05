@@ -1,0 +1,74 @@
+name: Performance Monitor
+
+on:
+  schedule:
+    - cron: '0 9 * * *'  # Daily at 9 AM
+  workflow_dispatch:
+
+jobs:
+  performance:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Measure TTFB
+        run: |
+          echo "## Performance Report" >> $GITHUB_STEP_SUMMARY
+          echo "### Time To First Byte (TTFB)" >> $GITHUB_STEP_SUMMARY
+          
+          ttfb=$(curl -s -o /dev/null -w "%{time_starttransfer}" https://work-1-adsjgxgbreemmjqb.prod-runtime.all-hands.dev)
+          ttfb_ms=$(echo "$ttfb * 1000" | bc)
+          
+          echo "- TTFB: ${ttfb_ms}ms" >> $GITHUB_STEP_SUMMARY
+          
+          if (( $(echo "$ttfb > 0.5" | bc -l) )); then
+            echo "⚠️ TTFB is above recommended 500ms" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "✅ TTFB is good" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Measure total page load time
+        run: |
+          echo "### Page Load Time" >> $GITHUB_STEP_SUMMARY
+          
+          total=$(curl -s -o /dev/null -w "%{time_total}" https://work-1-adsjgxgbreemmjqb.prod-runtime.all-hands.dev)
+          total_ms=$(echo "$total * 1000" | bc)
+          
+          echo "- Total load time: ${total_ms}ms" >> $GITHUB_STEP_SUMMARY
+          
+          if (( $(echo "$total > 2.0" | bc -l) )); then
+            echo "⚠️ Page load exceeds 2s target" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "✅ Page load time is good" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Check API response times
+        run: |
+          echo "### API Response Times" >> $GITHUB_STEP_SUMMARY
+          
+          apis=("/api/health" "/api/portfolio")
+          
+          for api in "${apis[@]}"; do
+            time=$(curl -s -o /dev/null -w "%{time_total}" "https://work-1-adsjgxgbreemmjqb.prod-runtime.all-hands.dev$api")
+            time_ms=$(echo "$time * 1000" | bc)
+            echo "- $api: ${time_ms}ms" >> $GITHUB_STEP_SUMMARY
+          done
+
+      - name: Create issue if performance degraded
+        run: |
+          total=$(curl -s -o /dev/null -w "%{time_total}" https://work-1-adsjgxgbreemmjqb.prod-runtime.all-hands.dev)
+          if (( $(echo "$total > 3.0" | bc -l) )); then
+            echo "performance_issue=true" >> $GITHUB_OUTPUT
+          fi
+        id: perf-check
+
+      - name: Alert on performance issues
+        if: steps.perf-check.outputs.performance_issue == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.create({
+              owner: 'rangwalaaliasgar55-bot',
+              repo: 'VisionFoldCreative',
+              title: '⚡ Performance Degradation Detected',
+              body: 'Website is loading slowly. Investigate potential issues.',
+              labels: ['performance', 'automated']
+            })

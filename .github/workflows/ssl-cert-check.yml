@@ -1,0 +1,52 @@
+name: SSL Certificate Checker
+
+on:
+  schedule:
+    - cron: '0 9 * * *'  # Daily at 9 AM
+  workflow_dispatch:
+
+jobs:
+  ssl-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check SSL for both sites
+        run: |
+          echo "## SSL Certificate Report" >> $GITHUB_STEP_SUMMARY
+          
+          check_ssl() {
+            local domain=$1
+            echo "### $domain" >> $GITHUB_STEP_SUMMARY
+            
+            # Get certificate info
+            expiry=$(echo | openssl s_client -servername $domain -connect $domain:443 2>/dev/null | openssl x509 -noout -dates 2>/dev/null | grep notAfter | cut -d= -f2)
+            
+            if [ -n "$expiry" ]; then
+              echo "Expires: $expiry" >> $GITHUB_STEP_SUMMARY
+              
+              # Calculate days until expiry
+              expiry_epoch=$(date -d "$expiry" +%s 2>/dev/null || echo "0")
+              today_epoch=$(date +%s)
+              days_left=$(( (expiry_epoch - today_epoch) / 86400 ))
+              
+              echo "Days until expiry: $days_left" >> $GITHUB_STEP_SUMMARY
+              
+              if [ "$days_left" -lt 30 ]; then
+                echo "⚠️ Certificate expires soon!" >> $GITHUB_STEP_SUMMARY
+                echo "expiring_soon=true" >> $GITHUB_OUTPUT
+              else
+                echo "✅ Certificate is valid" >> $GITHUB_STEP_SUMMARY
+              fi
+            else
+              echo "❌ Could not fetch certificate" >> $GITHUB_STEP_SUMMARY
+            fi
+          }
+          
+          check_ssl "work-1-adsjgxgbreemmjqb.prod-runtime.all-hands.dev"
+          check_ssl "work-2-adsjgxgbreemmjqb.prod-runtime.all-hands.dev"
+
+      - name: Alert if expiring
+        if: always()
+        run: |
+          if [ "$expiring_soon" = "true" ]; then
+            echo "⚠️ SSL certificates expiring soon!"
+          fi
