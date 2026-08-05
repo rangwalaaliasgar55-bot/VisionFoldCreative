@@ -1,0 +1,56 @@
+name: Commit Message Lint
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  commit-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install commitlint
+        run: npm install -g @commitlint/cli @commitlint/config-conventional
+
+      - name: Lint commits
+        run: |
+          echo "## Commit Message Lint" >> $GITHUB_STEP_SUMMARY
+          
+          # Get commits in PR
+          if [ "${{ github.event_name }}" == "pull_request" ]; then
+            commits=$(git log origin/main..HEAD --format="%s")
+          else
+            commits=$(git log --format="%s" -10)
+          fi
+          
+          echo "### Recent Commits" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "$commits" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          
+          # Check commit format
+          invalid=0
+          while IFS= read -r commit; do
+            if ! echo "$commit" | grep -qE '^(feat|fix|docs|style|refactor|test|chore|perf|ci|build|revert)(\(.+\))?!?: .+'; then
+              echo "⚠️ Invalid commit: $commit" >> $GITHUB_STEP_SUMMARY
+              invalid=$((invalid+1))
+            fi
+          done <<< "$commits"
+          
+          if [ "$invalid" -eq 0 ]; then
+            echo "✅ All commits follow conventional format" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ $invalid commits don't follow conventional commit format" >> $GITHUB_STEP_SUMMARY
+          fi

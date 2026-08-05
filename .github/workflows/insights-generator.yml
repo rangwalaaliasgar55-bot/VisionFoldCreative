@@ -1,0 +1,46 @@
+name: Repository Insights
+
+on:
+  schedule:
+    - cron: '0 0 1 * *'  # First day of month
+  workflow_dispatch:
+
+jobs:
+  insights:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Generate monthly insights
+        run: |
+          echo "# Repository Insights - $(date +'%B %Y')" >> insights.md
+          echo "" >> insights.md
+          
+          echo "## Activity" >> insights.md
+          echo "- Total commits this month: $(git log --since=$(date -d '1 month ago' +%Y-%m-%d) --oneline | wc -l)" >> insights.md
+          echo "- Total commits all time: $(git log --oneline | wc -l)" >> insights.md
+          
+          echo "" >> insights.md
+          echo "## Contributors" >> insights.md
+          git log --since=$(date -d '1 month ago' +%Y-%m-%d) --format="%aN" | sort | uniq -c | sort -rn >> insights.md
+          
+          echo "" >> insights.md
+          echo "## Code Changes" >> insights.md
+          git diff --stat $(date -d '1 month ago' +%Y-%m-%d)..HEAD >> insights.md
+          
+          cat insights.md
+
+      - name: Create GitHub Discussion
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const content = fs.readFileSync('insights.md', 'utf8');
+            
+            await github.rest.discussions.create({
+              categoryId: 'DIC_kwD...', // Add your category ID
+              title: `Monthly Insights - ${new Date().toLocaleString('default', { month: 'long', year: 'numeric' })}`,
+              body: content
+            });

@@ -1,0 +1,53 @@
+name: Stale PR & Issue Closer
+
+on:
+  schedule:
+    - cron: '0 9 * * 1'  # Mondays at 9 AM
+  workflow_dispatch:
+
+jobs:
+  close-stale:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Close stale PRs
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { daysUntilStale, daysUntilClose } = { daysUntilStale: 14, daysUntilClose: 30 };
+            const now = new Date();
+            
+            // Get all PRs
+            const prs = await github.rest.pulls.list({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              per_page: 100
+            });
+            
+            let closed = 0;
+            for (const pr of prs.data) {
+              const created = new Date(pr.created_at);
+              const daysOld = Math.floor((now - created) / (1000 * 60 * 60 * 24));
+              
+              // Add stale label if old
+              if (daysOld >= daysUntilStale && !pr.labels.some(l => l.name === 'stale')) {
+                await github.rest.issues.addLabels({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: pr.number,
+                  labels: ['stale']
+                });
+              }
+              
+              // Close if very old
+              if (daysOld >= daysUntilClose) {
+                await github.rest.pulls.update({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  pull_number: pr.number,
+                  state: 'closed'
+                });
+                closed++;
+              }
+            }
+            console.log(`Closed ${closed} stale PRs`);

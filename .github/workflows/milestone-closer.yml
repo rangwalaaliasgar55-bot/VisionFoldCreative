@@ -1,0 +1,42 @@
+name: Milestone Closer
+
+on:
+  schedule:
+    - cron: '0 0 1 * *'  # Monthly
+  workflow_dispatch:
+
+jobs:
+  close:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Close completed milestones
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { data: milestones } = await github.rest.issues.listMilestones({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open'
+            });
+            
+            for (const milestone of milestones) {
+              // Check if all issues are closed
+              const { data: issues } = await github.rest.issues.listForRepo({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                milestone: milestone.number
+              });
+              
+              const allClosed = issues.length > 0 && issues.every(i => i.state === 'closed');
+              
+              if (allClosed) {
+                await github.rest.issues.updateMilestone({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  milestone_number: milestone.number,
+                  state: 'closed'
+                });
+                
+                console.log(`Closed milestone: ${milestone.title}`);
+              }
+            }

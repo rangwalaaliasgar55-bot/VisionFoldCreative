@@ -1,0 +1,53 @@
+name: Issue Closer
+
+on:
+  schedule:
+    - cron: '0 9 * * 1'  # Weekly on Monday
+  workflow_dispatch:
+
+jobs:
+  close:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Close stale issues
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { daysUntilStale, daysUntilClose } = { daysUntilStale: 60, daysUntilClose: 90 };
+            const now = new Date();
+            
+            // Get all open issues
+            const { data: issues } = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              since: new Date(now - daysUntilStale * 24 * 60 * 60 * 1000).toISOString()
+            });
+            
+            let closed = 0;
+            for (const issue of issues) {
+              if (issue.pull_request) continue; // Skip PRs
+              
+              const updated = new Date(issue.updated_at);
+              const daysSinceUpdate = Math.floor((now - updated) / (1000 * 60 * 60 * 24));
+              
+              if (daysSinceUpdate >= daysUntilClose) {
+                await github.rest.issues.update({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: issue.number,
+                  state: 'closed'
+                });
+                
+                await github.rest.issues.createComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: issue.number,
+                  body: `This issue has been automatically closed because it has been inactive for ${daysSinceUpdate} days. If you believe this is still relevant, please feel free to reopen.`
+                });
+                
+                closed++;
+              }
+            }
+            
+            console.log(`Closed ${closed} stale issues`);

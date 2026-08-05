@@ -1,0 +1,62 @@
+name: Duplicate Issue Detector
+
+on:
+  issues:
+    types: [opened]
+  workflow_dispatch:
+
+jobs:
+  detect:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Detect duplicates
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const newIssue = context.payload.issue;
+            const newTitle = newIssue.title.toLowerCase();
+            const newBody = (newIssue.body || '').toLowerCase();
+            
+            // Get existing open issues
+            const { data: issues } = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              per_page: 100
+            });
+            
+            const duplicates = [];
+            
+            for (const issue of issues) {
+              if (issue.id === newIssue.id) continue;
+              
+              const titleMatch = issue.title.toLowerCase().includes(newTitle) ||
+                                newTitle.includes(issue.title.toLowerCase());
+              
+              // Simple keyword overlap check
+              const words = newTitle.split(/\s+/).filter(w => w.length > 3);
+              const matchCount = words.filter(w => 
+                issue.title.toLowerCase().includes(w)
+              ).length;
+              
+              if (titleMatch || matchCount >= 3) {
+                duplicates.push(issue);
+              }
+            }
+            
+            if (duplicates.length > 0) {
+              const message = `## 🔄 Possible Duplicate Issue
+
+This issue might be related to existing issues:
+
+${duplicates.map(i => `- #${i.number}: ${i.title}`).join('\n')}
+
+Please check if this issue has already been reported.`;
+              
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: newIssue.number,
+                body: message
+              });
+            }

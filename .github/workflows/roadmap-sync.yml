@@ -1,0 +1,60 @@
+name: Roadmap Sync
+
+on:
+  issues:
+    types: [opened, closed, labeled]
+  project_card:
+    types: [created, deleted, moved]
+  workflow_dispatch:
+
+jobs:
+  roadmap:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Sync roadmap
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            
+            // Read existing roadmap or create new
+            let roadmap = [];
+            try {
+              roadmap = JSON.parse(fs.readFileSync('.github/roadmap.json', 'utf8'));
+            } catch (e) {
+              roadmap = { categories: {}, lastUpdated: null };
+            }
+            
+            // Get all open issues with milestones
+            const { data: milestones } = await github.rest.issues.listMilestones({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open'
+            });
+            
+            // Get issues for each milestone
+            for (const milestone of milestones) {
+              const { data: issues } = await github.rest.issues.listForRepo({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                milestone: milestone.title,
+                state: 'open'
+              });
+              
+              roadmap.categories[milestone.title] = {
+                description: milestone.description,
+                due: milestone.due_on,
+                issues: issues.map(i => ({
+                  number: i.number,
+                  title: i.title,
+                  labels: i.labels.map(l => l.name)
+                }))
+              };
+            }
+            
+            roadmap.lastUpdated = new Date().toISOString();
+            
+            // Save roadmap
+            fs.writeFileSync('.github/roadmap.json', JSON.stringify(roadmap, null, 2));
+            
+            console.log('Roadmap synced successfully');

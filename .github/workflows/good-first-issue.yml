@@ -1,0 +1,51 @@
+name: Good First Issue Labeler
+
+on:
+  issues:
+    types: [opened]
+  workflow_dispatch:
+
+jobs:
+  label:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Add good first issue label
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const issue = context.payload.issue;
+            const title = issue.title.toLowerCase();
+            const body = issue.body?.toLowerCase() || '';
+            
+            // Keywords that suggest a good first issue
+            const keywords = [
+              'easy', 'simple', 'beginner', 'starter', 'first',
+              'good first', 'help wanted', 'low priority', 'minor',
+              'typo', 'docs', 'documentation', 'example'
+            ];
+            
+            const isGoodFirst = keywords.some(k => 
+              title.includes(k) || body.includes(k)
+            );
+            
+            const labels = issue.labels.map(l => l.name);
+            
+            if (isGoodFirst && !labels.includes('good first issue')) {
+              await github.rest.issues.addLabels({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                labels: ['good first issue']
+              });
+              
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                body: `## 🎯 Good First Issue
+
+Thank you for opening this issue! This looks like a good candidate for first-time contributors.
+
+Feel free to ask questions if you need help!`
+              });
+            }

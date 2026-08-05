@@ -1,0 +1,29 @@
+name: Auto Update Branch
+
+on:
+  schedule:
+    - cron: '0 6 * * *'  # Daily at 6 AM
+  workflow_dispatch:
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Update feature branches
+        run: |
+          echo "## Branch Update Report" >> $GITHUB_STEP_SUMMARY
+          
+          # Get all open PRs
+          prs=$(curl -s -H "Authorization: token $GITHUB_TOKEN" \
+            "https://api.github.com/repos/${{ github.repository }}/pulls?state=open&per_page=100" | \
+            jq '.[] | {number, head: .head.ref, base: .base.ref}')
+          
+          echo "Open PRs:" >> $GITHUB_STEP_SUMMARY
+          echo "$prs" >> $GITHUB_STEP_SUMMARY
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "✅ Branch update check complete" >> $GITHUB_STEP_SUMMARY
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -1,0 +1,84 @@
+name: Issue Template Manager
+
+on:
+  issues:
+    types: [opened]
+  workflow_dispatch:
+
+jobs:
+  template:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Apply issue template
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const issue = context.payload.issue;
+            const title = issue.title.toLowerCase();
+            
+            let template = '';
+            let labels = [];
+            
+            // Detect issue type
+            if (title.includes('bug') || title.includes('broken') || title.includes('not working')) {
+              template = `## 🐛 Bug Description
+Please describe the bug...
+
+## Steps to Reproduce
+1.
+2.
+3.
+
+## Expected Behavior
+
+
+## Actual Behavior
+
+
+## Environment
+- OS:
+- Browser:
+- Version:
+`;
+              labels.push('bug');
+            } else if (title.includes('feature') || title.includes('request') || title.includes('enhancement')) {
+              template = `## ✨ Feature Request
+**Is your feature request related to a problem? Please describe.**
+
+**Describe the solution you'd like**
+
+
+**Describe alternatives you've considered**
+
+
+**Additional context**
+`;
+              labels.push('enhancement');
+            } else if (title.includes('question') || title.includes('how')) {
+              template = `## ❓ Question
+**What's your question?**
+
+**What have you tried?**
+
+
+**Additional context**
+`;
+              labels.push('question');
+            }
+            
+            // Update issue body
+            if (template) {
+              await github.rest.issues.update({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                body: issue.body + '\n\n---\n' + template
+              });
+              
+              await github.rest.issues.addLabels({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                labels: labels
+              });
+            }

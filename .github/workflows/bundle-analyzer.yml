@@ -1,0 +1,54 @@
+name: Bundle Size Monitor
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  bundle:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Analyze bundle
+        run: |
+          echo "## Bundle Analysis" >> $GITHUB_STEP_SUMMARY
+          
+          # Build project
+          npm run build 2>/dev/null || echo "Build not configured"
+          
+          # Check for common build outputs
+          if [ -d dist ]; then
+            echo "### Build Output Size" >> $GITHUB_STEP_SUMMARY
+            echo "| File | Size |" >> $GITHUB_STEP_SUMMARY
+            echo "|------|------|" >> $GITHUB_STEP_SUMMARY
+            find dist -type f -exec ls -lh {} \; | awk '{print "| " $9 " | " $5 " |"}' | tail -10 >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          # Check for large files
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Large Files (>100KB)" >> $GITHUB_STEP_SUMMARY
+          large=$(find . -type f \( -name "*.js" -o -name "*.css" \) -size +100k 2>/dev/null | head -5)
+          if [ -n "$large" ]; then
+            echo "$large" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "No large files found" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Upload bundle stats
+        uses: actions/upload-artifact@v4
+        with:
+          name: bundle-stats
+          path: dist/

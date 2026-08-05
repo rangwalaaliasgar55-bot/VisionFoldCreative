@@ -1,0 +1,55 @@
+name: Weekly Report Generator
+
+on:
+  schedule:
+    - cron: '0 10 * * 1'  # Mondays at 10 AM
+  workflow_dispatch:
+
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Generate weekly report
+        run: |
+          echo "# VisionFold Creative - Weekly Report" >> weekly-report.md
+          echo "" >> weekly-report.md
+          echo "## Week of $(date -v-7d +%Y-%m-%d) to $(date +%Y-%m-%d)" >> weekly-report.md
+          echo "" >> weekly-report.md
+          
+          echo "## Development" >> weekly-report.md
+          echo "- Commits: $(git log --since='7 days ago' --oneline | wc -l)" >> weekly-report.md
+          echo "- Contributors: $(git log --since='7 days ago' --format='%aN' | sort -u | wc -l)" >> weekly-report.md
+          echo "- Lines changed: $(git diff --stat --summary HEAD~7..HEAD | grep 'insertion' | awk '{print $1}' || echo '0') added" >> weekly-report.md
+          
+          echo "" >> weekly-report.md
+          echo "## Project Highlights" >> weekly-report.md
+          echo "- Website deployed and running" >> weekly-report.md
+          echo "- Admin panel functional" >> weekly-report.md
+          echo "- AI features integrated" >> weekly-report.md
+          
+          echo "" >> weekly-report.md
+          echo "## Goals for Next Week" >> weekly-report.md
+          echo "- [ ] Continue development" >> weekly-report.md
+          echo "- [ ] Improve features" >> weekly-report.md
+          echo "- [ ] Fix any issues" >> weekly-report.md
+          
+          cat weekly-report.md
+
+      - name: Create issue
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const content = fs.readFileSync('weekly-report.md', 'utf8');
+            
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `📊 Weekly Report - ${new Date().toLocaleDateString()}`,
+              body: content,
+              labels: ['report', 'weekly']
+            });

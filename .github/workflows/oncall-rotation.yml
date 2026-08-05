@@ -1,0 +1,45 @@
+name: On-Call Rotation
+
+on:
+  schedule:
+    - cron: '0 0 * * 1'  # Weekly on Monday
+  workflow_dispatch:
+
+jobs:
+  rotation:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Update on-call
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const team = ['@rangwalaaliasgar55-bot'];
+            const dayOfYear = Math.floor((Date.now() - new Date(new Date().getFullYear(), 0, 0)) / 86400000);
+            const currentOncall = team[dayOfYear % team.length];
+            
+            // Get or create on-call issue
+            const { data: issues } = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              labels: ['on-call'],
+              state: 'open'
+            });
+            
+            if (issues.length > 0) {
+              await github.rest.issues.update({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issues[0].number,
+                title: `🩺 On-Call: ${currentOncall} (Week of ${new Date().toLocaleDateString()})`
+              });
+            } else {
+              await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title: `🩺 On-Call: ${currentOncall}`,
+                body: `Current on-call engineer: ${currentOncall}\n\nWeek: ${new Date().toLocaleDateString()}`,
+                labels: ['on-call']
+              });
+            }
+            
+            console.log(`On-call updated: ${currentOncall}`);

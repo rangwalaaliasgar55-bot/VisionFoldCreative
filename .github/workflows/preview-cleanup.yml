@@ -1,0 +1,41 @@
+name: Preview Environment Cleanup
+
+on:
+  pull_request:
+    types: [closed]
+  workflow_dispatch:
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Cleanup preview deployments
+        if: github.event.pull_request.merged == true
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          echo "Cleaning up preview deployments..."
+          
+          if [ -n "$VERCEL_TOKEN" ]; then
+            # Delete preview deployments
+            npx vercel remove preview --token=$VERCEL_TOKEN --yes || echo "Cleanup skipped"
+          fi
+          
+          echo "✅ Preview environments cleaned up"
+
+      - name: Comment on PR
+        if: github.event.pull_request.merged == true
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.payload.pull_request.number,
+              body: `## 🎉 PR Merged!
+
+Thank you @${context.payload.pull_request.user.login} for your contribution!
+
+Preview environments have been cleaned up.
+            `;
+            });

@@ -1,0 +1,31 @@
+name: Enforce Branch Protection
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    types: [opened, synchronize, reopened]
+  workflow_dispatch:
+
+jobs:
+  protect-branch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check branch protection status
+        run: |
+          echo "## Branch Protection Check" >> $GITHUB_STEP_SUMMARY
+          
+          # Check if push is to main
+          if [ "${{ github.ref }}" = "refs/heads/main" ]; then
+            echo "⚠️ Direct push to main detected" >> $GITHUB_STEP_SUMMARY
+            
+            # Check if from PR
+            if [ "${{ github.event_name }}" != "pull_request" ]; then
+              echo "❌ Direct commits to main are not allowed!" >> $GITHUB_STEP_SUMMARY
+              echo "Please create a PR instead."
+              exit 1
+            fi
+          fi
+          
+          echo "✅ Branch protection check passed"

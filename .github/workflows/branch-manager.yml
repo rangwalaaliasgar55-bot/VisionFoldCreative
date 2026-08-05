@@ -1,0 +1,33 @@
+name: Branch Manager
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  manage:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Clean old branches
+        run: |
+          echo "## Branch Management Report" >> $GITHUB_STEP_SUMMARY
+          
+          # Get merged branches
+          git fetch --all --prune
+          
+          merged=$(git branch -r --merged origin/main | grep -v "main\|develop\|master" | sed 's/origin\///')
+          
+          if [ -n "$merged" ]; then
+            echo "### Merged branches (safe to delete)" >> $GITHUB_STEP_SUMMARY
+            echo "$merged" >> $GITHUB_STEP_SUMMARY
+            
+            # Count merged
+            count=$(echo "$merged" | wc -l)
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Total: $count branches" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "✅ No merged branches to clean" >> $GITHUB_STEP_SUMMARY
+          fi

@@ -1,0 +1,51 @@
+name: GitOps Sync
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  gitops:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Generate Kubernetes manifests
+        run: |
+          echo "## GitOps Sync" >> $GITHUB_STEP_SUMMARY
+          echo "Generating Kubernetes manifests..." >> $GITHUB_STEP_SUMMARY
+          
+          # Create deployment manifest
+          cat > k8s/deployment.yaml << 'EOF'
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: visionfold-creative
+  namespace: production
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: visionfold-creative
+  template:
+    metadata:
+      labels:
+        app: visionfold-creative
+    spec:
+      containers:
+      - name: app
+        image: visionfold:latest
+        ports:
+        - containerPort: 3000
+EOF
+          
+          echo "✅ Manifests generated"
+
+      - name: Commit to GitOps repo
+        run: |
+          git config user.name "OpenHands Bot"
+          git config user.email "openhands@all-hands.dev"
+          git add k8s/
+          git commit -m "chore: sync deployment manifests"
+          git push origin main || echo "GitOps push skipped"

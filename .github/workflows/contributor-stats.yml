@@ -1,0 +1,42 @@
+name: Contributor Statistics
+
+on:
+  schedule:
+    - cron: '0 0 1 * *'  # Monthly
+  workflow_dispatch:
+
+jobs:
+  stats:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Generate contributor stats
+        run: |
+          echo "# Contributor Statistics" >> contributor-stats.md
+          echo "" >> contributor-stats.md
+          echo "## Top Contributors" >> contributor-stats.md
+          echo "" >> contributor-stats.md
+          git log --format='%aN' | sort | uniq -c | sort -rn | head -10 | awk '{print $1 " - " $2}' >> contributor-stats.md
+          
+          echo "" >> contributor-stats.md
+          echo "## Monthly Activity" >> contributor-stats.md
+          echo "" >> contributor-stats.md
+          git log --since='30 days ago' --format='%aN' | sort | uniq -c | sort -rn | head -5 | awk '{print $2 ": " $1 " commits"}' >> contributor-stats.md
+          
+          echo "" >> contributor-stats.md
+          echo "## Commit Distribution" >> contributor-stats.md
+          echo "" >> contributor-stats.md
+          for day in Sun Mon Tue Wed Thu Fri Sat; do
+            count=$(git log --format='%ad' --date=format '%a' | grep -c "$day" 2>/dev/null || echo 0)
+            echo "- $day: $count commits" >> contributor-stats.md
+          done
+          
+          cat contributor-stats.md
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: contributor-stats
+          path: contributor-stats.md

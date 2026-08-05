@@ -1,0 +1,34 @@
+name: Project Statistics
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  stats:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Generate project stats
+        run: |
+          echo "## Project Statistics" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          echo "### Code Statistics" >> $GITHUB_STEP_SUMMARY
+          echo "| Metric | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|--------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| TypeScript files | $(find . -name "*.ts" -o -name "*.tsx" | grep -v node_modules | wc -l) |" >> $GITHUB_STEP_SUMMARY
+          echo "| JavaScript files | $(find . -name "*.js" -o -name "*.jsx" | grep -v node_modules | wc -l) |" >> $GITHUB_STEP_SUMMARY
+          echo "| CSS files | $(find . -name "*.css" | grep -v node_modules | wc -l) |" >> $GITHUB_STEP_SUMMARY
+          echo "| Markdown files | $(find . -name "*.md" | wc -l) |" >> $GITHUB_STEP_SUMMARY
+          echo "| Total commits | $(git rev-list --count HEAD) |" >> $GITHUB_STEP_SUMMARY
+          echo "| Contributors | $(git shortlog -sn | wc -l) |" >> $GITHUB_STEP_SUMMARY
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Dependencies" >> $GITHUB_STEP_SUMMARY
+          echo "| Type | Count |" >> $GITHUB_STEP_SUMMARY
+          echo "|------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Dependencies | $(cat package.json | jq '.dependencies | length' 2>/dev/null || echo 0) |" >> $GITHUB_STEP_SUMMARY
+          echo "| Dev Dependencies | $(cat package.json | jq '.devDependencies | length' 2>/dev/null || echo 0) |" >> $GITHUB_STEP_SUMMARY

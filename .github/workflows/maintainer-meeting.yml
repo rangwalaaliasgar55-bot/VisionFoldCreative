@@ -1,0 +1,60 @@
+name: Maintainer Meeting Notes
+
+on:
+  schedule:
+    - cron: '0 10 1,15 * *'  # 1st and 15th of month
+  workflow_dispatch:
+
+jobs:
+  meeting:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Generate meeting notes
+        run: |
+          echo "# Maintainer Meeting Notes" >> meeting-notes.md
+          echo "" >> meeting-notes.md
+          echo "## Date: $(date +'%Y-%m-%d')" >> meeting-notes.md
+          echo "" >> meeting-notes.md
+          
+          echo "## Attendees" >> meeting-notes.md
+          echo "- @rangwalaaliasgar55-bot" >> meeting-notes.md
+          echo "" >> meeting-notes.md
+          
+          echo "## Agenda" >> meeting-notes.md
+          echo "1. Review sprint progress" >> meeting-notes.md
+          echo "2. Discuss blockers" >> meeting-notes.md
+          echo "3. Plan next sprint" >> meeting-notes.md
+          echo "4. Open questions" >> meeting-notes.md
+          echo "" >> meeting-notes.md
+          
+          echo "## Discussion Points" >> meeting-notes.md
+          echo "- " >> meeting-notes.md
+          echo "" >> meeting-notes.md
+          
+          echo "## Action Items" >> meeting-notes.md
+          echo "- [ ] " >> meeting-notes.md
+          echo "" >> meeting-notes.md
+          
+          echo "## Next Meeting" >> meeting-notes.md
+          echo "- Date: TBD" >> meeting-notes.md
+          
+          cat meeting-notes.md
+
+      - name: Create issue
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const content = fs.readFileSync('meeting-notes.md', 'utf8');
+            
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `📝 Maintainer Meeting - ${new Date().toLocaleDateString()}`,
+              body: content,
+              labels: ['meeting']
+            });

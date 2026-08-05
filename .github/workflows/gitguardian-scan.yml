@@ -1,0 +1,22 @@
+name: Secret Scanning
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    types: [opened, synchronize]
+  workflow_dispatch:
+
+jobs:
+  secret-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Run GitGuardian Scan
+        uses: GitGuardian/gg-shield-action@master
+        with:
+          args: scan commit-ranges

@@ -1,0 +1,42 @@
+name: Markdown Lint
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    types: [opened, synchronize]
+  workflow_dispatch:
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Lint Markdown files
+        run: |
+          echo "## Markdown Lint Report" >> $GITHUB_STEP_SUMMARY
+          
+          issues=0
+          
+          for file in $(find . -name "*.md" -not -path "./node_modules/*" 2>/dev/null); do
+            echo "Checking: $file"
+            
+            # Check for trailing whitespace
+            if grep -q " $" "$file" 2>/dev/null; then
+              echo "⚠️ $file: Trailing whitespace" >> $GITHUB_STEP_SUMMARY
+              issues=$((issues+1))
+            fi
+            
+            # Check for multiple blank lines
+            if grep -qPzo "\n\n\n" "$file" 2>/dev/null; then
+              echo "⚠️ $file: Multiple blank lines" >> $GITHUB_STEP_SUMMARY
+              issues=$((issues+1))
+            fi
+          done
+          
+          if [ "$issues" -eq 0 ]; then
+            echo "✅ All Markdown files are properly formatted" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ Found $issues Markdown issues" >> $GITHUB_STEP_SUMMARY
+          fi

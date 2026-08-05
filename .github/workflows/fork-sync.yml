@@ -1,0 +1,39 @@
+name: Fork Sync
+
+on:
+  schedule:
+    - cron: '0 0 * * *'  # Daily
+  workflow_dispatch:
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Sync fork
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { data: repos } = await github.rest.repos.listForAuthenticatedUser({
+              type: 'owner',
+              per_page: 100
+            });
+            
+            for (const repo of repos) {
+              if (repo.fork) {
+                console.log(`Checking ${repo.full_name}...`);
+                
+                try {
+                  // Check if upstream has changes
+                  const { data: upstream } = await github.rest.repos.get({
+                    owner: repo.parent.owner.login,
+                    repo: repo.parent.name
+                  });
+                  
+                  if (new Date(upstream.pushed_at) > new Date(repo.pushed_at)) {
+                    console.log(`${repo.full_name} is behind upstream`);
+                  }
+                } catch (e) {
+                  console.log(`Could not check ${repo.full_name}`);
+                }
+              }
+            }

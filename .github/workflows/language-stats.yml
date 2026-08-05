@@ -1,0 +1,32 @@
+name: Language Statistics
+
+on:
+  schedule:
+    - cron: '0 0 1 * *'  # Monthly
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  stats:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Analyze languages
+        run: |
+          echo "## Language Statistics" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          # Count lines by language
+          for ext in ts tsx js jsx css html json; do
+            count=$(find . -name "*.$ext" -not -path "./node_modules/*" 2>/dev/null | wc -l)
+            if [ "$count" -gt 0 ]; then
+              echo "- *.$ext: $count files" >> $GITHUB_STEP_SUMMARY
+            fi
+          done
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Total Files" >> $GITHUB_STEP_SUMMARY
+          total=$(find . -type f -name "*.ts" -o -name "*.tsx" -o -name "*.js" -o -name "*.jsx" -o -name "*.css" | grep -v node_modules | wc -l)
+          echo "Total source files: $total" >> $GITHUB_STEP_SUMMARY

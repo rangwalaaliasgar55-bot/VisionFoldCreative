@@ -1,0 +1,36 @@
+name: Sprint Metrics
+
+on:
+  schedule:
+    - cron: '0 18 * * 5'  # Fridays at 6 PM
+  workflow_dispatch:
+
+jobs:
+  metrics:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Generate sprint metrics
+        run: |
+          echo "# Sprint Metrics Report" >> sprint-metrics.md
+          echo "" >> sprint-metrics.md
+          echo "## Velocity" >> sprint-metrics.md
+          echo "- Commits this sprint: $(git log --since='2 weeks ago' --oneline | wc -l)" >> sprint-metrics.md
+          echo "- Lines added: $(git log --since='2 weeks ago' --format=++%n --numstat | grep -v '-' | paste -sd+ | bc 2>/dev/null || echo 0)" >> sprint-metrics.md
+          echo "- Lines removed: $(git log --since='2 weeks ago' --format=--%n --numstat | grep -v '-' | paste -sd+ | bc 2>/dev/null || echo 0)" >> sprint-metrics.md
+          
+          echo "" >> sprint-metrics.md
+          echo "## PR Statistics" >> sprint-metrics.md
+          echo "- PRs merged: $(git log --since='2 weeks ago' --oneline | grep -i merge | wc -l)" >> sprint-metrics.md
+          echo "- Contributors: $(git log --since='2 weeks ago' --format='%aN' | sort -u | wc -l)" >> sprint-metrics.md
+          
+          cat sprint-metrics.md
+
+      - name: Upload metrics
+        uses: actions/upload-artifact@v4
+        with:
+          name: sprint-metrics
+          path: sprint-metrics.md
