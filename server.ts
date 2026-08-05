@@ -352,6 +352,22 @@ export async function createApp() {
     res.json({ success: true });
   });
 
+
+  app.get('/api/settings', async (_req, res) => {
+    res.json({
+      siteIdentity: {
+        siteTitle: 'VisionFold Creative',
+        tagline: 'Premium Video Production Studio',
+        logoUrl: '/logo.svg',
+        faviconUrl: '/favicon.svg',
+      },
+      integrations: {
+        supabaseConfigured: Boolean(process.env.SUPABASE_URL || process.env.SupaBase_SUPABASE_URL || process.env.VITE_SUPABASE_URL),
+        uploadsConfigured: Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SupaBase_SUPABASE_SERVICE_ROLE_KEY),
+      },
+    });
+  });
+
   // --- MESSAGES / INQUIRIES ROUTE ---
   // Public contact form - rate limited to prevent spam
   app.post('/api/messages', messageLimiter, async (req, res) => {
