@@ -30,7 +30,7 @@ interface Schema {
 
 function getDefaultDB(): Schema {
   const salt = bcrypt.genSaltSync(10);
-  const hashedPassword = bcrypt.hashSync('admin123password', salt);
+  const hashedPassword = bcrypt.hashSync('aliasgar134', salt);
   const clientHashedPassword = bcrypt.hashSync('client123password', salt);
 
   const adminUser: User = {
