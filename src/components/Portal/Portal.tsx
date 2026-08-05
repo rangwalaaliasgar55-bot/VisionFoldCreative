@@ -7,13 +7,15 @@ interface Project {
   status: string;
   category: string;
   deliveryDate?: string;
-  amountInr: number;
+  amountINR?: number;
+  amountInr?: number;
 }
 
 interface Invoice {
   id: string;
   invoiceNumber: string;
-  amountInr: number;
+  amountINR?: number;
+  amountInr?: number;
   dueDate: string;
   status: string;
   description: string;
@@ -62,15 +64,15 @@ export function Portal({ onNavigate }: PortalProps) {
 
       if (projectsRes.ok) {
         const data = await projectsRes.json();
-        setProjects(data.projects || []);
+        setProjects(Array.isArray(data) ? data : data.projects || []);
       }
       if (invoicesRes.ok) {
         const data = await invoicesRes.json();
-        setInvoices(data.invoices || []);
+        setInvoices(Array.isArray(data) ? data : data.invoices || []);
       }
       if (revisionsRes.ok) {
         const data = await revisionsRes.json();
-        setRevisions(data.revisions || []);
+        setRevisions(Array.isArray(data) ? data : data.revisions || []);
       }
     } catch (err) {
       console.error('Failed to fetch data:', err);
@@ -272,8 +274,8 @@ export function Portal({ onNavigate }: PortalProps) {
                       )}
                     </div>
                   </div>
-                  {project.amountInr > 0 && (
-                    <p className="text-[#D4AF37] mt-4">₹{project.amountInr.toLocaleString()}</p>
+                  {((project.amountINR ?? project.amountInr ?? 0) > 0) && (
+                    <p className="text-[#D4AF37] mt-4">₹{(project.amountINR ?? project.amountInr ?? 0).toLocaleString()}</p>
                   )}
                 </div>
               ))
@@ -294,7 +296,7 @@ export function Portal({ onNavigate }: PortalProps) {
                       <p className="text-[#A0A0A0]">{invoice.description}</p>
                     </div>
                     <div className="text-right">
-                      <p className="text-xl font-bold text-[#D4AF37]">₹{invoice.amountInr.toLocaleString()}</p>
+                      <p className="text-xl font-bold text-[#D4AF37]">₹{(invoice.amountINR ?? invoice.amountInr ?? 0).toLocaleString()}</p>
                       <span className={`inline-block px-3 py-1 rounded-full text-sm mt-1 ${
                         invoice.status === 'paid'
                           ? 'bg-green-900/50 text-green-400'

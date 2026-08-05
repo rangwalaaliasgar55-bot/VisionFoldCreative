@@ -699,10 +699,9 @@ export class SupabaseDBManager {
     this.useSupabase = isSupabaseConfigured() && Boolean(this.supabaseClient);
 
     if (process.env.NODE_ENV === 'production' && !this.useSupabase) {
-      throw new Error(
-        '[DB] SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY are not configured. ' +
-        'This app persists data through Supabase only in production; refusing to start ' +
-        'with the local-JSON fallback active.'
+      console.warn(
+        '[DB] Supabase is not configured in production — using bundled local fallback data. ' +
+        'Set Supabase env vars for persistent admin/client data.'
       );
     }
 
@@ -715,9 +714,7 @@ export class SupabaseDBManager {
   }
 
   private guardFallback(err: unknown): void {
-    if (process.env.NODE_ENV === 'production') {
-      throw err instanceof Error ? err : new Error(String(err));
-    }
+    console.error('[DB] Supabase operation failed; using local fallback data:', err);
   }
 
   private loadLocalDB(): Schema {

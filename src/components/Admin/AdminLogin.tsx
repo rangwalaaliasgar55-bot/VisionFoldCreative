@@ -34,7 +34,14 @@ export const AdminLogin: React.FC<{ onSuccess: () => void }> = ({ onSuccess }) =
         body: JSON.stringify(validated),
       });
 
-      const payload = await response.json();
+      const responseText = await response.text();
+      const payload = responseText ? (() => {
+        try {
+          return JSON.parse(responseText);
+        } catch {
+          return { error: responseText };
+        }
+      })() : {};
 
       if (!response.ok) {
         const errorMessage = payload.error || 'Invalid credentials';
