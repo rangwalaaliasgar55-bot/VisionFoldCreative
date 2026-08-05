@@ -1,9 +1,20 @@
 import React from 'react';
 import { LucideIcon } from 'lucide-react';
 
-export const Card: React.FC<{ children: React.ReactNode; className?: string }> = ({ children, className = '' }) => (
-  <div className={`rounded-xl border border-[#222226] bg-[#121215] ${className}`}>{children}</div>
-);
+// Legacy Card component with padding support
+export const Card: React.FC<{ children: React.ReactNode; className?: string; padding?: 'none' | 'sm' | 'md' | 'lg' }> = ({ children, className = '', padding = 'md' }) => {
+  const paddingClasses = {
+    none: '',
+    sm: 'p-3',
+    md: 'p-5',
+    lg: 'p-6',
+  };
+  return (
+    <div className={`rounded-xl border border-[#222226] bg-[#121215] ${paddingClasses[padding]} ${className}`}>
+      {children}
+    </div>
+  );
+};
 
 export const CardHeader: React.FC<{ title: string; subtitle?: string; action?: React.ReactNode }> = ({ title, subtitle, action }) => (
   <div className="flex items-center justify-between gap-4 border-b border-[#222226] px-6 py-4">

@@ -607,6 +607,35 @@ export async function createApp() {
     }
   });
 
+  // Chat endpoint for AI Assistant (admin-only)
+  app.post('/api/ai/chat', authenticateToken, requireAdmin, async (req: AuthenticatedRequest, res) => {
+    try {
+      const { messages, context } = req.body;
+      
+      if (!messages || !Array.isArray(messages) || messages.length === 0) {
+        return res.status(400).json({ error: 'Provide messages array' });
+      }
+
+      // Build conversation with system context
+      const systemMessage = context || 'You are a helpful AI assistant.';
+      const conversationMessages = [
+        { role: 'system', content: systemMessage },
+        ...messages.slice(-10), // Limit to last 10 messages for context
+      ];
+
+      const text = await generateText(conversationMessages, { 
+        temperature: 0.7, 
+        maxTokens: 500,
+        model: 'anthropic/claude-3-haiku'
+      });
+
+      res.json({ text });
+    } catch (err: any) {
+      console.error('[AI ERROR]', err.message);
+      res.status(err.status || 500).json({ error: err.message || 'Chat failed' });
+    }
+  });
+
   app.post('/api/ai/inquiry-assist', async (req, res) => {
     try {
       const { message } = req.body;
