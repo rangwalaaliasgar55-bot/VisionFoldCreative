@@ -37,13 +37,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         credentials: 'include',
       });
 
+      const responseText = await response.text();
+      const data = responseText ? (() => {
+        try {
+          return JSON.parse(responseText);
+        } catch {
+          return { error: responseText };
+        }
+      })() : {};
+
       if (!response.ok) {
         setUser(null);
         setToken(null);
         return;
       }
-
-      const data = await response.json();
 
       // Validate response structure
       const validatedUser = UserSchema.parse(data.user);
@@ -80,7 +87,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         body: JSON.stringify(validated),
       });
 
-      const data = await response.json();
+      const responseText = await response.text();
+      const data = responseText ? (() => {
+        try {
+          return JSON.parse(responseText);
+        } catch {
+          return { error: responseText };
+        }
+      })() : {};
 
       if (!response.ok) {
         const errorMessage = data.error || 'Login failed';

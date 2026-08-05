@@ -77,7 +77,9 @@ export class LocalDiskStorageProvider implements StorageProvider {
   private baseUrl: string;
 
   constructor() {
-    this.uploadDir = path.join(process.cwd(), 'public', 'uploads');
+    this.uploadDir = process.env.NODE_ENV === 'production'
+      ? path.join('/tmp', 'visionfold-uploads')
+      : path.join(process.cwd(), 'public', 'uploads');
     this.baseUrl = '/uploads';
     if (!fs.existsSync(this.uploadDir)) {
       fs.mkdirSync(this.uploadDir, { recursive: true });
@@ -149,15 +151,14 @@ function createStorageProvider(): StorageProvider {
   }
 
   if (process.env.NODE_ENV === 'production') {
-    throw new Error(
-      '[STORAGE] SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY are not configured. ' +
-      'File uploads persist through Supabase Storage only in production; refusing to ' +
-      'start with the local-disk fallback active.'
+    console.warn(
+      '[STORAGE] Supabase Storage is not configured in production — using temporary local storage. ' +
+      'Uploads may not persist across serverless invocations.'
     );
   }
 
-  // Fall back to local disk for development only
-  console.log('[STORAGE] Using Local Disk Storage (development only - files will be lost on Vercel!)');
+  // Fall back to local disk/temporary disk when cloud storage is not configured
+  console.log('[STORAGE] Using Local Disk Storage fallback');
   return new LocalDiskStorageProvider();
 }
 

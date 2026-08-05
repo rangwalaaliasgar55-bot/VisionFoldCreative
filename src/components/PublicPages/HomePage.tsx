@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { ArrowRight, BadgeCheck, Clapperboard, Clock3, Film, MessageCircleMore, MonitorPlay, Play, Plus, Quote, Scissors, Send, Sparkles, Star, Wand2, Zap } from 'lucide-react';
+import { ArrowRight, BadgeCheck, Clapperboard, Clock3, Film, LockKeyhole, MessageCircleMore, MonitorPlay, Play, Quote, Scissors, Send, Sparkles, Star, Wand2, Zap } from 'lucide-react';
 import { useSfx } from '../../context/SfxContext';
 import { useAdmin } from '../../context/AdminContext';
 import { useContent } from '../../context/ContentContext';
@@ -29,6 +29,12 @@ const features = [
   { icon: Wand2, title: 'Premium polish', text: 'Kinetic captions, SFX, motion accents, grading, and clean brand-safe exports.' },
   { icon: Clock3, title: 'Workflow dashboard', text: 'Admin-ready leads, projects, invoices, and revisions to keep every job moving.' },
   { icon: MonitorPlay, title: 'Platform masters', text: 'Reels, Shorts, TikTok, YouTube, ads, and launch cuts formatted correctly.' },
+];
+
+const premiumMotionSystems = [
+  { title: 'Magnetic Brief Builder', text: 'A high-friction-free brief CTA that turns vague ideas into actionable edit direction before the first DM.', accent: 'from-[#D4AF37] to-white' },
+  { title: 'Delivery Pulse Timeline', text: 'A premium animated workflow promise for intake, first cut, revision, final export, and review request.', accent: 'from-white to-[#8D7A3A]' },
+  { title: 'Client Trust Loop', text: 'Reviews are framed as a post-delivery moment, so feedback feels earned instead of randomly requested.', accent: 'from-[#D4AF37] to-[#7C5B12]' },
 ];
 
 const seededReviews = [
@@ -89,6 +95,9 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
               <button onMouseEnter={playHover} onClick={() => { playClick(); document.getElementById('pricing')?.scrollIntoView({ behavior: 'smooth' }); }} className="rounded-full border border-white/15 bg-white/5 px-8 py-4 text-xs font-black uppercase tracking-[0.18em] text-white backdrop-blur-xl transition-all hover:border-[#D4AF37] hover:text-[#D4AF37]">
                 View pricing
               </button>
+              <button onMouseEnter={playHover} onClick={() => { playClick(); onNavigate('portal'); window.location.href = '/portal'; }} className="rounded-full border border-white/15 bg-black/40 px-8 py-4 text-xs font-black uppercase tracking-[0.18em] text-white backdrop-blur-xl transition-all hover:border-white hover:bg-white hover:text-black">
+                Client login
+              </button>
             </div>
             <div className="mt-12 grid max-w-2xl grid-cols-3 gap-3 text-center">
               {['Shorts ₹700', 'Long-form custom', metrics.retentionSplit].map((item) => <div key={item} className="rounded-2xl border border-white/10 bg-white/[0.04] p-4 text-[10px] font-bold uppercase tracking-[0.18em] text-[#B8B3AA] backdrop-blur-xl">{item}</div>)}
@@ -119,6 +128,37 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
         </RevealSection>
       </section>
 
+      <section className="relative z-10 px-6 py-28">
+        <RevealSection className="mx-auto max-w-7xl">
+          <div className="mb-12 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+            <div>
+              <p className="mb-3 text-xs font-black uppercase tracking-[0.3em] text-[#D4AF37]">3 premium upgrades</p>
+              <h2 className="text-4xl font-black uppercase tracking-[-0.04em] md:text-6xl">Motion systems that feel expensive</h2>
+            </div>
+            <Clapperboard className="hidden h-14 w-14 animate-pulse text-[#D4AF37] md:block" />
+          </div>
+          <div className="grid gap-5 lg:grid-cols-3">
+            {premiumMotionSystems.map((system, index) => <div key={system.title} className="group relative min-h-72 overflow-hidden rounded-[2rem] border border-white/10 bg-white/[0.04] p-7 transition-all duration-700 hover:-translate-y-3 hover:rotate-1 hover:border-[#D4AF37]/60"><div className={`absolute -right-16 -top-16 h-44 w-44 rounded-full bg-gradient-to-br ${system.accent} opacity-20 blur-2xl transition-all duration-700 group-hover:scale-150 group-hover:opacity-40`} /><div className="relative z-10 flex h-full flex-col justify-between"><div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-white/10 bg-black/40 text-xl font-black text-[#D4AF37]">0{index + 1}</div><div><h3 className="mb-4 text-2xl font-black uppercase tracking-[-0.02em]">{system.title}</h3><p className="text-sm leading-7 text-[#B8B3AA]">{system.text}</p></div></div></div>)}
+          </div>
+        </RevealSection>
+      </section>
+
+      <section className="relative z-10 border-y border-white/10 bg-black/30 px-6 py-20 backdrop-blur-xl">
+        <RevealSection className="mx-auto grid max-w-7xl gap-6 lg:grid-cols-[0.9fr_1.1fr] lg:items-center">
+          <div>
+            <LockKeyhole className="mb-6 h-10 w-10 text-[#D4AF37]" />
+            <h2 className="text-4xl font-black uppercase tracking-[-0.04em] md:text-5xl">Client auth is ready</h2>
+            <p className="mt-5 max-w-xl text-sm leading-7 text-[#B8B3AA]">Existing clients can sign in to the portal to view projects, invoices, delivered files, and revision requests. Admin can create client accounts from the dashboard.</p>
+          </div>
+          <div className="rounded-[2rem] border border-white/10 bg-white/[0.04] p-6">
+            <div className="grid gap-3 sm:grid-cols-3">
+              {['Projects', 'Invoices', 'Revisions'].map((item) => <div key={item} className="rounded-2xl border border-white/10 bg-black/40 px-4 py-5 text-center text-xs font-black uppercase tracking-[0.18em] text-[#D4AF37] transition-transform hover:-translate-y-1">{item}</div>)}
+            </div>
+            <button onClick={() => { playClick(); window.location.href = '/portal'; }} className="mt-5 w-full rounded-2xl bg-white px-5 py-4 text-xs font-black uppercase tracking-[0.18em] text-black transition-all hover:bg-[#D4AF37]">Open client portal</button>
+          </div>
+        </RevealSection>
+      </section>
+
       <section id="work" className="relative z-10 px-6 py-28">
         <RevealSection className="mx-auto max-w-7xl">
           <h2 className="mb-12 text-4xl font-black uppercase tracking-[-0.04em] md:text-6xl">Agency-grade edits</h2>
@@ -137,11 +177,11 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
 
       <section className="relative z-10 px-6 py-28">
         <RevealSection className="mx-auto max-w-7xl">
-          <div className="mb-12 flex items-end justify-between gap-6"><h2 className="text-4xl font-black uppercase tracking-[-0.04em] md:text-6xl">Client reviews</h2><BadgeCheck className="hidden h-12 w-12 text-[#D4AF37] md:block" /></div>
-          <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
-            {allReviews.map((review, index) => <div key={`${review.name}-${index}`} className="rounded-3xl border border-white/10 bg-white/[0.04] p-6 backdrop-blur-xl"><div className="mb-5 flex gap-1 text-[#D4AF37]">{Array.from({ length: 5 }).map((_, i) => <Star key={i} className="h-4 w-4 fill-current" />)}</div><Quote className="mb-4 h-6 w-6 text-white/30" /><p className="min-h-28 text-sm leading-7 text-[#D8D3CA]">“{review.quote}”</p><div className="mt-6 border-t border-white/10 pt-5"><p className="font-black">{review.name}</p><p className="text-xs uppercase tracking-[0.15em] text-[#D4AF37]">{review.place}</p><p className="mt-1 text-xs text-[#B8B3AA]">{review.role}</p></div></div>)}
+          <div className="mb-12 flex items-end justify-between gap-6"><div><p className="mb-3 text-xs font-black uppercase tracking-[0.3em] text-[#D4AF37]">Swipe left</p><h2 className="text-4xl font-black uppercase tracking-[-0.04em] md:text-6xl">Client reviews</h2><p className="mt-3 text-sm text-[#B8B3AA]">Showing fewer cards at once keeps the page cleaner. Feedback is requested after a client project is delivered.</p></div><BadgeCheck className="hidden h-12 w-12 text-[#D4AF37] md:block" /></div>
+          <div className="flex snap-x gap-5 overflow-x-auto pb-6 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            {allReviews.map((review, index) => <div key={`${review.name}-${index}`} className="min-w-[84%] snap-center rounded-3xl border border-white/10 bg-white/[0.04] p-6 backdrop-blur-xl transition-transform duration-500 hover:-translate-y-2 sm:min-w-[430px]"><div className="mb-5 flex gap-1 text-[#D4AF37]">{Array.from({ length: 5 }).map((_, i) => <Star key={i} className="h-4 w-4 fill-current" />)}</div><Quote className="mb-4 h-6 w-6 text-white/30" /><p className="min-h-28 text-sm leading-7 text-[#D8D3CA]">“{review.quote}”</p><div className="mt-6 border-t border-white/10 pt-5"><p className="font-black">{review.name}</p><p className="text-xs uppercase tracking-[0.15em] text-[#D4AF37]">{review.place}</p><p className="mt-1 text-xs text-[#B8B3AA]">{review.role}</p></div></div>)}
           </div>
-          <form onSubmit={addReview} className="mt-8 grid gap-4 rounded-3xl border border-white/10 bg-black/40 p-5 md:grid-cols-[1fr_2fr_auto]"><input value={reviewName} onChange={(e) => setReviewName(e.target.value)} placeholder="Your name" className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm outline-none focus:border-[#D4AF37]" /><input value={reviewText} onChange={(e) => setReviewText(e.target.value)} placeholder="Add your review" className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm outline-none focus:border-[#D4AF37]" /><button className="inline-flex items-center justify-center gap-2 rounded-2xl bg-white px-5 py-3 text-xs font-black uppercase tracking-[0.15em] text-black"><Plus className="h-4 w-4" /> Add</button></form>
+          <form onSubmit={addReview} className="mt-4 grid gap-4 rounded-3xl border border-[#D4AF37]/25 bg-black/40 p-5 md:grid-cols-[1fr_2fr_auto]"><div className="md:col-span-3 text-xs font-black uppercase tracking-[0.2em] text-[#D4AF37]">Delivered client? Leave your review after final files are approved.</div><input value={reviewName} onChange={(e) => setReviewName(e.target.value)} placeholder="Client name" className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm outline-none focus:border-[#D4AF37]" /><input value={reviewText} onChange={(e) => setReviewText(e.target.value)} placeholder="Post-delivery review" className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm outline-none focus:border-[#D4AF37]" /><button className="inline-flex items-center justify-center gap-2 rounded-2xl bg-white px-5 py-3 text-xs font-black uppercase tracking-[0.15em] text-black"><Send className="h-4 w-4" /> Submit</button></form>
         </RevealSection>
       </section>
 
