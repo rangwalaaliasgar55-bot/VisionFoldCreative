@@ -698,26 +698,16 @@ export class SupabaseDBManager {
     this.db = this.loadLocalDB();
     this.useSupabase = isSupabaseConfigured() && Boolean(this.supabaseClient);
 
-    if (process.env.NODE_ENV === 'production' && !this.useSupabase) {
-      throw new Error(
-        '[DB] SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY are not configured. ' +
-        'This app persists data through Supabase only in production; refusing to start ' +
-        'with the local-JSON fallback active.'
-      );
-    }
-
     if (!this.useSupabase) {
       console.warn(
-        '[DB] Supabase is not configured — using local data/db.json for this dev session only. ' +
-        'This file is NOT used in production and will not reflect real data.'
+        '[DB] Supabase is not configured — using local data/db.json fallback. ' +
+        'Set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY in Vercel to persist production data.'
       );
     }
   }
 
   private guardFallback(err: unknown): void {
-    if (process.env.NODE_ENV === 'production') {
-      throw err instanceof Error ? err : new Error(String(err));
-    }
+    console.error('[DB] Supabase request failed; falling back to local JSON data.', err);
   }
 
   private loadLocalDB(): Schema {

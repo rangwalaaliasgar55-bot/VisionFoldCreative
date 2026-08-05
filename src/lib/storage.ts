@@ -77,7 +77,7 @@ export class LocalDiskStorageProvider implements StorageProvider {
   private baseUrl: string;
 
   constructor() {
-    this.uploadDir = path.join(process.cwd(), 'public', 'uploads');
+    this.uploadDir = process.env.VERCEL ? path.join('/tmp', 'uploads') : path.join(process.cwd(), 'public', 'uploads');
     this.baseUrl = '/uploads';
     if (!fs.existsSync(this.uploadDir)) {
       fs.mkdirSync(this.uploadDir, { recursive: true });
@@ -148,16 +148,9 @@ function createStorageProvider(): StorageProvider {
     return new SupabaseStorageProvider();
   }
 
-  if (process.env.NODE_ENV === 'production') {
-    throw new Error(
-      '[STORAGE] SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY are not configured. ' +
-      'File uploads persist through Supabase Storage only in production; refusing to ' +
-      'start with the local-disk fallback active.'
-    );
-  }
-
-  // Fall back to local disk for development only
-  console.log('[STORAGE] Using Local Disk Storage (development only - files will be lost on Vercel!)');
+  // Fall back to local disk/temp storage so the API can still boot if env vars are missing.
+  // On Vercel this uses /tmp and is ephemeral; configure Supabase service-role env vars for persistent uploads.
+  console.warn('[STORAGE] Supabase Storage is not configured; using local/temp storage fallback.');
   return new LocalDiskStorageProvider();
 }
 

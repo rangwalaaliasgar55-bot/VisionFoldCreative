@@ -1,12 +1,10 @@
-import React, { useState, useRef } from 'react';
+import React, { useState } from 'react';
 import { useSfx } from '../../context/SfxContext';
 import { useAdmin } from '../../context/AdminContext';
 import { useContent } from '../../context/ContentContext';
 import { ThreeHero } from '../ThreeHero';
-import { SplitComparison } from '../SplitComparison';
 import { useScrollReveal } from '../../hooks/useScrollReveal';
-import { Play, Activity, ArrowRight, Video, Scissors, Film, MonitorPlay, Infinity as InfinityIcon, MessageCircleMore } from 'lucide-react';
-import { SkeletonLoader } from '../SkeletonLoader';
+import { Activity, ArrowRight, Video, Scissors, Film, MonitorPlay, Infinity as InfinityIcon, MessageCircleMore } from 'lucide-react';
 import { EditableText } from '../EditableText';
 import { EditableImage } from '../EditableImage';
 
@@ -20,50 +18,18 @@ const RevealSection: React.FC<{ children: React.ReactNode; className?: string }>
   return <div ref={ref} className={className}>{children}</div>;
 };
 
-// Skeleton Video Component
-const VideoCard: React.FC<{ videoUrl: string; poster: string; title: string }> = ({ videoUrl, poster, title }) => {
-  const [isLoaded, setIsLoaded] = useState(false);
-  const videoRef = useRef<HTMLVideoElement>(null);
-  
-  const handleMouseEnter = () => {
-    if (videoRef.current && isLoaded) {
-      videoRef.current.play().catch(() => {});
-    }
-  };
-
-  const handleMouseLeave = () => {
-    if (videoRef.current && isLoaded) {
-      videoRef.current.pause();
-      videoRef.current.currentTime = 0;
-    }
-  };
-
+const ShowcaseCard: React.FC<{ imageUrl: string; title: string }> = ({ imageUrl, title }) => {
   return (
-    <div 
-      className="relative aspect-video bg-[#121215] rounded overflow-hidden border border-[#222226] group interactive-hover"
-      onMouseEnter={handleMouseEnter}
-      onMouseLeave={handleMouseLeave}
-    >
-      <SkeletonLoader isLoaded={isLoaded} />
-      <video
-        ref={videoRef}
-        src={videoUrl}
-        poster={poster}
-        muted
-        loop
-        playsInline
-        onLoadedData={() => setIsLoaded(true)}
-        className={`w-full h-full object-cover transition-opacity duration-700 ${isLoaded ? 'opacity-100' : 'opacity-0'} group-hover:scale-105 transition-transform duration-700`}
+    <div className="relative aspect-video bg-[#121215] rounded overflow-hidden border border-[#222226] group interactive-hover">
+      <img
+        src={imageUrl}
+        alt={title}
+        loading="lazy"
+        className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
       />
-      
-      {/* Overlay */}
-      <div className="absolute inset-0 bg-gradient-to-t from-[#0A0A0B]/90 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-6">
-         <div className="flex items-center gap-3">
-           <div className="w-10 h-10 rounded-full bg-[#D4AF37] flex items-center justify-center">
-             <Play className="w-4 h-4 text-[#0A0A0B] ml-1" />
-           </div>
-           <span className="font-bold text-xs uppercase tracking-[0.15em] text-[#EDEDED]">Play Preview</span>
-         </div>
+      <div className="absolute inset-0 bg-gradient-to-t from-[#0A0A0B]/90 via-transparent to-transparent" />
+      <div className="absolute bottom-6 left-6 right-6">
+        <span className="font-bold text-xs uppercase tracking-[0.15em] text-[#EDEDED]">Case Study Preview</span>
       </div>
     </div>
   );
@@ -160,17 +126,6 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
         </div>
       </section>
 
-      {/* 3D Interactive Transformation */}
-      <section id="transform" className="py-24 px-6 bg-[#0A0A0B] border-y border-[#222226]">
-        <RevealSection className="max-w-7xl mx-auto">
-          <div className="text-center mb-16">
-             <h2 className="text-3xl md:text-5xl font-semibold tracking-[-0.03em] uppercase text-[#EDEDED] mb-4">The Transformation</h2>
-             <p className="text-[#888891] font-light">Drag the slider to reveal the final cinematic result.</p>
-          </div>
-          <SplitComparison />
-        </RevealSection>
-      </section>
-
       {/* Selected Works */}
       <section id="work" className="py-32 px-6 bg-[#0A0A0B]">
         <div className="max-w-7xl mx-auto">
@@ -188,10 +143,9 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
               <div className="flex flex-col gap-4">
                 <div className="group border border-[#222226] hover:border-[#D4AF37] bg-[#121215] p-2 transition-all duration-300 rounded-lg">
                   <div className="relative rounded overflow-hidden bg-[#0A0A0B]">
-                    <VideoCard 
+                    <ShowcaseCard
                       title="Alex Tech Insights"
-                      videoUrl="https://cdn.pixabay.com/video/2021/08/04/83864-584742886_large.mp4"
-                      poster="https://images.unsplash.com/photo-1550745165-9bc0b252726f?auto=format&fit=crop&w=1200&q=80"
+                      imageUrl="https://images.unsplash.com/photo-1550745165-9bc0b252726f?auto=format&fit=crop&w=1200&q=80"
                     />
                     <div className="absolute top-6 left-6 z-20 pointer-events-none">
                       <div className="border border-[#222226] bg-[#0A0A0B]/80 px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-[#EDEDED] backdrop-blur-md">
@@ -214,10 +168,9 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
               <div className="flex flex-col gap-4">
                 <div className="group border border-[#222226] hover:border-[#D4AF37] bg-[#121215] p-2 transition-all duration-300 rounded-lg">
                   <div className="relative rounded overflow-hidden bg-[#0A0A0B]">
-                    <VideoCard 
+                    <ShowcaseCard
                       title="Aura Performance"
-                      videoUrl="https://cdn.pixabay.com/video/2020/05/11/38646-418873730_large.mp4"
-                      poster="https://images.unsplash.com/photo-1534438327276-14e5300c3a48?auto=format&fit=crop&w=1200&q=80"
+                      imageUrl="https://images.unsplash.com/photo-1534438327276-14e5300c3a48?auto=format&fit=crop&w=1200&q=80"
                     />
                     <div className="absolute top-6 left-6 z-20 pointer-events-none">
                       <div className="border border-[#222226] bg-[#0A0A0B]/80 px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-[#EDEDED] backdrop-blur-md">
@@ -240,10 +193,9 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
               <div className="flex flex-col gap-4">
                 <div className="group border border-[#222226] hover:border-[#D4AF37] bg-[#121215] p-2 transition-all duration-300 rounded-lg">
                   <div className="relative rounded overflow-hidden bg-[#0A0A0B]">
-                    <VideoCard 
+                    <ShowcaseCard
                       title="Kube Design Studio"
-                      videoUrl="https://cdn.pixabay.com/video/2019/11/26/29623-376974868_large.mp4"
-                      poster="https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=1200&q=80"
+                      imageUrl="https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=1200&q=80"
                     />
                     <div className="absolute top-6 left-6 z-20 pointer-events-none">
                       <div className="border border-[#222226] bg-[#0A0A0B]/80 px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-[#EDEDED] backdrop-blur-md">

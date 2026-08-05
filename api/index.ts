@@ -1,15 +1,13 @@
 import type { IncomingMessage, ServerResponse } from 'http';
-import { createApp } from '../server';
+import { createApp } from '../server.ts';
 
-// Reuse one Express app instance across warm serverless invocations.
 let appPromise: ReturnType<typeof createApp> | null = null;
 
 export default async function handler(req: IncomingMessage, res: ServerResponse) {
   if (!appPromise) {
     appPromise = createApp();
   }
+
   const app = await appPromise;
-  // Express apps are just (req, res) request handlers, so this works
-  // directly as a Vercel Node serverless function.
-  (app as any)(req, res);
+  return (app as any)(req, res);
 }
