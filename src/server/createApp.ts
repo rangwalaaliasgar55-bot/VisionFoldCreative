@@ -28,13 +28,23 @@ export async function createApp() {
   app.use(express.urlencoded({ extended: true, limit: '20mb' }));
   app.use(cookieParser());
 
+  // Vercel serverless filesystem is read-only under /var/task — never crash on mkdir
   const publicUploads = path.join(process.cwd(), 'public', 'uploads');
-  if (!fs.existsSync(publicUploads)) {
-    fs.mkdirSync(publicUploads, { recursive: true });
+  try {
+    if (!fs.existsSync(publicUploads)) {
+      fs.mkdirSync(publicUploads, { recursive: true });
+    }
+    app.use('/uploads', express.static(publicUploads));
+  } catch (err) {
+    console.warn('[createApp] uploads dir unavailable (expected on Vercel):', (err as Error).message);
   }
-  app.use('/uploads', express.static(publicUploads));
 
   registerApiRoutes(app);
+
+  // On Vercel, static SPA is served by the platform; this function only handles /api
+  if (process.env.VERCEL) {
+    return app;
+  }
 
   if (process.env.NODE_ENV !== 'production') {
     const vite = await createViteServer({
@@ -45,7 +55,7 @@ export async function createApp() {
   } else {
     const distPath = path.join(process.cwd(), 'dist');
     app.use(express.static(distPath));
-    app.get('*', (_req, res) => {
+    app.get(/^(?!\/api).*/, (_req, res) => {
       res.sendFile(path.join(distPath, 'index.html'));
     });
   }
