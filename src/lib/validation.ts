@@ -202,6 +202,14 @@ export const LoginSchema = z.object({
   password: z.string().min(1, 'Password is required'),
 });
 
+export const RegisterClientSchema = z.object({
+  name: z.string().trim().min(2, 'Name must be at least 2 characters'),
+  email: z.string().trim().email('Invalid email address'),
+  password: z.string().min(8, 'Password must be at least 8 characters'),
+  company: z.string().trim().optional().default(''),
+  phone: z.string().trim().optional().default(''),
+});
+
 export const AuthStateSchema = z.object({
   user: UserSchema.nullable(),
   token: z.string().nullable(),

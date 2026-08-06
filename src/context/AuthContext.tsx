@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { ErrorHandler, AppError, ErrorCode } from '../lib/errors';
 import { setApiToken } from '../lib/api';
-import { UserSchema, LoginSchema } from '../lib/validation';
+import { UserSchema, LoginSchema, RegisterClientSchema } from '../lib/validation';
 import type { User } from '../lib/validation';
 
 interface AuthContextType {
@@ -10,6 +10,7 @@ interface AuthContextType {
   isLoading: boolean;
   error: AppError | null;
   login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
+  register: (details: { name: string; email: string; password: string; company?: string; phone?: string }) => Promise<{ success: boolean; error?: string }>;
   logout: () => Promise<void>;
   checkAuth: () => Promise<void>;
   clearError: () => void;
@@ -118,6 +119,49 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const register = async (details: { name: string; email: string; password: string; company?: string; phone?: string }) => {
+    try {
+      clearError();
+
+      const validated = RegisterClientSchema.parse(details);
+
+      const response = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(validated),
+      });
+
+      const responseText = await response.text();
+      const data = responseText ? (() => {
+        try {
+          return JSON.parse(responseText);
+        } catch {
+          return { error: responseText };
+        }
+      })() : {};
+
+      if (!response.ok) {
+        const errorMessage = data.error || 'Registration failed';
+        setError(new AppError(errorMessage, ErrorCode.VALIDATION_ERROR, response.status));
+        return { success: false, error: errorMessage };
+      }
+
+      const validatedUser = UserSchema.parse(data.user);
+      setUser(validatedUser);
+      setToken(data.token || null);
+      setError(null);
+
+      return { success: true };
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Network error';
+      ErrorHandler.log(err, 'register');
+      const appError = err instanceof AppError ? err : new AppError(message, ErrorCode.NETWORK_ERROR, 0);
+      setError(appError);
+      return { success: false, error: appError.message };
+    }
+  };
+
   const logout = async () => {
     try {
       await fetch('/api/auth/logout', {
@@ -141,11 +185,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       isLoading,
       error,
       login,
+      register,
       logout,
       checkAuth,
       clearError,
     }),
-    [user, token, isLoading, error, login, logout, checkAuth, clearError]
+    [user, token, isLoading, error, login, register, logout, checkAuth, clearError]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

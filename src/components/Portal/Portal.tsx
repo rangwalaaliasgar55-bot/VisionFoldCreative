@@ -34,11 +34,19 @@ interface PortalProps {
 }
 
 export function Portal({ onNavigate }: PortalProps) {
-  const { user, token, isLoading, logout, login } = useAuth();
+  const { user, token, isLoading, logout, login, register } = useAuth();
   const [activeTab, setActiveTab] = useState<'dashboard' | 'projects' | 'invoices' | 'revisions'>('dashboard');
+  const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
   const [loginEmail, setLoginEmail] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
   const [loginError, setLoginError] = useState('');
+  const [registerForm, setRegisterForm] = useState({
+    name: '',
+    email: '',
+    password: '',
+    company: '',
+    phone: '',
+  });
   const [projects, setProjects] = useState<Project[]>([]);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [revisions, setRevisions] = useState<Revision[]>([]);
@@ -92,6 +100,15 @@ export function Portal({ onNavigate }: PortalProps) {
     }
   };
 
+  const handleRegister = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoginError('');
+    const result = await register(registerForm);
+    if (!result.success) {
+      setLoginError(result.error || 'Registration failed');
+    }
+  };
+
   const handleLogout = async () => {
     await logout();
   };
@@ -134,9 +151,39 @@ export function Portal({ onNavigate }: PortalProps) {
         <div className="w-full max-w-md">
           <div className="text-center mb-8">
             <h1 className="text-3xl font-bold text-[#EDEDED] mb-2">Client Portal</h1>
-            <p className="text-[#A0A0A0]">Sign in to view your projects</p>
+            <p className="text-[#A0A0A0]">
+              {authMode === 'login' ? 'Sign in to view your projects' : 'Create a client account to get started'}
+            </p>
           </div>
-          
+
+          <div className="mb-4 grid grid-cols-2 rounded-xl border border-[#2A2A2E] bg-[#141416] p-1">
+            <button
+              type="button"
+              onClick={() => {
+                setAuthMode('login');
+                setLoginError('');
+              }}
+              className={`rounded-lg py-2 text-sm font-semibold transition-colors ${
+                authMode === 'login' ? 'bg-[#D4AF37] text-[#0A0A0B]' : 'text-[#A0A0A0] hover:text-[#EDEDED]'
+              }`}
+            >
+              Sign In
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setAuthMode('register');
+                setLoginError('');
+              }}
+              className={`rounded-lg py-2 text-sm font-semibold transition-colors ${
+                authMode === 'register' ? 'bg-[#D4AF37] text-[#0A0A0B]' : 'text-[#A0A0A0] hover:text-[#EDEDED]'
+              }`}
+            >
+              Register
+            </button>
+          </div>
+
+          {authMode === 'login' ? (
           <form onSubmit={handleLogin} className="bg-[#141416] border border-[#2A2A2E] rounded-xl p-6">
             <div className="mb-4">
               <label className="block text-[#EDEDED] text-sm font-medium mb-2">Email</label>
@@ -170,6 +217,73 @@ export function Portal({ onNavigate }: PortalProps) {
               Sign In
             </button>
           </form>
+          ) : (
+          <form onSubmit={handleRegister} className="bg-[#141416] border border-[#2A2A2E] rounded-xl p-6">
+            <div className="mb-4">
+              <label className="block text-[#EDEDED] text-sm font-medium mb-2">Full Name</label>
+              <input
+                type="text"
+                value={registerForm.name}
+                onChange={(e) => setRegisterForm((form) => ({ ...form, name: e.target.value }))}
+                className="w-full px-4 py-3 bg-[#0A0A0B] border border-[#2A2A2E] rounded-lg text-[#EDEDED] focus:outline-none focus:border-[#D4AF37]"
+                placeholder="Your name"
+                required
+              />
+            </div>
+            <div className="mb-4">
+              <label className="block text-[#EDEDED] text-sm font-medium mb-2">Email</label>
+              <input
+                type="email"
+                value={registerForm.email}
+                onChange={(e) => setRegisterForm((form) => ({ ...form, email: e.target.value }))}
+                className="w-full px-4 py-3 bg-[#0A0A0B] border border-[#2A2A2E] rounded-lg text-[#EDEDED] focus:outline-none focus:border-[#D4AF37]"
+                placeholder="your@email.com"
+                required
+              />
+            </div>
+            <div className="mb-4">
+              <label className="block text-[#EDEDED] text-sm font-medium mb-2">Password</label>
+              <input
+                type="password"
+                value={registerForm.password}
+                onChange={(e) => setRegisterForm((form) => ({ ...form, password: e.target.value }))}
+                className="w-full px-4 py-3 bg-[#0A0A0B] border border-[#2A2A2E] rounded-lg text-[#EDEDED] focus:outline-none focus:border-[#D4AF37]"
+                placeholder="At least 8 characters"
+                minLength={8}
+                required
+              />
+            </div>
+            <div className="mb-4">
+              <label className="block text-[#EDEDED] text-sm font-medium mb-2">Company <span className="text-[#A0A0A0]">(optional)</span></label>
+              <input
+                type="text"
+                value={registerForm.company}
+                onChange={(e) => setRegisterForm((form) => ({ ...form, company: e.target.value }))}
+                className="w-full px-4 py-3 bg-[#0A0A0B] border border-[#2A2A2E] rounded-lg text-[#EDEDED] focus:outline-none focus:border-[#D4AF37]"
+                placeholder="Company or brand"
+              />
+            </div>
+            <div className="mb-6">
+              <label className="block text-[#EDEDED] text-sm font-medium mb-2">Phone <span className="text-[#A0A0A0]">(optional)</span></label>
+              <input
+                type="tel"
+                value={registerForm.phone}
+                onChange={(e) => setRegisterForm((form) => ({ ...form, phone: e.target.value }))}
+                className="w-full px-4 py-3 bg-[#0A0A0B] border border-[#2A2A2E] rounded-lg text-[#EDEDED] focus:outline-none focus:border-[#D4AF37]"
+                placeholder="+91 ..."
+              />
+            </div>
+            {loginError && (
+              <div className="mb-4 text-red-500 text-sm">{loginError}</div>
+            )}
+            <button
+              type="submit"
+              className="w-full py-3 bg-[#D4AF37] text-[#0A0A0B] font-semibold rounded-lg hover:bg-[#E5C04B] transition-colors"
+            >
+              Create Client Account
+            </button>
+          </form>
+          )}
           
           <button
             onClick={() => onNavigate('home')}
