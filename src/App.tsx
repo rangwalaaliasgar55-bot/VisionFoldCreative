@@ -4,6 +4,8 @@ import { Navbar } from './components/Navbar';
 import { Footer } from './components/Footer';
 import { HomePage } from './components/PublicPages/HomePage';
 import { FloatingWhatsApp } from './components/FloatingWhatsApp';
+import { SiteChat } from './components/SiteChat';
+import { PolicyPage } from './components/PublicPages/PolicyPage';
 import { SfxProvider } from './context/SfxContext';
 import { AdminProvider } from './context/AdminContext';
 import { ContentProvider, useContent } from './context/ContentContext';
@@ -32,7 +34,6 @@ const MainContent: React.FC = () => {
     window.location.href = '/admin';
   };
 
-  // Handle portal page
   if (location.pathname === '/portal') {
     return <Portal onNavigate={handleNavigate} />;
   }
@@ -81,22 +82,26 @@ const AppRoutes: React.FC = () => {
     };
   }, [navigate]);
 
-  // Show admin for /admin routes
   if (location.pathname.startsWith('/admin')) {
     return <AdminApp />;
   }
 
-  // Use client-side routing for other pages
   return (
-    <Routes>
-      <Route path="/" element={<MainContent />} />
-      <Route path="/work" element={<PortfolioPage />} />
-      <Route path="/work/:slug" element={<WorkDetailPage />} />
-      <Route path="/services" element={<ServicesPage />} />
-      <Route path="/contact" element={<ContactPage />} />
-      <Route path="/portal" element={<Portal onNavigate={(p) => window.location.href = p === 'home' ? '/' : `/${p}`} />} />
-      <Route path="*" element={<NotFound />} />
-    </Routes>
+    <>
+      <Routes>
+        <Route path="/" element={<MainContent />} />
+        <Route path="/work" element={<PortfolioPage />} />
+        <Route path="/work/:slug" element={<WorkDetailPage />} />
+        <Route path="/services" element={<ServicesPage />} />
+        <Route path="/contact" element={<ContactPage />} />
+        <Route path="/terms" element={<PolicyPage kind="terms" />} />
+        <Route path="/privacy" element={<PolicyPage kind="privacy" />} />
+        <Route path="/refund" element={<PolicyPage kind="refund" />} />
+        <Route path="/portal" element={<Portal onNavigate={(p) => window.location.href = p === 'home' ? '/' : `/${p}`} />} />
+        <Route path="*" element={<NotFound />} />
+      </Routes>
+      <SiteChat />
+    </>
   );
 };
 
