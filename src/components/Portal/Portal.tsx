@@ -35,7 +35,7 @@ interface PortalProps {
 
 export function Portal({ onNavigate }: PortalProps) {
   const { user, token, isLoading, logout, login, register } = useAuth();
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'projects' | 'invoices' | 'revisions'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'start' | 'dashboard' | 'projects' | 'invoices' | 'revisions'>('start');
   const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
   const [loginEmail, setLoginEmail] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
@@ -53,6 +53,13 @@ export function Portal({ onNavigate }: PortalProps) {
   const [revisionComment, setRevisionComment] = useState('');
   const [selectedProjectId, setSelectedProjectId] = useState('');
   const [dataError, setDataError] = useState('');
+  const [workBrief, setWorkBrief] = useState({
+    projectType: 'Short Form',
+    budgetRange: '₹10,000 - ₹25,000',
+    deadline: '',
+    message: '',
+  });
+  const [briefStatus, setBriefStatus] = useState('');
 
   useEffect(() => {
     if (user) {
@@ -134,6 +141,35 @@ export function Portal({ onNavigate }: PortalProps) {
       }
     } catch (err) {
       console.error('Failed to submit revision:', err);
+    }
+  };
+
+  const submitWorkBrief = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setBriefStatus('');
+
+    try {
+      const res = await fetch('/api/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: user?.name || '',
+          email: user?.email || '',
+          phone: user?.phone || 'Portal client',
+          company: user?.company || '',
+          ...workBrief,
+        }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error ? JSON.stringify(data.error) : 'Could not submit work brief');
+      }
+
+      setWorkBrief({ projectType: 'Short Form', budgetRange: '₹10,000 - ₹25,000', deadline: '', message: '' });
+      setBriefStatus('Your work request was sent to the studio. We will review it and create your project once approved.');
+    } catch (err) {
+      setBriefStatus(err instanceof Error ? err.message : 'Could not submit work brief');
     }
   };
 
@@ -297,6 +333,7 @@ export function Portal({ onNavigate }: PortalProps) {
   }
 
   const tabs = [
+    { id: 'start', label: 'Start Work' },
     { id: 'dashboard', label: 'Dashboard' },
     { id: 'projects', label: 'Projects' },
     { id: 'invoices', label: 'Invoices' },
@@ -344,6 +381,71 @@ export function Portal({ onNavigate }: PortalProps) {
             </button>
           ))}
         </div>
+
+        {activeTab === 'start' && (
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_0.9fr]">
+            <div className="bg-[#141416] border border-[#2A2A2E] rounded-xl p-6">
+              <h2 className="text-xl font-bold text-[#EDEDED]">Give us your work brief</h2>
+              <p className="mt-2 text-sm text-[#A0A0A0]">
+                Tell us what you need edited. This creates a studio inquiry for the admin team; after approval,
+                your project, invoices, files, and revisions will appear in this portal.
+              </p>
+              <form onSubmit={submitWorkBrief} className="mt-5 space-y-4">
+                <select
+                  value={workBrief.projectType}
+                  onChange={(e) => setWorkBrief((brief) => ({ ...brief, projectType: e.target.value }))}
+                  className="w-full px-4 py-3 bg-[#0A0A0B] border border-[#2A2A2E] rounded-lg text-[#EDEDED]"
+                >
+                  <option>Short Form</option>
+                  <option>Long Form</option>
+                  <option>Brand Content</option>
+                  <option>Social Media</option>
+                  <option>Documentary</option>
+                </select>
+                <select
+                  value={workBrief.budgetRange}
+                  onChange={(e) => setWorkBrief((brief) => ({ ...brief, budgetRange: e.target.value }))}
+                  className="w-full px-4 py-3 bg-[#0A0A0B] border border-[#2A2A2E] rounded-lg text-[#EDEDED]"
+                >
+                  <option>₹10,000 - ₹25,000</option>
+                  <option>₹25,000 - ₹50,000</option>
+                  <option>₹50,000+</option>
+                  <option>DM for custom quote</option>
+                </select>
+                <input
+                  type="date"
+                  value={workBrief.deadline}
+                  onChange={(e) => setWorkBrief((brief) => ({ ...brief, deadline: e.target.value }))}
+                  className="w-full px-4 py-3 bg-[#0A0A0B] border border-[#2A2A2E] rounded-lg text-[#EDEDED]"
+                />
+                <textarea
+                  value={workBrief.message}
+                  onChange={(e) => setWorkBrief((brief) => ({ ...brief, message: e.target.value }))}
+                  placeholder="Describe the footage, platform, number of videos, references, and outcome you want..."
+                  className="w-full px-4 py-3 bg-[#0A0A0B] border border-[#2A2A2E] rounded-lg text-[#EDEDED] h-36 resize-none"
+                  minLength={10}
+                  required
+                />
+                {briefStatus && <div className="rounded-lg border border-[#D4AF37]/30 bg-[#D4AF37]/10 p-3 text-sm text-[#EDEDED]">{briefStatus}</div>}
+                <button type="submit" className="w-full py-3 bg-[#D4AF37] text-[#0A0A0B] font-semibold rounded-lg hover:bg-[#E5C04B] transition-colors">
+                  Send Work Brief
+                </button>
+              </form>
+            </div>
+            <div className="space-y-4">
+              {[
+                ['Short-form edits', 'Reels, Shorts, TikToks, captions, hooks, sound design, and retention pacing.'],
+                ['Long-form videos', 'YouTube, podcast cuts, interviews, documentaries, story structure, and polish.'],
+                ['Brand creatives', 'Product promos, launches, paid-social creatives, motion graphics, and CTAs.'],
+              ].map(([title, desc]) => (
+                <div key={title} className="rounded-xl border border-[#2A2A2E] bg-[#141416] p-5">
+                  <h3 className="font-semibold text-[#EDEDED]">{title}</h3>
+                  <p className="mt-2 text-sm text-[#A0A0A0]">{desc}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {activeTab === 'dashboard' && (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">

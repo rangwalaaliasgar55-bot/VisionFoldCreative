@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 // User Validation
-export const UserRoleSchema = z.enum(['admin', 'client']);
+export const UserRoleSchema = z.enum(['admin', 'client', 'editor']);
 export const UserSchema = z.object({
   id: z.string().min(1),
   email: z.string().email(),
