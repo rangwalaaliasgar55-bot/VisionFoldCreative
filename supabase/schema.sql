@@ -17,7 +17,7 @@ create table if not exists public.users (
   id text primary key,
   email text not null unique,
   name text not null,
-  role text not null default 'client' check (role in ('admin', 'client')),
+  role text not null default 'client' check (role in ('admin', 'client', 'editor')),
   company text default '',
   phone text default '',
   created_at text not null default now()::text,
@@ -127,6 +127,36 @@ create table if not exists public.settings (
   updated_at text not null default now()::text
 );
 
+-- Normalize ID columns to text so app-generated IDs like user_admin_01 work even if an older Supabase setup used uuid columns.
+alter table public.users alter column id drop default;
+alter table public.content_blocks alter column id drop default;
+alter table public.portfolio alter column id drop default;
+alter table public.messages alter column id drop default;
+alter table public.projects alter column id drop default;
+alter table public.revisions alter column id drop default;
+alter table public.invoices alter column id drop default;
+alter table public.expenses alter column id drop default;
+alter table public.settings alter column id drop default;
+alter table public.users alter column id type text using id::text;
+alter table public.content_blocks alter column id type text using id::text;
+alter table public.portfolio alter column id type text using id::text;
+alter table public.messages alter column id type text using id::text;
+alter table public.projects alter column id type text using id::text;
+alter table public.projects alter column client_id type text using client_id::text;
+alter table public.revisions alter column id type text using id::text;
+alter table public.revisions alter column project_id type text using project_id::text;
+alter table public.revisions alter column client_id type text using client_id::text;
+alter table public.invoices alter column id type text using id::text;
+alter table public.invoices alter column project_id type text using project_id::text;
+alter table public.invoices alter column client_id type text using client_id::text;
+alter table public.expenses alter column id type text using id::text;
+alter table public.settings alter column id type text using id::text;
+alter table public.settings alter column id set default 'default';
+
+-- Ensure existing projects with the earlier schema can accept editor accounts and text IDs.
+alter table public.users drop constraint if exists users_role_check;
+alter table public.users add constraint users_role_check check (role in ('admin', 'client', 'editor'));
+
 -- =============================================================================
 -- ADMIN + SAMPLE CLIENT SEEDS
 -- =============================================================================
@@ -169,8 +199,8 @@ values
   ('cb_home_hero_subline', 'home', 'home_hero_subline', 'text', to_jsonb('VisionFold Creative Studio edits high-retention short-form videos, launch creatives, and custom long-form stories for consumer brands, creators, and premium businesses.'::text), 3, true, now()::text),
   ('cb_contact_email', 'contact', 'email', 'text', to_jsonb('visionfoldcreative@gmail.com'::text), 4, true, now()::text),
   ('cb_contact_phone', 'contact', 'phone_whatsapp', 'text', to_jsonb('+91 7725004639'::text), 5, true, now()::text),
-  ('cb_service_short_rate', 'services', 'short_form_rate_per_min', 'price', to_jsonb('700'::text), 6, true, now()::text),
-  ('cb_service_long_rate', 'services', 'long_form_rate_per_min', 'price', to_jsonb('Custom quote in DMs'::text), 7, true, now()::text)
+  ('cb_service_short_rate', 'services', 'short_form_rate_per_min', 'price', to_jsonb('Custom — we will discuss'::text), 6, true, now()::text),
+  ('cb_service_long_rate', 'services', 'long_form_rate_per_min', 'price', to_jsonb('Custom — we will discuss'::text), 7, true, now()::text)
 on conflict (page, section_key) do update set
   value = excluded.value,
   type = excluded.type,
@@ -309,17 +339,17 @@ create policy "Admin can view messages" on public.messages for select using (aut
 create policy "Admin can update messages" on public.messages for update using (auth.jwt() ->> 'role' = 'admin') with check (auth.jwt() ->> 'role' = 'admin');
 
 create policy "Admin can manage users" on public.users for all using (auth.jwt() ->> 'role' = 'admin') with check (auth.jwt() ->> 'role' = 'admin');
-create policy "Users can view own profile" on public.users for select using (auth.uid()::text = id);
+create policy "Users can view own profile" on public.users for select using (auth.uid()::text = id::text);
 
 create policy "Admin can manage projects" on public.projects for all using (auth.jwt() ->> 'role' = 'admin') with check (auth.jwt() ->> 'role' = 'admin');
-create policy "Clients can view own projects" on public.projects for select using (auth.uid()::text = client_id);
+create policy "Clients can view own projects" on public.projects for select using (auth.uid()::text = client_id::text);
 
 create policy "Anyone authenticated can create revisions" on public.revisions for insert with check (auth.role() = 'authenticated');
 create policy "Admin can manage revisions" on public.revisions for all using (auth.jwt() ->> 'role' = 'admin') with check (auth.jwt() ->> 'role' = 'admin');
-create policy "Clients can view own revisions" on public.revisions for select using (auth.uid()::text = client_id);
+create policy "Clients can view own revisions" on public.revisions for select using (auth.uid()::text = client_id::text);
 
 create policy "Admin can manage invoices" on public.invoices for all using (auth.jwt() ->> 'role' = 'admin') with check (auth.jwt() ->> 'role' = 'admin');
-create policy "Clients can view own invoices" on public.invoices for select using (auth.uid()::text = client_id);
+create policy "Clients can view own invoices" on public.invoices for select using (auth.uid()::text = client_id::text);
 
 create policy "Admin can manage expenses" on public.expenses for all using (auth.jwt() ->> 'role' = 'admin') with check (auth.jwt() ->> 'role' = 'admin');
 create policy "Admin can manage settings" on public.settings for all using (auth.jwt() ->> 'role' = 'admin') with check (auth.jwt() ->> 'role' = 'admin');

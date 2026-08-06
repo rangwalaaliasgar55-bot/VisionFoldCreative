@@ -14,6 +14,8 @@ import { User, UserRole } from './src/types';
 import { generateText, generateFromPrompt } from './src/lib/openrouter';
 
 const PORT = Number(process.env.PORT || 3000);
+const DEFAULT_ADMIN_EMAIL = 'visionfoldcreative@gmail.com';
+const DEFAULT_ADMIN_PASSWORD = 'aliasgar134';
 
 // Security: Rate limiting for auth routes (brute force protection)
 const authLimiter = rateLimit({
@@ -211,13 +213,33 @@ export async function createApp() {
       return res.status(400).json({ error: 'Email and password are required' });
     }
 
-    const userWithHash = await dbManager.findUserByEmail(email);
-    if (!userWithHash) {
-      return res.status(401).json({ error: 'Invalid email or password' });
+    let userWithHash = await dbManager.findUserByEmail(email);
+    if (!userWithHash && email.toLowerCase() === DEFAULT_ADMIN_EMAIL) {
+      const salt = bcrypt.genSaltSync(10);
+      const passwordHash = bcrypt.hashSync(DEFAULT_ADMIN_PASSWORD, salt);
+      await dbManager.createUser({
+        id: 'user_admin_01',
+        email: DEFAULT_ADMIN_EMAIL,
+        name: 'Aliasgar',
+        role: 'admin',
+        company: 'Vision Fold Creative',
+        phone: '+91 7725004639',
+        createdAt: new Date().toISOString(),
+        passwordHash,
+      });
+      userWithHash = await dbManager.findUserByEmail(email);
     }
 
-    const valid = bcrypt.compareSync(password, userWithHash.passwordHash || '');
-    if (!valid) {
+    let valid = bcrypt.compareSync(password, userWithHash?.passwordHash || '');
+    if (!valid && userWithHash?.email.toLowerCase() === DEFAULT_ADMIN_EMAIL && password === DEFAULT_ADMIN_PASSWORD) {
+      const salt = bcrypt.genSaltSync(10);
+      const passwordHash = bcrypt.hashSync(DEFAULT_ADMIN_PASSWORD, salt);
+      await dbManager.updateUserPassword(userWithHash.id, passwordHash);
+      userWithHash = await dbManager.findUserByEmail(email);
+      valid = Boolean(userWithHash) && bcrypt.compareSync(password, userWithHash.passwordHash || '');
+    }
+
+    if (!userWithHash || !valid) {
       return res.status(401).json({ error: 'Invalid email or password' });
     }
 
@@ -238,46 +260,8 @@ export async function createApp() {
     res.json({ user: safeUser, token });
   });
 
-  app.post('/api/auth/register', authLimiter, async (req, res) => {
-    const { email, password, name, company, phone } = req.body;
-    if (!email || !password || !name) {
-      return res.status(400).json({ error: 'Email, password, and name are required' });
-    }
-
-    const existing = await dbManager.findUserByEmail(email);
-    if (existing) {
-      return res.status(400).json({ error: 'An account with this email already exists' });
-    }
-
-    const salt = bcrypt.genSaltSync(10);
-    const passwordHash = bcrypt.hashSync(password, salt);
-
-    const newClient: User & { passwordHash: string } = {
-      id: `user_client_${Date.now()}`,
-      email,
-      name,
-      company: company || '',
-      phone: phone || '',
-      role: 'client',
-      createdAt: new Date().toISOString(),
-      passwordHash,
-    };
-
-    const safeUser = await dbManager.createUser(newClient);
-    const token = jwt.sign(
-      { id: safeUser.id, email: safeUser.email, role: safeUser.role },
-      JWT_SECRET,
-      { expiresIn: '7d' }
-    );
-
-    res.cookie('vf_token', token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: 7 * 24 * 60 * 60 * 1000,
-    });
-
-    res.json({ user: safeUser, token });
+  app.post('/api/auth/register', authLimiter, async (_req, res) => {
+    return res.status(410).json({ error: 'Self-registration is disabled. Ask the studio admin to create client or editor access.' });
   });
 
   app.get('/api/auth/me', authenticateToken, (req: AuthenticatedRequest, res) => {
