@@ -354,18 +354,21 @@ export async function createApp() {
 
 
   app.get('/api/settings', async (_req, res) => {
+    const settings = await dbManager.getSettings();
     res.json({
-      siteIdentity: {
-        siteTitle: 'VisionFold Creative',
-        tagline: 'Premium Video Production Studio',
-        logoUrl: '/logo.svg',
-        faviconUrl: '/favicon.svg',
-      },
+      ...settings,
       integrations: {
+        ...(settings.integrations || {}),
         supabaseConfigured: Boolean(process.env.SUPABASE_URL || process.env.SupaBase_SUPABASE_URL || process.env.VITE_SUPABASE_URL),
         uploadsConfigured: Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SupaBase_SUPABASE_SERVICE_ROLE_KEY),
+        openRouterConfigured: Boolean(process.env.OPENROUTER_API_KEY),
       },
     });
+  });
+
+  app.put('/api/settings', authenticateToken, requireAdmin, async (req, res) => {
+    const saved = await dbManager.updateSettings(req.body || {});
+    res.json(saved);
   });
 
   // --- MESSAGES / INQUIRIES ROUTE ---
@@ -657,6 +660,18 @@ export async function createApp() {
       const { message } = req.body;
       if (!message || !message.trim()) {
         return res.status(400).json({ error: 'Please provide a rough project message' });
+      }
+
+      if (!process.env.OPENROUTER_API_KEY) {
+        return res.json({
+          questions: [
+            'Which platform and aspect ratios should the final videos be delivered for?',
+            'What is the target audience and the single action you want viewers to take?',
+            'How much raw footage do you have, and what finished runtime do you need?',
+            'What deadline, revision count, and brand references should the edit follow?',
+          ],
+          configured: false,
+        });
       }
 
       const prompt = `You are VisionFold Creative's inquiry assistant. Turn this rough client brief into 4 concise, premium clarifying questions that help quote the work faster. Return valid JSON with a single key named questions as an array of strings. Brief: ${message}`;

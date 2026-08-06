@@ -25,6 +25,7 @@ interface Schema {
   revisions: Revision[];
   invoices: Invoice[];
   expenses: Expense[];
+  settings?: Record<string, any>;
 }
 
 function getDefaultDB(): Schema {
@@ -682,6 +683,26 @@ function getDefaultDB(): Schema {
     revisions,
     invoices,
     expenses,
+    settings: {
+      siteIdentity: {
+        siteTitle: 'VisionFold Creative',
+        tagline: 'Premium Video Production Studio',
+        logoUrl: '/logo.svg',
+        faviconUrl: '/favicon.svg',
+      },
+      integrations: {
+        supabaseConfigured: false,
+        uploadsConfigured: false,
+        openRouterConfigured: false,
+      },
+      rates: { baselineRate: 700, addonRates: { render4k: 100, multiFormat: 150, customSound: 200 } },
+      metrics: {
+        retentionSplit: '+320% Watch Time',
+        card1Metric: '+192% Avg Watch Duration',
+        card2Metric: '3.8M Views • 14k+ Saves',
+        card3Metric: 'Featured on ArchDaily',
+      },
+    },
   };
 }
 
@@ -983,6 +1004,65 @@ export class SupabaseDBManager {
       description: row.description || '',
       createdAt: row.createdAt || row.created_at,
     };
+  }
+
+  async getSettings(): Promise<Record<string, any>> {
+    const localSettings = this.db.settings || {};
+
+    if (!this.useSupabase || !this.supabaseClient) {
+      return localSettings;
+    }
+
+    try {
+      const { data, error } = await this.supabaseClient.from('settings').select('*').eq('id', 'default').maybeSingle();
+      if (error) throw error;
+      const settings = {
+        ...localSettings,
+        rates: {
+          baselineRate: data?.baseline_rate ?? localSettings?.rates?.baselineRate ?? 700,
+          addonRates: data?.addon_rates ?? localSettings?.rates?.addonRates ?? {},
+        },
+        metrics: data?.metrics ?? localSettings?.metrics ?? {},
+      };
+      this.db.settings = settings;
+      this.saveLocalDB(this.db);
+      return settings;
+    } catch (err) {
+      this.guardFallback(err);
+      console.warn('[DB] Unable to read settings from Supabase; using local storage.', err);
+      return localSettings;
+    }
+  }
+
+  async updateSettings(updates: Record<string, any>): Promise<Record<string, any>> {
+    const merged: Record<string, any> = { ...(this.db.settings || {}), ...updates, updatedAt: new Date().toISOString() };
+
+    if (!this.useSupabase || !this.supabaseClient) {
+      this.db.settings = merged;
+      this.saveLocalDB(this.db);
+      return merged;
+    }
+
+    try {
+      const row = {
+        id: 'default',
+        baseline_rate: merged?.rates?.baselineRate,
+        addon_rates: merged?.rates?.addonRates,
+        metrics: merged?.metrics,
+        updated_at: new Date().toISOString(),
+      };
+      const { error } = await this.supabaseClient.from('settings').upsert(row, { onConflict: 'id' });
+      if (error) throw error;
+      this.db.settings = merged;
+      this.saveLocalDB(this.db);
+      return merged;
+    } catch (err) {
+      this.guardFallback(err);
+      console.warn('[DB] Unable to persist settings to Supabase; using local storage.', err);
+      this.db.settings = merged;
+      this.saveLocalDB(this.db);
+      return merged;
+    }
   }
 
   async getUsers(): Promise<User[]> {
