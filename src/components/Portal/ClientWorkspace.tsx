@@ -4,6 +4,7 @@ import {
   LayoutDashboard, FolderKanban, MessageSquare, Settings, LogOut,
   Clock, CheckCircle2, Loader2, Send, Star, X, Sparkles,
 } from 'lucide-react';
+import { SkeletonGrid, SkeletonCard } from '../ui/Skeleton';
 const C = 'rounded-2xl border border-white/10 bg-[#0C0C10] p-5';
 const I = 'w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2 text-sm';
 type Project = {
@@ -121,8 +122,11 @@ export function ClientWorkspace(_props: { onNavigate: (page: string) => void }) 
   };
   if (isLoading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#050507]">
-        <Loader2 className="h-8 w-8 animate-spin text-[#D4AF37]" />
+      <div className="min-h-screen bg-[#050507] px-4 py-16">
+        <div className="mx-auto max-w-6xl space-y-6">
+          <SkeletonCard />
+          <SkeletonGrid count={3} />
+        </div>
       </div>
     );
   }
@@ -133,13 +137,15 @@ export function ClientWorkspace(_props: { onNavigate: (page: string) => void }) 
           <p className="text-[10px] font-black uppercase tracking-[0.3em] text-[#D4AF37]">
             Client portal
           </p>
-          <h1 className="mt-3 text-3xl font-black">Sign in to your workspace</h1>
+          <h1 className="mt-3 text-3xl font-black tracking-tight sm:text-4xl">Your private studio workspace</h1>
+          <div className="pointer-events-none absolute -right-10 top-0 h-40 w-40 rounded-full bg-[#D4AF37]/20 blur-3xl" />
+          <div className="pointer-events-none absolute -left-8 bottom-20 h-32 w-32 rounded-full bg-white/5 blur-2xl" />
           <p className="mt-2 text-sm text-[#8A857C]">
             Track projects, deadlines, invoices, and message the studio.
           </p>
           <form
             onSubmit={handleLogin}
-            className="mt-8 space-y-3 rounded-2xl border border-white/10 bg-[#0C0C10] p-6"
+            className="relative mt-8 space-y-3 rounded-2xl border border-white/10 bg-[#0C0C10]/95 p-6 shadow-2xl backdrop-blur-xl" style={{ transform: 'perspective(900px) rotateX(1.5deg)' }}
           >
             {loginError ? <p className="text-sm text-red-400">{loginError}</p> : null}
             <input

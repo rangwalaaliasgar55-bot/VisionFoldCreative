@@ -110,8 +110,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setError(null);
 
       return { success: true };
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Network error';
+    } catch (err: any) {
+      let message = 'Network error';
+      if (err?.name === 'ZodError' && Array.isArray(err.issues)) {
+        message = err.issues.map((i: any) => i.message).join('. ') || 'Invalid login details';
+      } else if (err instanceof Error) {
+        message = err.message;
+      }
       ErrorHandler.log(err, 'login');
       const appError = err instanceof AppError ? err : new AppError(message, ErrorCode.NETWORK_ERROR, 0);
       setError(appError);

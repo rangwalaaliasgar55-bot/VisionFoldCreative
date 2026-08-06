@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { Skeleton } from '../ui/Skeleton';
 
 interface PortfolioItem {
   id: string;
@@ -34,10 +35,10 @@ export function PortfolioPage() {
   return (
     <div className="min-h-screen bg-[#0A0A0B] py-20 px-4">
       <div className="max-w-7xl mx-auto">
-        <div className="text-center mb-16">
+        <div className="text-center mb-10">
           <h1 className="text-4xl md:text-5xl font-bold text-[#EDEDED] mb-4">Our Work</h1>
           <p className="text-[#A0A0A0] max-w-2xl mx-auto">
-            From viral social content to cinematic brand stories — explore our portfolio of work that delivers results.
+            From viral social content to cinematic brand stories — edited by Aliasgar at VisionFold.
           </p>
         </div>
 

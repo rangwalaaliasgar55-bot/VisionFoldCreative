@@ -43,12 +43,12 @@ const processSteps = [
 ];
 
 const seededReviews = [
-  { name: 'Aarav Mehta', place: 'Mumbai', role: 'D2C Founder', quote: 'VisionFold made our product reel feel like a luxury launch film.' },
-  { name: 'Naina Kapoor', place: 'Delhi', role: 'Fashion Creator', quote: 'Simple footage turned into premium reels that looked international.' },
-  { name: 'Rohan Shetty', place: 'Karnataka', role: 'Fitness Coach', quote: 'Crisp, fast, clean. Clients noticed the upgrade from the first post.' },
-  { name: 'Priya Shah', place: 'Mumbai', role: 'Cafe Owner', quote: 'Menu launch videos finally looked high-end.' },
-  { name: 'Ahmed Al Mansoori', place: 'Dubai', role: 'Ecommerce', quote: 'Premium edits ready for paid campaigns.' },
-  { name: 'Sarah Collins', place: 'New York', role: 'Consultant', quote: 'Agency feel with hooks and strong retention pacing.' },
+  { name: 'Kabir Joshi', place: 'Mumbai', role: 'D2C Brand Owner', quote: 'Aliasgar does not just cut footage — he understands the brand. We sent him rough clips and got back reels that looked like a full production house did them.' },
+  { name: 'Meera Nair', place: 'Bangalore', role: 'Creator & Coach', quote: 'I have given Aliasgar a lot of work this year. Every single delivery was on time, retention-focused, and better than what bigger agencies quoted me three times the price for.' },
+  { name: 'Omar Farid', place: 'Dubai', role: 'Ecommerce Lead', quote: 'VisionFold under Aliasgar turned our product videos into paid-ad ready creatives. CTR went up after the first batch. Highly recommend working with him directly.' },
+  { name: 'Ananya Desai', place: 'Pune', role: 'Cafe Founder', quote: 'Aliasgar made our menu and ambience films look expensive without the expensive process. Clear communication, fast revisions, zero drama.' },
+  { name: 'Ryan Brooks', place: 'London', role: 'Consultant', quote: 'Working with Aliasgar feels like having an in-house editor who actually cares. Hooks, pacing, captions — all handled. We keep coming back.' },
+  { name: 'Sana Qureshi', place: 'Hyderabad', role: 'Fashion Creator', quote: 'Simple phone footage in, premium international-looking reels out. Aliasgar is great at this. Trust him with your content calendar.' },
 ];
 
 export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {

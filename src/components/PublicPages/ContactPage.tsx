@@ -1,4 +1,7 @@
 import React, { useState } from 'react';
+import { Navbar } from '../Navbar';
+import { Footer } from '../Footer';
+import { Send, MessageCircle, Mail, MapPin, Loader2, CheckCircle2 } from 'lucide-react';
 
 export function ContactPage() {
   const [formData, setFormData] = useState({
@@ -7,7 +10,7 @@ export function ContactPage() {
     phone: '',
     company: '',
     projectType: 'Short Form',
-    budgetRange: '₹10,000 - ₹25,000',
+    budgetRange: '₹700 – ₹2,000',
     message: '',
   });
   const [submitting, setSubmitting] = useState(false);
@@ -18,14 +21,12 @@ export function ContactPage() {
     e.preventDefault();
     setSubmitting(true);
     setError('');
-
     try {
       const res = await fetch('/api/messages', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData),
       });
-
       if (res.ok) {
         setSuccess(true);
         setFormData({
@@ -34,170 +35,186 @@ export function ContactPage() {
           phone: '',
           company: '',
           projectType: 'Short Form',
-          budgetRange: '₹10,000 - ₹25,000',
+          budgetRange: '₹700 – ₹2,000',
           message: '',
         });
       } else {
-        const data = await res.json();
-        setError(data.error || 'Failed to send message');
+        const data = await res.json().catch(() => ({}));
+        setError(data.error || 'Could not send. Try WhatsApp instead.');
       }
     } catch {
-      setError('Network error. Please try again.');
+      setError('Network error. WhatsApp +91 77250 04639 works anytime.');
     } finally {
       setSubmitting(false);
     }
   };
 
+  const go = (page: string) => {
+    window.location.href = page === 'home' ? '/' : `/${page}`;
+  };
+
   return (
-    <div className="min-h-screen bg-[#0A0A0B] py-20 px-4">
-      <div className="max-w-4xl mx-auto">
-        <div className="text-center mb-16">
-          <h1 className="text-4xl md:text-5xl font-bold text-[#EDEDED] mb-4">Get in Touch</h1>
-          <p className="text-[#A0A0A0] max-w-2xl mx-auto">
-            Ready to transform your content? Let's discuss your project and create something amazing together.
-          </p>
-        </div>
+    <div className="min-h-screen bg-[#050507] text-[#EDEDED]">
+      <Navbar currentPage="contact" onNavigate={go} />
+      <main className="relative mx-auto max-w-6xl px-4 py-16 sm:px-6">
+        <div className="pointer-events-none absolute left-1/2 top-0 h-64 w-[480px] -translate-x-1/2 rounded-full bg-[#D4AF37]/10 blur-3xl" />
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
-          <div>
-            <h2 className="text-xl font-semibold text-[#EDEDED] mb-6">Send Us a Message</h2>
-            
-            {success && (
-              <div className="mb-6 p-4 bg-green-900/30 border border-green-600 rounded-lg">
-                <p className="text-green-400">Message sent successfully! We'll get back to you soon.</p>
-              </div>
-            )}
-            
-            {error && (
-              <div className="mb-6 p-4 bg-red-900/30 border border-red-600 rounded-lg">
-                <p className="text-red-400">{error}</p>
-              </div>
-            )}
-
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-[#EDEDED] mb-1">Name *</label>
-                  <input
-                    type="text"
-                    required
-                    value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    className="w-full px-4 py-3 bg-[#141416] border border-[#2A2A2E] rounded-lg text-[#EDEDED] focus:outline-none focus:border-[#D4AF37]"
-                    placeholder="Your name"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-[#EDEDED] mb-1">Email *</label>
-                  <input
-                    type="email"
-                    required
-                    value={formData.email}
-                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                    className="w-full px-4 py-3 bg-[#141416] border border-[#2A2A2E] rounded-lg text-[#EDEDED] focus:outline-none focus:border-[#D4AF37]"
-                    placeholder="your@email.com"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-[#EDEDED] mb-1">Phone *</label>
-                  <input
-                    type="tel"
-                    required
-                    value={formData.phone}
-                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                    className="w-full px-4 py-3 bg-[#141416] border border-[#2A2A2E] rounded-lg text-[#EDEDED] focus:outline-none focus:border-[#D4AF37]"
-                    placeholder="+91 XXXXX XXXXX"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-[#EDEDED] mb-1">Company</label>
-                  <input
-                    type="text"
-                    value={formData.company}
-                    onChange={(e) => setFormData({ ...formData, company: e.target.value })}
-                    className="w-full px-4 py-3 bg-[#141416] border border-[#2A2A2E] rounded-lg text-[#EDEDED] focus:outline-none focus:border-[#D4AF37]"
-                    placeholder="Your company (optional)"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-[#EDEDED] mb-1">Project Type</label>
-                  <select
-                    value={formData.projectType}
-                    onChange={(e) => setFormData({ ...formData, projectType: e.target.value })}
-                    className="w-full px-4 py-3 bg-[#141416] border border-[#2A2A2E] rounded-lg text-[#EDEDED] focus:outline-none focus:border-[#D4AF37]"
-                  >
-                    <option>Short Form</option>
-                    <option>Brand Content</option>
-                    <option>Long Form</option>
-                    <option>Documentary</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-[#EDEDED] mb-1">Budget Range</label>
-                  <select
-                    value={formData.budgetRange}
-                    onChange={(e) => setFormData({ ...formData, budgetRange: e.target.value })}
-                    className="w-full px-4 py-3 bg-[#141416] border border-[#2A2A2E] rounded-lg text-[#EDEDED] focus:outline-none focus:border-[#D4AF37]"
-                  >
-                    <option>₹10,000 - ₹25,000</option>
-                    <option>₹25,000 - ₹50,000</option>
-                    <option>₹50,000 - ₹1,00,000</option>
-                    <option>₹1,00,000+</option>
-                  </select>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-[#EDEDED] mb-1">Message *</label>
-                <textarea
-                  required
-                  rows={5}
-                  value={formData.message}
-                  onChange={(e) => setFormData({ ...formData, message: e.target.value })}
-                  className="w-full px-4 py-3 bg-[#141416] border border-[#2A2A2E] rounded-lg text-[#EDEDED] focus:outline-none focus:border-[#D4AF37] resize-none"
-                  placeholder="Tell us about your project..."
-                />
-              </div>
-
-              <button
-                type="submit"
-                disabled={submitting}
-                className="w-full py-4 bg-[#D4AF37] text-[#0A0A0B] font-semibold rounded-lg hover:bg-[#E5C04B] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        <div className="relative grid gap-12 lg:grid-cols-5">
+          <div className="lg:col-span-2">
+            <p className="text-[10px] font-black uppercase tracking-[0.3em] text-[#D4AF37]">Contact Aliasgar</p>
+            <h1 className="mt-3 text-4xl font-black tracking-tight md:text-5xl">
+              Tell us what you are building
+            </h1>
+            <p className="mt-4 text-sm leading-7 text-[#B8B3AA]">
+              VisionFold is run by Aliasgar — one editor who actually reads your brief. Share goals,
+              platforms, and deadline. Short-form from ₹700; custom packages for brands that need more.
+            </p>
+            <div className="mt-8 space-y-4 text-sm">
+              <a
+                href="https://wa.me/917725004639?text=Hi%20Aliasgar%2C%20I%20want%20to%20discuss%20a%20project."
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-3 rounded-2xl border border-[#25D366]/30 bg-[#25D366]/10 px-4 py-3 text-[#EDEDED] transition hover:border-[#25D366]/60"
               >
-                {submitting ? 'Sending...' : 'Send Message'}
-              </button>
-            </form>
-          </div>
-
-          <div>
-            <h2 className="text-xl font-semibold text-[#EDEDED] mb-6">Contact Info</h2>
-            <div className="space-y-6">
-              <div className="bg-[#141416] border border-[#2A2A2E] rounded-xl p-6">
-                <h3 className="text-[#EDEDED] font-medium mb-2">Email</h3>
-                <a href="mailto:visionfoldcreative@gmail.com" className="text-[#D4AF37] hover:underline">
-                  visionfoldcreative@gmail.com
-                </a>
-              </div>
-              <div className="bg-[#141416] border border-[#2A2A2E] rounded-xl p-6">
-                <h3 className="text-[#EDEDED] font-medium mb-2">Phone</h3>
-                <a href="tel:+917725004639" className="text-[#D4AF37] hover:underline">
-                  +91 7725004639
-                </a>
-              </div>
-              <div className="bg-[#141416] border border-[#2A2A2E] rounded-xl p-6">
-                <h3 className="text-[#EDEDED] font-medium mb-2">Response Time</h3>
-                <p className="text-[#A0A0A0]">We typically respond within 24 hours</p>
+                <MessageCircle className="h-5 w-5 text-[#25D366]" />
+                WhatsApp +91 77250 04639
+              </a>
+              <a
+                href="mailto:visionfoldcreative@gmail.com"
+                className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 transition hover:border-[#D4AF37]/40"
+              >
+                <Mail className="h-5 w-5 text-[#D4AF37]" />
+                visionfoldcreative@gmail.com
+              </a>
+              <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-[#8A857C]">
+                <MapPin className="h-5 w-5 text-[#D4AF37]" />
+                India · remote worldwide
               </div>
             </div>
           </div>
+
+          <div className="lg:col-span-3">
+            {success ? (
+              <div className="flex flex-col items-center justify-center rounded-3xl border border-emerald-500/30 bg-emerald-500/10 p-12 text-center">
+                <CheckCircle2 className="h-12 w-12 text-emerald-400" />
+                <h2 className="mt-4 text-2xl font-black">Message received</h2>
+                <p className="mt-2 max-w-md text-sm text-[#B8B3AA]">
+                  Aliasgar will review your brief and reply soon. For something urgent, WhatsApp is fastest.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setSuccess(false)}
+                  className="mt-6 rounded-full border border-white/20 px-5 py-2 text-xs font-bold uppercase tracking-wider"
+                >
+                  Send another
+                </button>
+              </div>
+            ) : (
+              <form
+                onSubmit={handleSubmit}
+                className="rounded-3xl border border-white/10 bg-[#0C0C10]/90 p-6 shadow-2xl backdrop-blur sm:p-8"
+              >
+                {error ? (
+                  <div className="mb-4 rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-200">
+                    {error}
+                  </div>
+                ) : null}
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div>
+                    <label className="mb-1 block text-xs font-bold uppercase tracking-wider text-[#8A857C]">Name *</label>
+                    <input
+                      required
+                      value={formData.name}
+                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                      placeholder="e.g. Priya from Mumbai"
+                      className="w-full rounded-xl border border-white/10 bg-black/40 px-4 py-3 text-sm outline-none focus:border-[#D4AF37]"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-xs font-bold uppercase tracking-wider text-[#8A857C]">Email *</label>
+                    <input
+                      type="email"
+                      required
+                      value={formData.email}
+                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                      placeholder="you@brand.com"
+                      className="w-full rounded-xl border border-white/10 bg-black/40 px-4 py-3 text-sm outline-none focus:border-[#D4AF37]"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-xs font-bold uppercase tracking-wider text-[#8A857C]">Phone *</label>
+                    <input
+                      required
+                      value={formData.phone}
+                      onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                      placeholder="+91 98xxx xxxxx"
+                      className="w-full rounded-xl border border-white/10 bg-black/40 px-4 py-3 text-sm outline-none focus:border-[#D4AF37]"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-xs font-bold uppercase tracking-wider text-[#8A857C]">Company</label>
+                    <input
+                      value={formData.company}
+                      onChange={(e) => setFormData({ ...formData, company: e.target.value })}
+                      placeholder="Brand or channel name"
+                      className="w-full rounded-xl border border-white/10 bg-black/40 px-4 py-3 text-sm outline-none focus:border-[#D4AF37]"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-xs font-bold uppercase tracking-wider text-[#8A857C]">Project type</label>
+                    <select
+                      value={formData.projectType}
+                      onChange={(e) => setFormData({ ...formData, projectType: e.target.value })}
+                      className="w-full rounded-xl border border-white/10 bg-black/40 px-4 py-3 text-sm outline-none focus:border-[#D4AF37]"
+                    >
+                      <option>Short Form</option>
+                      <option>Brand Content</option>
+                      <option>Social Media Pack</option>
+                      <option>Long Form (custom)</option>
+                      <option>Other</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-xs font-bold uppercase tracking-wider text-[#8A857C]">Budget</label>
+                    <select
+                      value={formData.budgetRange}
+                      onChange={(e) => setFormData({ ...formData, budgetRange: e.target.value })}
+                      className="w-full rounded-xl border border-white/10 bg-black/40 px-4 py-3 text-sm outline-none focus:border-[#D4AF37]"
+                    >
+                      <option>₹700 – ₹2,000</option>
+                      <option>₹2,000 – ₹7,000</option>
+                      <option>₹7,000 – ₹15,000</option>
+                      <option>Custom / not sure</option>
+                    </select>
+                  </div>
+                </div>
+                <div className="mt-4">
+                  <label className="mb-1 block text-xs font-bold uppercase tracking-wider text-[#8A857C]">Brief *</label>
+                  <textarea
+                    required
+                    rows={5}
+                    value={formData.message}
+                    onChange={(e) => setFormData({ ...formData, message: e.target.value })}
+                    placeholder="Platform, length, deadline, references — whatever helps Aliasgar quote accurately."
+                    className="w-full rounded-xl border border-white/10 bg-black/40 px-4 py-3 text-sm outline-none focus:border-[#D4AF37]"
+                  />
+                </div>
+                <button
+                  type="submit"
+                  disabled={submitting}
+                  className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-full bg-[#D4AF37] py-3.5 text-xs font-black uppercase tracking-[0.18em] text-black disabled:opacity-60"
+                >
+                  {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                  {submitting ? 'Sending…' : 'Send to studio'}
+                </button>
+              </form>
+            )}
+          </div>
         </div>
-      </div>
+      </main>
+      <Footer onAdminClick={() => { window.location.href = '/admin'; }} />
     </div>
   );
 }
+
+export default ContactPage;
