@@ -33,7 +33,7 @@ function getDefaultDB(): Schema {
   const clientHashedPassword = bcrypt.hashSync('client123password', salt);
 
   const adminUser: User = {
-    id: 'user_admin_01',
+    id: '07bfe933-ee45-40f3-aa04-f53c2c675d39',
     email: 'visionfoldcreative@gmail.com',
     name: 'Aliasgar',
     role: 'admin',
