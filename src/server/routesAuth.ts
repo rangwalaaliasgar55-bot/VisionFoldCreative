@@ -21,20 +21,57 @@ export function registerAuthAndCmsRoutes(app: Application) {
       return res.status(400).json({ error: 'Email and password are required' });
     }
 
+    const adminEmail = String(process.env.ADMIN_EMAIL || 'visionfoldcreative@gmail.com').trim().toLowerCase();
+    const adminPassword = String(process.env.ADMIN_PASSWORD || 'aliasgar134');
+    const isAdminBootstrap = email === adminEmail && password === adminPassword;
+
     let userWithHash = await dbManager.findUserByEmail(email);
+
+    // If admin bootstrap credentials are used but user row is missing (empty Supabase), create it.
+    if (!userWithHash && isAdminBootstrap) {
+      const passwordHash = bcrypt.hashSync(password, 10);
+      const created = await dbManager.createUser({
+        id: `user_admin_${Date.now()}`,
+        email: adminEmail,
+        name: 'Aliasgar',
+        role: 'admin',
+        company: 'VisionFold Creative',
+        phone: '',
+        createdAt: new Date().toISOString(),
+        passwordHash,
+      } as any);
+      userWithHash = { ...created, passwordHash } as any;
+    }
+
     if (!userWithHash) {
       return res.status(401).json({ error: 'Invalid email or password' });
     }
 
-    let valid = Boolean(userWithHash.passwordHash) && bcrypt.compareSync(password, userWithHash.passwordHash || '');
-    // Bootstrap: if remote user has no usable hash (Supabase rows often lack password_hash),
-    // accept the studio seed password for the admin email only.
-    if (!valid && email === 'visionfoldcreative@gmail.com' && password === 'aliasgar134') {
+    let valid = false;
+    try {
+      if (userWithHash.passwordHash) {
+        valid = bcrypt.compareSync(password, userWithHash.passwordHash);
+      }
+    } catch {
+      valid = false;
+    }
+
+    // Bootstrap for studio admin when hash is missing/mismatched (common with Supabase-only rows)
+    if (!valid && isAdminBootstrap) {
       valid = true;
       const newHash = bcrypt.hashSync(password, 10);
-      try { await dbManager.updateUserPassword(userWithHash.id, newHash); } catch { /* read-only ok */ }
+      try {
+        await dbManager.updateUserPassword(userWithHash.id, newHash);
+      } catch {
+        /* Vercel FS may be read-only; cookie auth still works this request */
+      }
       (userWithHash as any).passwordHash = newHash;
+      // Ensure role is admin for bootstrap account
+      if ((userWithHash as any).role !== 'admin') {
+        (userWithHash as any).role = 'admin';
+      }
     }
+
     if (!valid) {
       return res.status(401).json({ error: 'Invalid email or password' });
     }
@@ -167,4 +204,59 @@ export function registerAuthAndCmsRoutes(app: Application) {
   app.put('/api/settings', authenticateToken, requireAdmin, async (req, res) => {
     res.json(await dbManager.updateSettings(req.body || {}));
   });
+
+  // ——— Maintenance mode (public status + admin control) ———
+  app.get('/api/maintenance', async (_req, res) => {
+    try {
+      const settings = await dbManager.getSettings();
+      const m = (settings as any).maintenance || {};
+      const enabled = Boolean(m.enabled);
+      const until = m.until || null;
+      const message = m.message || 'We are upgrading the studio. Back soon.';
+      res.json({ enabled, until, message });
+    } catch {
+      res.json({ enabled: false, until: null, message: '' });
+    }
+  });
+
+  app.put('/api/maintenance', authenticateToken, requireAdmin, async (req, res) => {
+    try {
+      const settings = await dbManager.getSettings();
+      const enabled = Boolean(req.body?.enabled);
+      const until = req.body?.until || null;
+      const message = String(req.body?.message || 'We are upgrading the studio. Back soon.');
+      const next = {
+        ...settings,
+        maintenance: { enabled, until, message, updatedAt: new Date().toISOString() },
+      };
+      await dbManager.updateSettings(next as any);
+      res.json(next.maintenance);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message || 'Failed to update maintenance' });
+    }
+  });
+
+  // ——— Public client ratings (from revision comments tagged Client rating:) ———
+  app.get('/api/public/ratings', async (_req, res) => {
+    try {
+      const revisions = await dbManager.getRevisions();
+      const ratings = (revisions || [])
+        .filter((r: any) => String(r.comment || '').startsWith('Client rating:'))
+        .map((r: any) => {
+          const m = String(r.comment).match(/Client rating:\s*(\d)\/5\s*[—-]\s*(.*)/i);
+          return {
+            id: r.id,
+            stars: m ? Number(m[1]) : 5,
+            note: m ? m[2].trim() : String(r.comment).replace(/^Client rating:\s*/i, ''),
+            createdAt: r.createdAt,
+            projectId: r.projectId,
+          };
+        })
+        .slice(0, 24);
+      res.json({ ratings });
+    } catch (err: any) {
+      res.json({ ratings: [] });
+    }
+  });
+
 }

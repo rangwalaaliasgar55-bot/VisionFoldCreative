@@ -432,7 +432,21 @@ function AdvancedTab() {
           <div className="flex items-center gap-3">
             <Switch
               checked={advanced.enableMaintenanceMode}
-              onCheckedChange={(checked) => updateSettings('advanced', { enableMaintenanceMode: checked })}
+              onCheckedChange={async (checked) => {
+                updateSettings('advanced', { enableMaintenanceMode: checked });
+                try {
+                  await fetch('/api/maintenance', {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({
+                      enabled: checked,
+                      message: 'We are upgrading the studio. Back soon.',
+                      until: null,
+                    }),
+                  });
+                } catch { /* ignore */ }
+              }}
             />
             {advanced.enableMaintenanceMode && (
               <span className="text-xs text-amber-400 flex items-center gap-1">

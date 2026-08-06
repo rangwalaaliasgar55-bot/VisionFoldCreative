@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   ArrowRight, BadgeCheck, Clapperboard, Clock3, Film, LockKeyhole, MessageCircleMore,
   MonitorPlay, Play, Quote, Scissors, Send, Sparkles, Star, Wand2, Zap, Layers3,
@@ -56,7 +56,23 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
   const { metrics } = useAdmin();
   const { isAdmin, editMode } = useContent();
   const [brief, setBrief] = useState('');
-  const reviewLoop = useMemo(() => [...seededReviews, ...seededReviews], []);
+  const [liveRatings, setLiveRatings] = useState<{ stars: number; note: string }[]>([]);
+  useEffect(() => {
+    fetch('/api/public/ratings')
+      .then((r) => r.json())
+      .then((d) => setLiveRatings(Array.isArray(d.ratings) ? d.ratings : []))
+      .catch(() => {});
+  }, []);
+  const reviewLoop = useMemo(() => {
+    const live = liveRatings.map((r) => ({
+      name: 'Verified client',
+      place: 'Client portal',
+      role: `${r.stars}/5 rating`,
+      quote: r.note || 'Great work with Aliasgar at VisionFold.',
+    }));
+    const base = [...seededReviews, ...live];
+    return [...base, ...base];
+  }, [liveRatings]);
   const whatsappMessage = `Hi Aliasgar, I want to start a project with VisionFold Creative.${brief ? ` Brief: ${brief}` : ''}`;
 
   return (

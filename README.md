@@ -1,44 +1,59 @@
-# VisionFold Creative Studio
+# VisionFold Creative
 
-Premium video production studio platform — public marketing site + password-protected admin dashboard.
+Premium video editing studio site + client portal + admin CMS.
+
+**Stack:** React 19 · TypeScript · Tailwind · Express API · Vercel · optional Supabase
 
 ## Features
 
-- Minimalist dark-mode public site (WebGL particles, Three.js, motion)
-- Admin studio: clients, projects, portfolio CMS, invoices, expenses, leads
-- OpenRouter AI tools (content, chat, inquiry assist, growth insights)
-- JWT auth, Zod validation, rate limiting, Helmet security headers
+- Public marketing site (home, work, services, contact, policies)
+- Client portal (`/portal`) — projects, progress, messages, ratings, settings
+- Admin CMS (`/admin`) — leads, clients, projects, portfolio, media, invoices, expenses, automations, growth copilot, settings
+- Live page editing (admin → public site → **Edit page content**)
+- Maintenance mode with countdown (admin settings)
+- Public ratings API fed by client portal ratings
 
-## Stack
-
-React 19 · TypeScript · Tailwind · Express · Vite · Zod · Three.js · Supabase (optional)
-
-## Setup
+## Local development
 
 ```bash
 npm install
-cp .env.example .env   # set JWT_SECRET, OPENROUTER_API_KEY, etc.
 npm run dev
 ```
 
-- App: http://localhost:3000
-- Admin: http://localhost:3000/admin
+## Vercel environment variables (required)
 
-**Required in production:** `JWT_SECRET` (server will refuse to start without it).
+| Variable | Purpose |
+|----------|---------|
+| `JWT_SECRET` | Strong random string for auth tokens |
+| `ADMIN_EMAIL` | Default `visionfoldcreative@gmail.com` |
+| `ADMIN_PASSWORD` | Default bootstrap password (set your own) |
+| `SUPABASE_URL` | Optional Supabase project URL |
+| `SUPABASE_SERVICE_ROLE_KEY` | Optional server key |
+| `SUPABASE_ANON_KEY` | Optional anon key |
+| `OPENROUTER_API_KEY` | Optional AI features |
+
+Also map any `SupaBase_*` keys you already created to the standard names above if your code expects them.
+
+## Admin login
+
+1. Set `JWT_SECRET`, `ADMIN_EMAIL`, `ADMIN_PASSWORD` on Vercel
+2. Redeploy
+3. Open `/admin` and sign in with those credentials
+
+Bootstrap will accept the admin email + password even when Supabase user rows lack `password_hash`, and will create the admin user if missing.
 
 ## Scripts
 
-| Command | Description |
-|---------|-------------|
-| `npm run dev` | Dev server (tsx + Vite) |
-| `npm run build` | Production build |
-| `npm start` | Run production server |
-| `npm run lint` | TypeScript check |
-| `npm run test:run` | Vitest once |
+- `npm run dev` — Vite + API
+- `npm run build` — production build
+- `npm run start` — production server (non-Vercel)
 
-## Docs
+## Security
 
-- `ARCHITECTURE.md` — system design
-- `API_ROUTES.md` — API reference
-- `SECURITY.md` — security policy
-- `.env.example` — environment variables
+- Helmet CSP, rate-limited auth, httpOnly cookies
+- No Google Analytics shipped by default
+- Rotate any tokens ever pasted in chat
+
+## License
+
+Private — VisionFold Creative / Aliasgar

@@ -18,6 +18,7 @@ import { ServicesPage } from './components/PublicPages/ServicesPage';
 import { ContactPage } from './components/PublicPages/ContactPage';
 import { WorkDetailPage } from './components/PublicPages/WorkDetailPage';
 import { ErrorBoundary } from './components/ErrorBoundary';
+import { MaintenancePage } from './components/PublicPages/MaintenancePage';
 import { AudioMeshBackground } from './components/AudioMeshBackground';
 
 const MainContent: React.FC = () => {
@@ -76,6 +77,14 @@ const AppRoutes: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, isLoading } = useAuth();
+  const [maintenance, setMaintenance] = React.useState<{ enabled: boolean; until: string | null; message: string } | null>(null);
+
+  React.useEffect(() => {
+    fetch('/api/maintenance')
+      .then((r) => r.json())
+      .then((d) => setMaintenance(d))
+      .catch(() => setMaintenance({ enabled: false, until: null, message: '' }));
+  }, [location.pathname]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -96,6 +105,19 @@ const AppRoutes: React.FC = () => {
       navigate('/portal', { replace: true });
     }
   }, [user, isLoading, location.pathname, navigate]);
+
+  // Public site locked during maintenance; admin + portal always reachable for staff/clients
+  if (
+    maintenance?.enabled &&
+    user?.role !== 'admin' &&
+    !location.pathname.startsWith('/admin') &&
+    !location.pathname.startsWith('/api')
+  ) {
+    // Allow portal only if already logged-in client
+    if (!(user?.role === 'client' && location.pathname.startsWith('/portal'))) {
+      return <MaintenancePage data={maintenance} />;
+    }
+  }
 
   if (location.pathname.startsWith('/admin')) {
     return <AdminApp />;

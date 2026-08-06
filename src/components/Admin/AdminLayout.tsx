@@ -8,7 +8,7 @@ import { AppError } from '../../lib/errors';
 
 export type AdminView =
   | 'overview' | 'leads' | 'clients' | 'automations' | 'projects' | 'portfolio'
-  | 'invoices' | 'expenses' | 'growth' | 'settings';
+  | 'invoices' | 'expenses' | 'growth' | 'media' | 'settings';
 
 const NAV_ITEMS: { id: AdminView; label: string; icon: React.ElementType }[] = [
   { id: 'overview', label: 'Overview', icon: LayoutDashboard },
@@ -20,6 +20,7 @@ const NAV_ITEMS: { id: AdminView; label: string; icon: React.ElementType }[] = [
   { id: 'invoices', label: 'Invoices', icon: Receipt },
   { id: 'expenses', label: 'Expenses', icon: Wallet },
   { id: 'growth', label: 'AI Growth Copilot', icon: Sparkles },
+  { id: 'media', label: 'Media / CMS', icon: ImageIcon },
   { id: 'settings', label: 'Pricing & Settings', icon: SettingsIcon },
 ];
 

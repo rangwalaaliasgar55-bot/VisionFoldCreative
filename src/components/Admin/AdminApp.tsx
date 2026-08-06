@@ -11,6 +11,7 @@ import { Invoices } from './views/Invoices';
 import { Expenses } from './views/Expenses';
 import { GrowthCopilot } from './views/GrowthCopilot';
 import { Settings } from './views/Settings';
+import { Media } from './views/Media';
 import { LoadingState } from './ui';
 import { useAuth } from '../../context/AuthContext';
 import { ErrorHandler } from '../../lib/errors';
@@ -25,7 +26,8 @@ const VIEW_META: Record<AdminView, { title: string; subtitle?: string }> = {
   invoices: { title: 'Invoices', subtitle: 'Billing and payment status' },
   expenses: { title: 'Expenses', subtitle: 'Track studio costs' },
   growth: { title: 'AI Growth Copilot', subtitle: 'AI-generated action items for the business' },
-  settings: { title: 'Pricing & Settings', subtitle: 'Rates and homepage metrics' },
+  media: { title: 'Media & CMS', subtitle: 'Library and live page editing' },
+  settings: { title: 'Pricing & Settings', subtitle: 'Rates, maintenance, integrations' },
 };
 
 export const AdminApp: React.FC = () => {
@@ -82,7 +84,8 @@ export const AdminApp: React.FC = () => {
       {view === 'invoices' && <Invoices />}
       {view === 'expenses' && <Expenses />}
       {view === 'growth' && <GrowthCopilot />}
-      {view === 'settings' && <Settings />}
+      {view === 'media' && <Media />}
+          {view === 'settings' && <Settings />}
     </AdminLayout>
   );
 };
