@@ -13,7 +13,9 @@ import {
 } from '../types';
 import { getSupabaseClient, isSupabaseConfigured } from './supabase';
 
-const DATA_DIR = path.join(process.cwd(), 'data');
+const DATA_DIR = process.env.NODE_ENV === 'production'
+  ? path.join('/tmp', 'visionfold-data')
+  : path.join(process.cwd(), 'data');
 const DB_FILE = path.join(DATA_DIR, 'db.json');
 
 interface Schema {
@@ -411,7 +413,7 @@ function getDefaultDB(): Schema {
       page: 'services',
       section_key: 'short_form_rate_per_min',
       type: 'price',
-      value: '700',
+      value: 'Custom — we will discuss',
       order: 1,
       visible: true,
       updatedAt: new Date().toISOString(),
@@ -421,7 +423,7 @@ function getDefaultDB(): Schema {
       page: 'services',
       section_key: 'long_form_rate_per_min',
       type: 'price',
-      value: '700',
+      value: 'Custom — we will discuss',
       order: 2,
       visible: true,
       updatedAt: new Date().toISOString(),
@@ -432,7 +434,7 @@ function getDefaultDB(): Schema {
       section_key: 'price_disclaimer',
       type: 'text',
       value:
-        'This is a starting price. Final quotation depends on: complexity of the edit, raw footage length, motion graphics requirements, and number of revisions.',
+        'Pricing is custom and discussed project-by-project. Final quotation depends on complexity, raw footage length, motion graphics requirements, deadlines, and number of revisions.',
       order: 3,
       visible: true,
       updatedAt: new Date().toISOString(),
@@ -648,7 +650,7 @@ function getDefaultDB(): Schema {
       phone: '+91 9123456789',
       company: 'Mehta Media',
       projectType: 'Short Form',
-      budgetRange: '₹10,000 - ₹25,000',
+      budgetRange: 'Custom — we will discuss',
       deadline: '2026-08-20',
       message: 'Looking for a monthly retainer for 12 YouTube Shorts & Reels with retention-focused editing and fast-paced captions.',
       status: 'new',
@@ -661,7 +663,7 @@ function getDefaultDB(): Schema {
       phone: '+91 9988776655',
       company: 'Priya Verma Tech',
       projectType: 'Long Form',
-      budgetRange: '₹25,000 - ₹50,000',
+      budgetRange: 'Custom — we will discuss',
       deadline: '2026-09-01',
       message: 'Need 3 long form YouTube tech review videos edited with cinematic color grading and motion graphics.',
       status: 'contacted',

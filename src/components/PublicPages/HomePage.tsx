@@ -20,7 +20,7 @@ const RevealSection: React.FC<{ children: React.ReactNode; className?: string }>
 };
 
 const workCards = [
-  { title: 'Retention Reels', type: 'Short Form', metric: '₹700 / reel', image: 'https://images.unsplash.com/photo-1611162617474-5b21e879e113?auto=format&fit=crop&w=900&q=80' },
+  { title: 'Retention Reels', type: 'Short Form', metric: 'Custom quote', image: 'https://images.unsplash.com/photo-1611162617474-5b21e879e113?auto=format&fit=crop&w=900&q=80' },
   { title: 'Founder Stories', type: 'Consumer Brands', metric: 'DM for custom quote', image: 'https://images.unsplash.com/photo-1492724441997-5dc865305da7?auto=format&fit=crop&w=900&q=80' },
   { title: 'Launch Ads', type: 'Performance Creative', metric: 'Hook + CTA system', image: 'https://images.unsplash.com/photo-1533750349088-cd871a92f312?auto=format&fit=crop&w=900&q=80' },
 ];
@@ -102,15 +102,15 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
               </button>
             </div>
             <div className="mt-12 grid max-w-2xl grid-cols-3 gap-3 text-center">
-              {['Shorts ₹700', 'Long-form custom', metrics.retentionSplit].map((item) => <div key={item} className="rounded-2xl border border-white/10 bg-white/[0.04] p-4 text-[10px] font-bold uppercase tracking-[0.18em] text-[#B8B3AA] backdrop-blur-xl">{item}</div>)}
+              {['Short-form custom', 'Long-form custom', metrics.retentionSplit].map((item) => <div key={item} className="rounded-2xl border border-white/10 bg-white/[0.04] p-4 text-[10px] font-bold uppercase tracking-[0.18em] text-[#B8B3AA] backdrop-blur-xl">{item}</div>)}
             </div>
           </RevealSection>
 
           <RevealSection className="relative">
             <div className="absolute -inset-8 rounded-[3rem] bg-[#D4AF37]/10 blur-3xl" />
             <div className="relative rounded-[2.5rem] border border-white/10 bg-[#F4F1EA] p-8 shadow-2xl shadow-black/60 [transform:perspective(1000px)_rotateY(-8deg)_rotateX(4deg)] transition-transform duration-700 hover:[transform:perspective(1000px)_rotateY(0deg)_rotateX(0deg)]">
-              <div className="mb-6 h-48 overflow-hidden rounded-[2rem] bg-black"><ThreeHero /></div>
-              <VisionFoldLogo variant="full" color="dark" size="xl" />
+              <div className="mb-6 h-40 overflow-hidden rounded-[2rem] bg-black opacity-95 md:h-44"><ThreeHero /></div>
+              <div className="relative z-10 mx-auto max-w-[430px] rounded-[1.5rem] bg-[#F4F1EA]/90 px-4 py-3"><VisionFoldLogo variant="full" color="dark" size="lg" /></div>
               <div className="mt-8 grid grid-cols-3 gap-3">
                 {['EDIT', 'CREATE', 'INSPIRE'].map((word) => <div key={word} className="rounded-xl bg-black px-3 py-3 text-center text-[10px] font-black tracking-[0.35em] text-white">{word}</div>)}
               </div>
@@ -173,7 +173,7 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
 
       <section id="pricing" className="relative z-10 border-y border-white/10 bg-[#0D0D0F] px-6 py-28">
         <RevealSection className="mx-auto grid max-w-7xl gap-6 lg:grid-cols-2">
-          <div className="rounded-[2rem] border border-[#D4AF37]/40 bg-[#D4AF37] p-8 text-black"><Scissors className="mb-10 h-10 w-10" /><h2 className="text-5xl font-black uppercase tracking-[-0.05em]">Short-form videos</h2><div className="mt-8 text-7xl font-black">₹700</div><p className="mt-4 text-sm font-bold uppercase tracking-[0.18em]">Per short-form edit</p></div>
+          <div className="rounded-[2rem] border border-[#D4AF37]/40 bg-[#D4AF37] p-8 text-black"><Scissors className="mb-10 h-10 w-10" /><h2 className="text-5xl font-black uppercase tracking-[-0.05em]">Short-form videos</h2><div className="mt-8 text-5xl font-black">Custom quote</div><p className="mt-4 text-sm font-bold uppercase tracking-[0.18em]">We will discuss your scope before pricing</p></div>
           <div className="rounded-[2rem] border border-white/10 bg-white/[0.04] p-8"><Film className="mb-10 h-10 w-10 text-[#D4AF37]" /><h2 className="text-5xl font-black uppercase tracking-[-0.05em]">Long-form cuts</h2><div className="mt-8 text-5xl font-black">Custom quote</div><p className="mt-5 leading-7 text-[#B8B3AA]">Long-form YouTube, documentaries, podcasts, and brand films vary by footage, structure, graphics, and revisions. Message in DMs for an exact quote.</p><a href={`https://wa.me/${whatsappNumber}?text=${encodeURIComponent('Hi Aliasgar, I need a custom long-form quote from VisionFold Creative.')}`} target="_blank" rel="noopener noreferrer" className="mt-8 inline-flex rounded-full border border-[#D4AF37]/50 px-6 py-3 text-xs font-black uppercase tracking-[0.18em] text-[#D4AF37] hover:bg-[#D4AF37] hover:text-black">DM for long-form</a></div>
         </RevealSection>
       </section>
@@ -181,7 +181,7 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
       <section className="relative z-10 px-6 py-28">
         <RevealSection className="mx-auto max-w-7xl">
           <div className="mb-12 flex items-end justify-between gap-6"><div><p className="mb-3 text-xs font-black uppercase tracking-[0.3em] text-[#D4AF37]">Swipe left</p><h2 className="text-4xl font-black uppercase tracking-[-0.04em] md:text-6xl">Client reviews</h2><p className="mt-3 text-sm text-[#B8B3AA]">Showing fewer cards at once keeps the page cleaner. Feedback is requested after a client project is delivered.</p></div><BadgeCheck className="hidden h-12 w-12 text-[#D4AF37] md:block" /></div>
-          <div className="flex snap-x gap-5 overflow-x-auto pb-6 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          <div className="flex snap-x gap-5 overflow-x-auto pb-6 [scrollbar-width:none] motion-safe:animate-[review-slide_45s_linear_infinite] hover:[animation-play-state:paused] [&::-webkit-scrollbar]:hidden">
             {allReviews.map((review, index) => <div key={`${review.name}-${index}`} className="min-w-[84%] snap-center rounded-3xl border border-white/10 bg-white/[0.04] p-6 backdrop-blur-xl transition-transform duration-500 hover:-translate-y-2 sm:min-w-[430px]"><div className="mb-5 flex gap-1 text-[#D4AF37]">{Array.from({ length: 5 }).map((_, i) => <Star key={i} className="h-4 w-4 fill-current" />)}</div><Quote className="mb-4 h-6 w-6 text-white/30" /><p className="min-h-28 text-sm leading-7 text-[#D8D3CA]">“{review.quote}”</p><div className="mt-6 border-t border-white/10 pt-5"><p className="font-black">{review.name}</p><p className="text-xs uppercase tracking-[0.15em] text-[#D4AF37]">{review.place}</p><p className="mt-1 text-xs text-[#B8B3AA]">{review.role}</p></div></div>)}
           </div>
           <form onSubmit={addReview} className="mt-4 grid gap-4 rounded-3xl border border-[#D4AF37]/25 bg-black/40 p-5 md:grid-cols-[1fr_2fr_auto]"><div className="md:col-span-3 text-xs font-black uppercase tracking-[0.2em] text-[#D4AF37]">Delivered client? Leave your review after final files are approved.</div><input value={reviewName} onChange={(e) => setReviewName(e.target.value)} placeholder="Client name" className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm outline-none focus:border-[#D4AF37]" /><input value={reviewText} onChange={(e) => setReviewText(e.target.value)} placeholder="Post-delivery review" className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm outline-none focus:border-[#D4AF37]" /><button className="inline-flex items-center justify-center gap-2 rounded-2xl bg-white px-5 py-3 text-xs font-black uppercase tracking-[0.15em] text-black"><Send className="h-4 w-4" /> Submit</button></form>

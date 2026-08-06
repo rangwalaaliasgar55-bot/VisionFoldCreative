@@ -8,7 +8,7 @@ export function ContactPage() {
     phone: '',
     company: '',
     projectType: 'Short Form',
-    budgetRange: '₹10,000 - ₹25,000',
+    budgetRange: 'Custom — we will discuss',
     message: '',
   });
   const [submitting, setSubmitting] = useState(false);
@@ -35,7 +35,7 @@ export function ContactPage() {
           phone: '',
           company: '',
           projectType: 'Short Form',
-          budgetRange: '₹10,000 - ₹25,000',
+          budgetRange: 'Custom — we will discuss',
           message: '',
         });
       } else {
@@ -142,16 +142,13 @@ export function ContactPage() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-[#EDEDED] mb-1">Budget Range</label>
+                  <label className="block text-sm font-medium text-[#EDEDED] mb-1">Budget / Quote</label>
                   <select
                     value={formData.budgetRange}
                     onChange={(e) => setFormData({ ...formData, budgetRange: e.target.value })}
                     className="w-full px-4 py-3 bg-[#141416] border border-[#2A2A2E] rounded-lg text-[#EDEDED] focus:outline-none focus:border-[#D4AF37]"
                   >
-                    <option>₹10,000 - ₹25,000</option>
-                    <option>₹25,000 - ₹50,000</option>
-                    <option>₹50,000 - ₹1,00,000</option>
-                    <option>₹1,00,000+</option>
+                    <option>Custom — we will discuss</option>
                   </select>
                 </div>
               </div>

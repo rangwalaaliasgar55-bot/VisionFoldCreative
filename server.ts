@@ -59,7 +59,7 @@ const messageSchema = z.object({
   phone: z.string().trim().min(1),
   company: z.string().trim().optional().default(''),
   projectType: z.string().trim().optional().default('Short Form'),
-  budgetRange: z.string().trim().optional().default('₹10,000 - ₹25,000'),
+  budgetRange: z.string().trim().optional().default('Custom — we will discuss'),
   deadline: z.string().trim().optional().default(''),
   message: z.string().trim().min(1),
 });
@@ -89,6 +89,7 @@ const clientSchema = z.object({
   name: z.string().trim().min(1),
   company: z.string().trim().optional().default(''),
   phone: z.string().trim().optional().default(''),
+  role: z.enum(['client', 'editor']).optional().default('client'),
   password: z.string().trim().min(1).optional(),
 });
 
@@ -194,8 +195,10 @@ export async function createApp() {
   app.use(express.urlencoded({ extended: true, limit: '20mb' }));
   app.use(cookieParser());
 
-  // Serve local uploads folder static files
-  const publicUploads = path.join(process.cwd(), 'public', 'uploads');
+  // Serve local uploads from a writable directory in production (Vercel exposes /tmp only).
+  const publicUploads = process.env.NODE_ENV === 'production'
+    ? path.join('/tmp', 'visionfold-uploads')
+    : path.join(process.cwd(), 'public', 'uploads');
   if (!fs.existsSync(publicUploads)) {
     fs.mkdirSync(publicUploads, { recursive: true });
   }
@@ -445,8 +448,8 @@ export async function createApp() {
   // --- CLIENTS ROUTE (ADMIN) ---
   app.get('/api/clients', authenticateToken, requireAdmin, async (req, res) => {
     const users = await dbManager.getUsers();
-    const clients = users.filter((u) => u.role === 'client');
-    res.json(clients);
+    const manageableUsers = users.filter((u) => u.role !== 'admin');
+    res.json(manageableUsers);
   });
 
   app.post('/api/clients', authenticateToken, requireAdmin, async (req, res) => {
@@ -455,7 +458,7 @@ export async function createApp() {
       return res.status(400).json({ error: parsed.error.flatten().fieldErrors });
     }
 
-    const { email, name, company, phone, password } = parsed.data;
+    const { email, name, company, phone, role, password } = parsed.data;
     const existing = await dbManager.findUserByEmail(email);
     if (existing) {
       return res.status(400).json({ error: 'User with this email already exists' });
@@ -471,7 +474,7 @@ export async function createApp() {
       name,
       company,
       phone,
-      role: 'client',
+      role,
       createdAt: new Date().toISOString(),
       passwordHash,
     };

@@ -102,3 +102,9 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
     to { background-position: -200% 0; }
   }
 }
+
+@keyframes review-slide {
+  0% { transform: translateX(0); }
+  50% { transform: translateX(-45%); }
+  100% { transform: translateX(0); }
+}

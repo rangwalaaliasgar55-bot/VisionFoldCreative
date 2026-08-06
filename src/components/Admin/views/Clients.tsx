@@ -8,7 +8,7 @@ export const Clients: React.FC = () => {
   const [clients, setClients] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ name: '', email: '', company: '', phone: '', password: '' });
+  const [form, setForm] = useState({ name: '', email: '', company: '', phone: '', role: 'client', password: '' });
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState('');
   const [createdInfo, setCreatedInfo] = useState<string | null>(null);
@@ -32,8 +32,8 @@ export const Clients: React.FC = () => {
     try {
       const result = await adminApi.post<{ client: User; initialPassword: string }>('/api/clients', form);
       setClients((prev) => [...prev, result.client]);
-      setCreatedInfo(`Client added. Temporary password: ${result.initialPassword}`);
-      setForm({ name: '', email: '', company: '', phone: '', password: '' });
+      setCreatedInfo(`${result.client.role === 'editor' ? 'Editor' : 'Client'} access added. Temporary password: ${result.initialPassword}`);
+      setForm({ name: '', email: '', company: '', phone: '', role: 'client', password: '' });
       setShowForm(false);
     } catch (err: any) {
       setError(err.message || 'Failed to create client');
@@ -52,8 +52,8 @@ export const Clients: React.FC = () => {
 
       <Card>
         <CardHeader
-          title="Clients"
-          subtitle={`${clients.length} onboarded`}
+          title="Access"
+          subtitle={`${clients.length} client/editor accounts`}
           action={<PrimaryButton onClick={() => setShowForm((v) => !v)}><UserPlus className="h-4 w-4" /> Add Client</PrimaryButton>}
         />
 
@@ -63,23 +63,24 @@ export const Clients: React.FC = () => {
             <Input type="email" placeholder="Email" required value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
             <Input placeholder="Company (optional)" value={form.company} onChange={(e) => setForm({ ...form, company: e.target.value })} />
             <Input placeholder="Phone (optional)" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
+            <select value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })} className="rounded-lg border border-[#222226] bg-[#0A0A0B] px-3 py-2 text-sm text-[#EDEDED] outline-none focus:border-[#D4AF37]"><option value="client">Client access</option><option value="editor">Editor access</option></select>
             <Input placeholder="Temporary password (optional)" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} />
             {error ? <p className="text-xs text-red-400 sm:col-span-2">{error}</p> : null}
             <div className="flex gap-2 sm:col-span-2">
-              <PrimaryButton type="submit" disabled={creating}>{creating ? 'Creating…' : 'Create Client'}</PrimaryButton>
+              <PrimaryButton type="submit" disabled={creating}>{creating ? 'Creating…' : 'Create Access'}</PrimaryButton>
               <GhostButton type="button" onClick={() => setShowForm(false)}>Cancel</GhostButton>
             </div>
           </form>
         ) : null}
 
         {clients.length === 0 ? (
-          <EmptyState message="No clients yet — add your first client to start tracking their projects and invoices." />
+          <EmptyState message="No access accounts yet — add clients or editors to manage project access." />
         ) : (
           <div className="divide-y divide-[#222226]">
             {clients.map((c) => (
               <div key={c.id} className="flex flex-wrap items-center justify-between gap-3 p-5">
                 <div>
-                  <h4 className="font-bold text-[#EDEDED]">{c.name}</h4>
+                  <h4 className="font-bold text-[#EDEDED]">{c.name} <span className="ml-2 rounded-full border border-[#D4AF37]/30 px-2 py-0.5 text-[10px] uppercase tracking-[0.15em] text-[#D4AF37]">{c.role}</span></h4>
                   <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-[#888891]">
                     <span className="flex items-center gap-1"><Mail className="h-3 w-3" /> {c.email}</span>
                     {c.phone ? <span className="flex items-center gap-1"><Phone className="h-3 w-3" /> {c.phone}</span> : null}

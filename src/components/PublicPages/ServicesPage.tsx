@@ -6,28 +6,28 @@ const services = [
     title: 'Short Form Content',
     description: 'Instagram Reels, YouTube Shorts, TikTok content — optimized for maximum engagement and viral potential.',
     features: ['Attention-grabbing hooks', 'Fast-paced editing', 'Trending audio sync', 'Engaging captions & text'],
-    price: 'Starting ₹15,000',
+    price: 'Custom quote',
     category: 'Short Form',
   },
   {
     title: 'Brand Content',
     description: 'Professional brand videos, product showcases, and promotional content that elevate your brand identity.',
     features: ['Cinematic quality', 'Brand-consistent styling', 'Professional color grading', 'Multiple revisions'],
-    price: 'Starting ₹35,000',
+    price: 'Custom quote',
     category: 'Brand Content',
   },
   {
     title: 'Long Form Content',
     description: 'YouTube videos, documentaries, interviews, and storytelling content that keeps viewers engaged.',
     features: ['Deep storytelling', 'Smooth pacing', 'Custom graphics', 'Professional sound design'],
-    price: 'Starting ₹50,000',
+    price: 'Custom quote',
     category: 'Long Form',
   },
   {
     title: 'Documentary Production',
     description: 'Full documentary production from concept to final cut — research, filming, and post-production.',
     features: ['Full production support', 'Expert storytelling', 'Multiple formats', 'Premium quality'],
-    price: 'Starting ₹1,00,000',
+    price: 'Custom quote',
     category: 'Documentary',
   },
 ];
@@ -100,9 +100,9 @@ export function ServicesPage() {
                       </div>
                       <div className="flex flex-col justify-center">
                         <div className="rounded-2xl border border-[#D4AF37]/20 bg-black/40 p-6 text-center">
-                          <p className="text-[#A0A0A0] mb-2">Starting Price</p>
+                          <p className="text-[#A0A0A0] mb-2">Quotation</p>
                           <p className="text-3xl font-bold text-[#D4AF37]">{service.price}</p>
-                          <p className="text-sm text-[#A0A0A0] mt-2">Custom quotes available</p>
+                          <p className="text-sm text-[#A0A0A0] mt-2">We will discuss scope, timeline, and revisions before quoting</p>
                         </div>
                       </div>
                     </div>
