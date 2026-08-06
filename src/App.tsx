@@ -9,7 +9,7 @@ import { PolicyPage } from './components/PublicPages/PolicyPage';
 import { SfxProvider } from './context/SfxContext';
 import { AdminProvider } from './context/AdminContext';
 import { ContentProvider, useContent } from './context/ContentContext';
-import { AuthProvider } from './context/AuthContext';
+import { AuthProvider, useAuth } from './context/AuthContext';
 import { AdminApp } from './components/Admin/AdminApp';
 import { Portal } from './components/Portal/Portal';
 import { NotFound } from './components/NotFound';
@@ -45,14 +45,21 @@ const MainContent: React.FC = () => {
       </div>
       <div className="pointer-events-none fixed inset-0 z-0 bg-[radial-gradient(circle_at_top_left,rgba(212,175,55,0.10),transparent_32%),radial-gradient(circle_at_bottom_right,rgba(255,255,255,0.06),transparent_28%)]" />
       <div className="relative z-10 flex min-h-screen flex-col">
-        {isAdmin && editMode ? (
-          <button
-            type="button"
-            onClick={() => setEditMode(false)}
-            className="fixed right-4 top-4 z-[110] rounded-full border border-[#D4AF37]/40 bg-[#121215]/90 px-4 py-2 text-[10px] font-bold uppercase tracking-[0.2em] text-[#EDEDED] shadow-lg backdrop-blur"
-          >
-            Save & Exit Edit Mode
-          </button>
+        {isAdmin ? (
+          <div className="fixed right-4 top-4 z-[110] flex flex-col items-end gap-2">
+            <button
+              type="button"
+              onClick={() => setEditMode(!editMode)}
+              className="rounded-full border border-[#D4AF37]/40 bg-[#121215]/95 px-4 py-2 text-[10px] font-bold uppercase tracking-[0.2em] text-[#EDEDED] shadow-lg backdrop-blur"
+            >
+              {editMode ? 'Exit edit mode' : 'Edit page content'}
+            </button>
+            {editMode ? (
+              <p className="max-w-xs rounded-lg border border-[#D4AF37]/30 bg-black/80 px-3 py-2 text-[10px] leading-relaxed text-[#D4AF37]">
+                Click any pencil text on the page, edit, then click outside or press Enter to save.
+              </p>
+            ) : null}
+          </div>
         ) : null}
         <Navbar currentPage={currentPage} onNavigate={handleNavigate} />
         <main className="flex-1">
@@ -68,6 +75,7 @@ const MainContent: React.FC = () => {
 const AppRoutes: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
+  const { user, isLoading } = useAuth();
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -81,6 +89,13 @@ const AppRoutes: React.FC = () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
   }, [navigate]);
+
+  useEffect(() => {
+    if (isLoading || !user) return;
+    if (user.role === 'client' && location.pathname === '/') {
+      navigate('/portal', { replace: true });
+    }
+  }, [user, isLoading, location.pathname, navigate]);
 
   if (location.pathname.startsWith('/admin')) {
     return <AdminApp />;
