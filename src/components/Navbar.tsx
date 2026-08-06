@@ -1,71 +1,136 @@
-import React from 'react';
-import { Link, useNavigate, useLocation } from 'react-router-dom';
+import React, { useEffect, useState } from 'react';
+import { Menu, X, Sparkles } from 'lucide-react';
 import { VisionFoldLogo } from './VisionFoldLogo';
 import { useSfx } from '../context/SfxContext';
-import { Volume2, VolumeX, Mail, MessageCircle } from 'lucide-react';
 
 interface NavbarProps {
   currentPage: string;
   onNavigate: (page: string) => void;
 }
 
-export const Navbar: React.FC<NavbarProps> = ({ currentPage, onNavigate }) => {
-  const { sfxEnabled, toggleSfx, playHover, playClick } = useSfx();
-  const navigate = useNavigate();
-  const location = useLocation();
-  const isHome = location.pathname === '/';
+const links = [
+  { id: 'home', label: 'Home', href: '/' },
+  { id: 'work', label: 'Work', href: '/work' },
+  { id: 'services', label: 'Services', href: '/services' },
+  { id: 'contact', label: 'Contact', href: '/contact' },
+];
 
-  // On the homepage these scroll to the in-page section (matches original design).
-  // On any other page, navigate to the dedicated route instead, since the section
-  // ids only exist on the homepage.
-  const goToSection = (sectionId: string, pagePath: string) => {
+export const Navbar: React.FC<NavbarProps> = ({ currentPage, onNavigate }) => {
+  const { playHover, playClick } = useSfx();
+  const [open, setOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
+
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 24);
+    onScroll();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
+
+  const go = (id: string, href: string) => {
     playClick();
-    if (isHome) {
-      document.getElementById(sectionId)?.scrollIntoView({ behavior: 'smooth' });
-    } else {
-      navigate(pagePath);
+    setOpen(false);
+    if (href.startsWith('/') && href !== '/') {
+      window.location.href = href;
+      return;
     }
+    onNavigate(id);
+    if (href === '/') window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   return (
-    <nav className="sticky top-0 z-50 bg-[#0A0A0B]/90 backdrop-blur-md border-b border-[#222226]">
-      <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
-        <Link to="/" className="flex items-center gap-2 cursor-pointer interactive-hover" onClick={() => { playClick(); window.scrollTo({ top: 0, behavior: 'smooth' }); }} onMouseEnter={playHover}>
-          <VisionFoldLogo size="sm" variant="icon-only" color="white" />
-          <span className="font-bold text-sm tracking-widest uppercase text-[#EDEDED]">Studio</span>
-        </Link>
+    <header
+      className={`fixed inset-x-0 top-0 z-50 transition-all duration-500 ${
+        scrolled ? 'border-b border-white/10 bg-black/70 py-3 backdrop-blur-2xl' : 'bg-transparent py-5'
+      }`}
+    >
+      <div className="mx-auto flex max-w-7xl items-center justify-between px-6">
+        <button
+          type="button"
+          onMouseEnter={playHover}
+          onClick={() => go('home', '/')}
+          className="scale-90 origin-left transition-transform hover:scale-95"
+          aria-label="VisionFold home"
+        >
+          <VisionFoldLogo />
+        </button>
 
-        <div className="flex items-center gap-8">
-          <div className="hidden lg:flex items-center gap-6 text-[10px] font-bold uppercase tracking-[0.15em]">
-            <Link to="/work" onClick={playClick} onMouseEnter={playHover} className="text-[#888891] hover:text-[#D4AF37] transition-colors interactive-hover">Work</Link>
-            <button onClick={() => goToSection('transform', '/')} onMouseEnter={playHover} className="text-[#888891] hover:text-[#D4AF37] transition-colors interactive-hover">Transform</button>
-            <Link to="/services" onClick={playClick} onMouseEnter={playHover} className="text-[#888891] hover:text-[#D4AF37] transition-colors interactive-hover">Services</Link>
-            <button onClick={() => goToSection('process', '/')} onMouseEnter={playHover} className="text-[#888891] hover:text-[#D4AF37] transition-colors interactive-hover">Process</button>
-            <Link to="/contact" onClick={playClick} onMouseEnter={playHover} className="text-[#888891] hover:text-[#D4AF37] transition-colors interactive-hover">Contact</Link>
-
-            <button onClick={() => goToSection('estimator', '/')} onMouseEnter={playHover} className="text-[#888891] hover:text-[#D4AF37] transition-colors interactive-hover">Pricing</button>
-          </div>
-
-          <div className="flex items-center gap-4 lg:border-l lg:border-[#222226] lg:pl-6">
-            <a href="mailto:visionfoldcreative@gmail.com" onMouseEnter={playHover} onClick={playClick} className="hidden md:flex items-center gap-2 border border-[#222226] rounded-full px-4 py-2 hover:border-[#D4AF37] transition-colors interactive-hover">
-              <Mail className="w-3.5 h-3.5 text-[#D4AF37]" />
-              <span className="text-[10px] uppercase font-bold tracking-widest text-[#888891]">visionfoldcreative@gmail.com</span>
-            </a>
-            <a href="https://wa.me/917725004639" target="_blank" rel="noopener noreferrer" onMouseEnter={playHover} onClick={playClick} className="hidden md:flex items-center gap-2 border border-[#222226] rounded-full px-4 py-2 hover:border-[#25D366] transition-colors interactive-hover">
-              <MessageCircle className="w-3.5 h-3.5 text-[#25D366]" />
-              <span className="text-[10px] uppercase font-bold tracking-widest text-[#25D366]">+91 7725004639</span>
-            </a>
-            <button 
-              onClick={() => { playClick(); toggleSfx(); }}
+        <nav className="hidden items-center gap-1 md:flex">
+          {links.map((link) => (
+            <button
+              key={link.id}
+              type="button"
               onMouseEnter={playHover}
-              className="flex items-center gap-2 border border-[#222226] rounded-full px-4 py-2 hover:border-[#D4AF37] transition-colors interactive-hover"
+              onClick={() => go(link.id, link.href)}
+              className={`rounded-full px-4 py-2 text-[11px] font-black uppercase tracking-[0.2em] transition-all ${
+                currentPage === link.id
+                  ? 'bg-white/10 text-[#D4AF37]'
+                  : 'text-[#9A958C] hover:bg-white/5 hover:text-white'
+              }`}
             >
-              {sfxEnabled ? <Volume2 className="w-3.5 h-3.5 text-[#D4AF37]" /> : <VolumeX className="w-3.5 h-3.5 text-[#888891]" />}
-              <span className="hidden sm:inline text-[10px] uppercase font-bold tracking-widest text-[#888891]">{sfxEnabled ? 'SOUND ON' : 'SFX OFF'}</span>
+              {link.label}
             </button>
+          ))}
+        </nav>
+
+        <div className="hidden items-center gap-3 md:flex">
+          <a
+            href="/portal"
+            onMouseEnter={playHover}
+            onClick={playClick}
+            className="rounded-full border border-white/15 px-4 py-2 text-[11px] font-black uppercase tracking-[0.18em] text-white/80 transition hover:border-[#D4AF37] hover:text-[#D4AF37]"
+          >
+            Client
+          </a>
+          <a
+            href="https://wa.me/917725004639"
+            target="_blank"
+            rel="noopener noreferrer"
+            onMouseEnter={playHover}
+            onClick={playClick}
+            className="inline-flex items-center gap-2 rounded-full bg-[#D4AF37] px-5 py-2.5 text-[11px] font-black uppercase tracking-[0.18em] text-black transition hover:scale-105 hover:bg-white"
+          >
+            <Sparkles className="h-3.5 w-3.5" /> Book edit
+          </a>
+        </div>
+
+        <button
+          type="button"
+          className="rounded-lg border border-white/10 p-2 text-white md:hidden"
+          onClick={() => setOpen((v) => !v)}
+          aria-label="Toggle menu"
+        >
+          {open ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+        </button>
+      </div>
+
+      {open ? (
+        <div className="border-t border-white/10 bg-black/95 px-6 py-6 backdrop-blur-2xl md:hidden">
+          <div className="flex flex-col gap-2">
+            {links.map((link) => (
+              <button
+                key={link.id}
+                type="button"
+                onClick={() => go(link.id, link.href)}
+                className="rounded-xl px-4 py-3 text-left text-xs font-black uppercase tracking-[0.2em] text-[#F4F1EA] hover:bg-white/5"
+              >
+                {link.label}
+              </button>
+            ))}
+            <a href="/portal" className="rounded-xl px-4 py-3 text-xs font-black uppercase tracking-[0.2em] text-[#D4AF37]">
+              Client portal
+            </a>
+            <a
+              href="https://wa.me/917725004639"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-2 rounded-full bg-[#D4AF37] px-4 py-3 text-center text-xs font-black uppercase tracking-[0.18em] text-black"
+            >
+              Book on WhatsApp
+            </a>
           </div>
         </div>
-      </div>
-    </nav>
+      ) : null}
+    </header>
   );
 };
