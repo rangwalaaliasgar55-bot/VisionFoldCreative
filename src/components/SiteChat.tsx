@@ -89,7 +89,7 @@ export const SiteChat: React.FC = () => {
   };
 
   return (
-    <div className="fixed bottom-24 right-5 z-[90] flex flex-col items-end gap-3 sm:bottom-8 sm:right-8">
+    <div className="fixed bottom-6 left-5 z-[90] flex flex-col items-start gap-3 sm:bottom-8 sm:left-8">
       {open ? (
         <div className="flex h-[min(520px,70vh)] w-[min(380px,calc(100vw-2rem))] flex-col overflow-hidden rounded-2xl border border-white/10 bg-[#0C0C10]/95 shadow-2xl backdrop-blur-xl">
           <div className="flex items-center justify-between border-b border-white/10 bg-gradient-to-r from-[#D4AF37]/20 to-transparent px-4 py-3">
