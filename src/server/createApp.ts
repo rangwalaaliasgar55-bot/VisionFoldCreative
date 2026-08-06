@@ -8,6 +8,8 @@ import { registerApiRoutes } from './routes';
 
 export async function createApp() {
   const app = express();
+  // Required behind Vercel so express-rate-limit can use X-Forwarded-For safely
+  app.set('trust proxy', 1);
 
   app.use(helmet({
     contentSecurityPolicy: {
@@ -28,7 +30,6 @@ export async function createApp() {
   app.use(express.urlencoded({ extended: true, limit: '20mb' }));
   app.use(cookieParser());
 
-  // Vercel serverless filesystem is read-only under /var/task — never crash on mkdir
   const publicUploads = path.join(process.cwd(), 'public', 'uploads');
   try {
     if (!fs.existsSync(publicUploads)) {
@@ -41,7 +42,6 @@ export async function createApp() {
 
   registerApiRoutes(app);
 
-  // On Vercel, static SPA is served by the platform; this function only handles /api
   if (process.env.VERCEL) {
     return app;
   }
