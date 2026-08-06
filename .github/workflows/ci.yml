@@ -7,10 +7,10 @@ on:
     branches: [main]
 
 jobs:
-  lint-and-build:
-    name: Lint & Build
+  lint-test-build:
+    name: Lint, Test & Build
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -26,6 +26,9 @@ jobs:
 
       - name: TypeScript type check
         run: npm run lint
+
+      - name: Run tests
+        run: npm run test:run
 
       - name: Build
         run: npm run build
