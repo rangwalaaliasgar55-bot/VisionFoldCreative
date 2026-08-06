@@ -81,81 +81,87 @@ const clientSchema = z.object({
   name: z.string().trim().min(1),
   company: z.string().trim().optional().default(''),
   phone: z.string().trim().optional().default(''),
-  password: z.string().min(8),
+  password: z.string().trim().min(1).optional(),
 });
 
-const loginSchema = z.object({
-  email: z.string().trim().email(),
-  password: z.string().min(1),
+const invoiceSchema = z.object({
+  invoiceNumber: z.string().trim().min(1),
+  clientId: z.string().trim().min(1),
+  clientName: z.string().trim().min(1),
+  amountINR: z.number().min(0),
+  dueDate: z.string().trim().min(1),
+  status: z.enum(['paid', 'unpaid', 'overdue']).optional().default('unpaid'),
+  description: z.string().trim().min(1),
+  projectId: z.string().trim().optional(),
 });
 
-function signToken(user: User): string {
-  return jwt.sign(
-    { id: user.id, email: user.email, role: user.role },
-    JWT_SECRET,
-    { expiresIn: '7d' }
-  );
-}
+const invoiceUpdateSchema = invoiceSchema.partial();
 
-function setAuthCookie(res: Response, token: string) {
-  res.cookie('token', token, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
-    maxAge: 7 * 24 * 60 * 60 * 1000,
-    path: '/',
+async function sendInquiryEmail(payload: {
+  name: string; email: string; message: string; phone: string;
+  company?: string; projectType?: string; budgetRange?: string; deadline?: string;
+}) {
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) {
+    console.log(`[EMAIL] RESEND_API_KEY not configured; skipping notification for ${payload.email}`);
+    return;
+  }
+  const from = process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev';
+  const to = process.env.NOTIFICATION_EMAIL || 'visionfoldcreative@gmail.com';
+  const html = `<h2>New inquiry from VisionFold Creative</h2>
+    <p><strong>Name:</strong> ${payload.name}</p>
+    <p><strong>Email:</strong> ${payload.email}</p>
+    <p><strong>Phone:</strong> ${payload.phone}</p>
+    <p><strong>Company:</strong> ${payload.company || '—'}</p>
+    <p><strong>Project Type:</strong> ${payload.projectType || '—'}</p>
+    <p><strong>Budget Range:</strong> ${payload.budgetRange || '—'}</p>
+    <p><strong>Deadline:</strong> ${payload.deadline || '—'}</p>
+    <p><strong>Message:</strong><br/>${payload.message.replace(/\n/g, '<br/>')}</p>`;
+  const response = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ from, to, subject: `New inquiry from ${payload.name}`, html }),
   });
+  if (!response.ok) {
+    const body = await response.text().catch(() => '');
+    throw new Error(`Resend request failed (${response.status}): ${body}`);
+  }
 }
 
-async function requireAuth(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+async function authenticateToken(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+  const token = req.cookies?.vf_token || (req.headers.authorization && req.headers.authorization.split(' ')[1]);
+  if (!token) return res.status(401).json({ error: 'Authentication required' });
   try {
-    const header = req.headers.authorization;
-    const bearer = header?.startsWith('Bearer ') ? header.slice(7) : undefined;
-    const token = bearer || (req as any).cookies?.token;
-    if (!token) {
-      return res.status(401).json({ error: 'Unauthorized' });
-    }
-    const payload = jwt.verify(token, JWT_SECRET) as { id: string };
-    const user = await dbManager.findUserById(payload.id);
-    if (!user) {
-      return res.status(401).json({ error: 'Unauthorized' });
-    }
+    const decoded = jwt.verify(token, JWT_SECRET) as any;
+    const user = await dbManager.findUserById(decoded.id);
+    if (!user) return res.status(401).json({ error: 'User not found' });
     req.user = user;
     next();
   } catch {
-    return res.status(401).json({ error: 'Unauthorized' });
+    return res.status(403).json({ error: 'Invalid or expired token' });
   }
 }
 
 function requireAdmin(req: AuthenticatedRequest, res: Response, next: NextFunction) {
   if (!req.user || req.user.role !== 'admin') {
-    return res.status(403).json({ error: 'Forbidden' });
-  }
-  next();
-}
-
-function requireClient(req: AuthenticatedRequest, res: Response, next: NextFunction) {
-  if (!req.user || (req.user.role !== 'client' && req.user.role !== 'admin')) {
-    return res.status(403).json({ error: 'Forbidden' });
+    return res.status(403).json({ error: 'Admin access required' });
   }
   next();
 }
 
 export {
+  JWT_SECRET,
   authLimiter,
   messageLimiter,
   aiLimiter,
+  authenticateToken,
+  requireAdmin,
   messageSchema,
   portfolioSchema,
   portfolioUpdateSchema,
   clientSchema,
-  loginSchema,
-  signToken,
-  setAuthCookie,
-  requireAuth,
-  requireAdmin,
-  requireClient,
-  JWT_SECRET,
+  invoiceSchema,
+  invoiceUpdateSchema,
+  sendInquiryEmail,
 };
-
 export type { AuthenticatedRequest };
