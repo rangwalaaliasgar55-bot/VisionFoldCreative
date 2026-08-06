@@ -143,6 +143,9 @@ describe('createStorageProvider', () => {
       SUPABASE_SERVICE_ROLE_KEY: '',
       SupaBase_SUPABASE_URL: '',
       SupaBase_SUPABASE_SERVICE_ROLE_KEY: '',
+      SupaBase_SUPABASE_PUBLISHABLE_KEY: '',
+      NEXT_PUBLIC_SupaBase_SUPABASE_URL: '',
+      NEXT_PUBLIC_SupaBase_SUPABASE_PUBLISHABLE_KEY: '',
       NODE_ENV: 'test',
     };
   });
