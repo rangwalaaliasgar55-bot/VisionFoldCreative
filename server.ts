@@ -92,6 +92,10 @@ const clientSchema = z.object({
   password: z.string().trim().min(1).optional(),
 });
 
+const userRoleUpdateSchema = z.object({
+  role: z.enum(['client', 'editor']),
+});
+
 const clientRegistrationSchema = z.object({
   email: z.string().trim().toLowerCase().email(),
   password: z.string().min(8, 'Password must be at least 8 characters'),
@@ -175,6 +179,13 @@ async function authenticateToken(req: AuthenticatedRequest, res: Response, next:
 function requireAdmin(req: AuthenticatedRequest, res: Response, next: NextFunction) {
   if (!req.user || req.user.role !== 'admin') {
     return res.status(403).json({ error: 'Admin access required' });
+  }
+  next();
+}
+
+function requireAdminOrEditor(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+  if (!req.user || !['admin', 'editor'].includes(req.user.role)) {
+    return res.status(403).json({ error: 'Editor access required' });
   }
   next();
 }
@@ -457,7 +468,7 @@ export async function createApp() {
   // --- CLIENTS ROUTE (ADMIN) ---
   app.get('/api/clients', authenticateToken, requireAdmin, async (req, res) => {
     const users = await dbManager.getUsers();
-    const clients = users.filter((u) => u.role === 'client');
+    const clients = users.filter((u) => ['client', 'editor'].includes(u.role));
     res.json(clients);
   });
 
@@ -490,6 +501,19 @@ export async function createApp() {
 
     const safeUser = await dbManager.createUser(newClient);
     res.json({ client: safeUser, initialPassword: rawPassword });
+  });
+
+  app.patch('/api/clients/:id/role', authenticateToken, requireAdmin, async (req, res) => {
+    const parsed = userRoleUpdateSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ error: parsed.error.flatten().fieldErrors });
+    }
+
+    const updated = await dbManager.updateUserRole(req.params.id, parsed.data.role);
+    if (!updated) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    res.json(updated);
   });
 
   // --- PROJECTS ROUTE ---
@@ -647,8 +671,8 @@ export async function createApp() {
   });
 
   // --- AI ROUTES (OpenRouter) ---
-  // Admin-only endpoints to prevent OpenRouter budget abuse
-  app.post('/api/ai/generate', authenticateToken, requireAdmin, async (req: AuthenticatedRequest, res) => {
+  // Admins and admin-promoted editors can use OpenRouter-backed tools.
+  app.post('/api/ai/generate', authenticateToken, requireAdminOrEditor, async (req: AuthenticatedRequest, res) => {
     try {
       const { prompt, systemPrompt, messages, temperature, maxTokens, model } = req.body;
  
@@ -667,8 +691,8 @@ export async function createApp() {
     }
   });
 
-  // Chat endpoint for AI Assistant (admin-only)
-  app.post('/api/ai/chat', authenticateToken, requireAdmin, async (req: AuthenticatedRequest, res) => {
+  // Chat endpoint for AI Assistant (admin/editor only)
+  app.post('/api/ai/chat', authenticateToken, requireAdminOrEditor, async (req: AuthenticatedRequest, res) => {
     try {
       const { messages, context } = req.body;
       

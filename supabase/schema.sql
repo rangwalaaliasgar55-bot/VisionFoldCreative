@@ -19,7 +19,7 @@ create table if not exists public.users (
   name text not null,
   -- Self-registered visitors are always inserted as client accounts by the app API.
   -- Admin accounts should only be created from trusted server-side/admin flows.
-  role text not null default 'client' check (role in ('admin', 'client')),
+  role text not null default 'client' check (role in ('admin', 'client', 'editor')),
   company text default '',
   phone text default '',
   created_at text not null default now()::text,
@@ -289,6 +289,7 @@ drop policy if exists "Anyone can submit messages" on public.messages;
 drop policy if exists "Admin can view messages" on public.messages;
 drop policy if exists "Admin can update messages" on public.messages;
 drop policy if exists "Admin can manage users" on public.users;
+drop policy if exists "Editors can view assigned work" on public.users;
 drop policy if exists "Users can view own profile" on public.users;
 drop policy if exists "Admin can manage projects" on public.projects;
 drop policy if exists "Clients can view own projects" on public.projects;

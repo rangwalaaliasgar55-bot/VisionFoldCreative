@@ -1116,6 +1116,42 @@ export class SupabaseDBManager {
     }
   }
 
+  async updateUserRole(id: string, role: 'client' | 'editor'): Promise<User | undefined> {
+    if (!this.useSupabase || !this.supabaseClient) {
+      const user = this.db.users.find((item) => item.id === id);
+      if (!user) return undefined;
+      user.role = role;
+      this.saveLocalDB(this.db);
+      const { passwordHash, ...safeUser } = user as any;
+      return safeUser;
+    }
+
+    try {
+      const { data, error } = await this.supabaseClient
+        .from('users')
+        .update({ role })
+        .eq('id', id)
+        .select('*')
+        .maybeSingle();
+      if (error) throw error;
+      if (!data) return undefined;
+      const updated = this.mapUser(data);
+      this.db.users = [...this.db.users.filter((item) => item.id !== id), updated as any];
+      this.saveLocalDB(this.db);
+      const { passwordHash, ...safeUser } = updated;
+      return safeUser;
+    } catch (err) {
+      this.guardFallback(err);
+      console.warn('[DB] Unable to update user role in Supabase; using local storage.', err);
+      const user = this.db.users.find((item) => item.id === id);
+      if (!user) return undefined;
+      user.role = role;
+      this.saveLocalDB(this.db);
+      const { passwordHash, ...safeUser } = user as any;
+      return safeUser;
+    }
+  }
+
   async getContentBlocks(page?: string): Promise<ContentBlock[]> {
     if (!this.useSupabase || !this.supabaseClient) {
       const list = page
