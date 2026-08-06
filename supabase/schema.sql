@@ -135,7 +135,7 @@ create table if not exists public.settings (
 insert into public.users (id, email, name, role, company, phone, created_at, password_hash)
 values
   (
-    'user_admin_01',
+    '07bfe933-ee45-40f3-aa04-f53c2c675d39',
     'visionfoldcreative@gmail.com',
     'Aliasgar',
     'admin',
@@ -155,6 +155,7 @@ values
     '$2b$10$8PWVG8rzkf90hyiC2k0AgODrScOmS6dzNl9qIEhdrszI/4yrYu2O6'
   )
 on conflict (email) do update set
+  id = excluded.id,
   name = excluded.name,
   role = excluded.role,
   company = excluded.company,
