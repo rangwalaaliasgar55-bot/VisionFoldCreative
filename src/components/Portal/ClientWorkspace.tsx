@@ -4,10 +4,8 @@ import {
   LayoutDashboard, FolderKanban, MessageSquare, Settings, LogOut,
   Clock, CheckCircle2, Loader2, Send, Star, X, Sparkles,
 } from 'lucide-react';
-
 const C = 'rounded-2xl border border-white/10 bg-[#0C0C10] p-5';
 const I = 'w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2 text-sm';
-
 type Project = {
   id: string;
   title: string;
@@ -35,16 +33,12 @@ type Revision = {
   createdAt: string;
 };
 type Tab = 'dashboard' | 'projects' | 'messages' | 'settings';
-
 const progressFor = (s: string) =>
   s === 'delivered' ? 100 : s === 'in_review' ? 75 : s === 'in_progress' ? 45 : 15;
-
 const statusLabel = (s: string) =>
   s === 'delivered' ? 'Shipped' : s === 'in_review' ? 'In review' : s === 'in_progress' ? 'Editors working' : s;
-
 const daysLeft = (d?: string) =>
   d ? Math.ceil((new Date(d).getTime() - Date.now()) / 86400000) : null;
-
 export function ClientWorkspace(_props: { onNavigate: (page: string) => void }) {
   const { user, token, isLoading, logout, login } = useAuth();
   const [activeTab, setActiveTab] = useState<Tab>('dashboard');
@@ -62,7 +56,6 @@ export function ClientWorkspace(_props: { onNavigate: (page: string) => void }) 
   const [ratingNote, setRatingNote] = useState('');
   const [welcomeOpen, setWelcomeOpen] = useState(false);
   const [toast, setToast] = useState('');
-
   const fetchData = async () => {
     if (!token) return;
     const headers = { Authorization: `Bearer ${token}` };
@@ -88,7 +81,6 @@ export function ClientWorkspace(_props: { onNavigate: (page: string) => void }) 
       console.error('Portal fetch failed', err);
     }
   };
-
   useEffect(() => {
     if (user?.role === 'client') {
       void fetchData();
@@ -99,25 +91,21 @@ export function ClientWorkspace(_props: { onNavigate: (page: string) => void }) 
       }
     }
   }, [user]);
-
   useEffect(() => {
     if (!toast) return;
     const t = setTimeout(() => setToast(''), 3200);
     return () => clearTimeout(t);
   }, [toast]);
-
   const activeProjects = useMemo(
     () => projects.filter((p) => p.status !== 'delivered'),
     [projects],
   );
-
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoginError('');
     const r = await login(loginEmail.trim().toLowerCase(), loginPassword);
     if (!r.success) setLoginError(r.error || 'Login failed');
   };
-
   const postRevision = async (projectId: string, comment: string) => {
     if (!token || !projectId || !comment.trim()) return false;
     const res = await fetch('/api/revisions', {
@@ -131,7 +119,6 @@ export function ClientWorkspace(_props: { onNavigate: (page: string) => void }) 
     });
     return res.ok;
   };
-
   if (isLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-[#050507]">
@@ -139,7 +126,6 @@ export function ClientWorkspace(_props: { onNavigate: (page: string) => void }) 
       </div>
     );
   }
-
   if (!user || user.role !== 'client') {
     return (
       <div className="min-h-screen bg-[#050507] px-6 py-16 text-[#EDEDED]">
@@ -186,14 +172,12 @@ export function ClientWorkspace(_props: { onNavigate: (page: string) => void }) 
       </div>
     );
   }
-
   const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
     { id: 'dashboard', label: 'Overview', icon: <LayoutDashboard className="h-4 w-4" /> },
     { id: 'projects', label: 'My work', icon: <FolderKanban className="h-4 w-4" /> },
     { id: 'messages', label: 'Messages', icon: <MessageSquare className="h-4 w-4" /> },
     { id: 'settings', label: 'Settings', icon: <Settings className="h-4 w-4" /> },
   ];
-
   return (
     <div className="min-h-screen bg-[#050507] text-[#EDEDED]">
       {welcomeOpen ? (
@@ -246,13 +230,11 @@ export function ClientWorkspace(_props: { onNavigate: (page: string) => void }) 
           </div>
         </div>
       ) : null}
-
       {toast ? (
         <div className="fixed bottom-24 left-1/2 z-[110] -translate-x-1/2 rounded-full border border-[#D4AF37]/40 bg-[#0C0C10] px-4 py-2 text-xs text-[#D4AF37]">
           {toast}
         </div>
       ) : null}
-
       <header className="border-b border-white/10 bg-[#0A0A0B]/95 backdrop-blur">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-4 sm:px-6">
           <div>
@@ -287,7 +269,6 @@ export function ClientWorkspace(_props: { onNavigate: (page: string) => void }) 
           ))}
         </nav>
       </header>
-
       <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
         {activeTab === 'dashboard' && (
           <div className="space-y-6">
@@ -309,7 +290,6 @@ export function ClientWorkspace(_props: { onNavigate: (page: string) => void }) 
                 </p>
               </div>
             </div>
-
             <div className="rounded-2xl border border-[#D4AF37]/20 bg-gradient-to-br from-[#D4AF37]/10 to-transparent p-6">
               <div className="flex items-center gap-2 text-[#D4AF37]">
                 <Clock className="h-4 w-4" />
@@ -320,7 +300,6 @@ export function ClientWorkspace(_props: { onNavigate: (page: string) => void }) 
                 status changes.
               </p>
             </div>
-
             {projects.length === 0 ? (
               <p className="text-sm text-[#8A857C]">
                 No projects assigned yet. Once admin creates work for you, it appears here.
@@ -371,7 +350,6 @@ export function ClientWorkspace(_props: { onNavigate: (page: string) => void }) 
             )}
           </div>
         )}
-
         {activeTab === 'projects' && (
           <div className="space-y-4">
             <h2 className="text-xl font-black">Work you gave us</h2>
@@ -425,7 +403,6 @@ export function ClientWorkspace(_props: { onNavigate: (page: string) => void }) 
                 );
               })
             )}
-
             <div className={C}>
               <h3 className="font-bold text-white">Invoices</h3>
               {invoices.length === 0 ? (
@@ -448,7 +425,6 @@ export function ClientWorkspace(_props: { onNavigate: (page: string) => void }) 
             </div>
           </div>
         )}
-
         {activeTab === 'messages' && (
           <div className="space-y-6">
             <div className={C}>
@@ -500,7 +476,6 @@ export function ClientWorkspace(_props: { onNavigate: (page: string) => void }) 
                 Send to studio
               </button>
             </div>
-
             <div className={C}>
               <h3 className="font-bold text-white">Rate a delivery</h3>
               <p className="mt-1 text-xs text-[#8A857C]">
@@ -559,7 +534,6 @@ export function ClientWorkspace(_props: { onNavigate: (page: string) => void }) 
                 Submit rating
               </button>
             </div>
-
             <div className={C}>
               <h3 className="font-bold text-white">Thread history</h3>
               {revisions.length === 0 ? (
@@ -582,7 +556,6 @@ export function ClientWorkspace(_props: { onNavigate: (page: string) => void }) 
             </div>
           </div>
         )}
-
         {activeTab === 'settings' && (
           <div className="mx-auto max-w-lg space-y-6">
             <div className="rounded-2xl border border-white/10 bg-[#0C0C10] p-6">
@@ -628,5 +601,4 @@ export function ClientWorkspace(_props: { onNavigate: (page: string) => void }) 
     </div>
   );
 }
-
 export default ClientWorkspace;
