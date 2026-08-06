@@ -12,6 +12,7 @@ export const Clients: React.FC = () => {
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState('');
   const [createdInfo, setCreatedInfo] = useState<string | null>(null);
+  const [updatingRoleId, setUpdatingRoleId] = useState<string | null>(null);
 
   const load = async () => {
     setLoading(true);
@@ -39,6 +40,20 @@ export const Clients: React.FC = () => {
       setError(err.message || 'Failed to create client');
     } finally {
       setCreating(false);
+    }
+  };
+
+  const updateRole = async (id: string, role: 'client' | 'editor') => {
+    setUpdatingRoleId(id);
+    setError('');
+    try {
+      const updated = await adminApi.patch<User>(`/api/clients/${id}/role`, { role });
+      setClients((prev) => prev.map((client) => (client.id === id ? updated : client)));
+      setCreatedInfo(role === 'editor' ? 'User promoted to editor. They can now use approved AI tools.' : 'User role changed back to client.');
+    } catch (err: any) {
+      setError(err.message || 'Failed to update role');
+    } finally {
+      setUpdatingRoleId(null);
     }
   };
 
@@ -86,7 +101,18 @@ export const Clients: React.FC = () => {
                     {c.company ? <span className="flex items-center gap-1"><Building2 className="h-3 w-3" /> {c.company}</span> : null}
                   </div>
                 </div>
-                <span className="text-xs text-[#888891]">Joined {formatDate(c.createdAt)}</span>
+                <div className="flex items-center gap-3">
+                  <select
+                    value={c.role}
+                    onChange={(e) => void updateRole(c.id, e.target.value as 'client' | 'editor')}
+                    disabled={updatingRoleId === c.id}
+                    className="rounded-lg border border-[#2A2A2E] bg-[#0A0A0B] px-3 py-2 text-xs font-semibold text-[#EDEDED]"
+                  >
+                    <option value="client">Client</option>
+                    <option value="editor">Editor</option>
+                  </select>
+                  <span className="text-xs text-[#888891]">Joined {formatDate(c.createdAt)}</span>
+                </div>
               </div>
             ))}
           </div>
