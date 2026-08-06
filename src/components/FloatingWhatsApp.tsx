@@ -13,7 +13,7 @@ export const FloatingWhatsApp: React.FC = () => {
       aria-label="Book a WhatsApp consultation"
       onMouseEnter={playHover}
       onClick={playClick}
-      className="fixed bottom-6 right-6 z-[9990] flex items-center justify-center rounded-full bg-[#25D366] p-4 text-white shadow-2xl transition-transform duration-300 hover:scale-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D4AF37]"
+      className="fixed bottom-6 right-6 z-[95] flex items-center justify-center rounded-full bg-[#25D366] p-4 text-white shadow-2xl transition-transform duration-300 hover:scale-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D4AF37]"
     >
       <MessageCircle className="h-6 w-6" />
       <span className="sr-only">Chat with Aliasgar</span>
