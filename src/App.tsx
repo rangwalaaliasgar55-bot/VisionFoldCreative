@@ -16,6 +16,7 @@ import { ServicesPage } from './components/PublicPages/ServicesPage';
 import { ContactPage } from './components/PublicPages/ContactPage';
 import { WorkDetailPage } from './components/PublicPages/WorkDetailPage';
 import { ErrorBoundary } from './components/ErrorBoundary';
+import { AudioMeshBackground } from './components/AudioMeshBackground';
 
 const MainContent: React.FC = () => {
   const { editMode, isAdmin, setEditMode } = useContent();
@@ -37,22 +38,28 @@ const MainContent: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-[#0A0A0B] text-[#EDEDED] flex flex-col font-sans selection:bg-[#D4AF37] selection:text-[#0A0A0B]">
-      {isAdmin && editMode ? (
-        <button
-          type="button"
-          onClick={() => setEditMode(false)}
-          className="fixed right-4 top-4 z-[110] rounded-full border border-[#D4AF37]/40 bg-[#121215]/90 px-4 py-2 text-[10px] font-bold uppercase tracking-[0.2em] text-[#EDEDED] shadow-lg backdrop-blur"
-        >
-          Save & Exit Edit Mode
-        </button>
-      ) : null}
-      <Navbar currentPage={currentPage} onNavigate={handleNavigate} />
-      <main className="flex-1">
-        <HomePage onNavigate={handleNavigate} />
-      </main>
-      <FloatingWhatsApp />
-      <Footer onAdminClick={goToAdmin} />
+    <div className="relative min-h-screen overflow-hidden bg-[#0A0A0B] text-[#EDEDED] flex flex-col font-sans selection:bg-[#D4AF37] selection:text-[#0A0A0B]">
+      <div className="pointer-events-none fixed inset-0 z-0 opacity-40">
+        <AudioMeshBackground />
+      </div>
+      <div className="pointer-events-none fixed inset-0 z-0 bg-[radial-gradient(circle_at_top_left,rgba(212,175,55,0.10),transparent_32%),radial-gradient(circle_at_bottom_right,rgba(255,255,255,0.06),transparent_28%)]" />
+      <div className="relative z-10 flex min-h-screen flex-col">
+        {isAdmin && editMode ? (
+          <button
+            type="button"
+            onClick={() => setEditMode(false)}
+            className="fixed right-4 top-4 z-[110] rounded-full border border-[#D4AF37]/40 bg-[#121215]/90 px-4 py-2 text-[10px] font-bold uppercase tracking-[0.2em] text-[#EDEDED] shadow-lg backdrop-blur"
+          >
+            Save & Exit Edit Mode
+          </button>
+        ) : null}
+        <Navbar currentPage={currentPage} onNavigate={handleNavigate} />
+        <main className="flex-1">
+          <HomePage onNavigate={handleNavigate} />
+        </main>
+        <FloatingWhatsApp />
+        <Footer onAdminClick={goToAdmin} />
+      </div>
     </div>
   );
 };

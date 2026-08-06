@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { adminApi } from '../lib/adminApi';
 
 // Types for comprehensive settings
 export interface SiteIdentity {
@@ -203,26 +204,53 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
-  // Load settings from localStorage on mount
+  // Load settings from the API first, then fall back to localStorage for offline/dev use.
   useEffect(() => {
-    const savedSettings = localStorage.getItem(STORAGE_KEY);
-    if (savedSettings) {
+    let cancelled = false;
+
+    const loadSettings = async () => {
       try {
-        const parsed = JSON.parse(savedSettings);
-        setSettings({ ...defaultSettings, ...parsed });
-      } catch (e) {
-        console.error('Error parsing saved settings');
+        const remote = await adminApi.get<Partial<SettingsState>>('/api/settings');
+        if (!cancelled) {
+          const merged = { ...defaultSettings, ...remote };
+          setSettings(merged);
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
+          setLastSaved(new Date());
+        }
+      } catch {
+        const savedSettings = localStorage.getItem(STORAGE_KEY);
+        if (savedSettings && !cancelled) {
+          try {
+            const parsed = JSON.parse(savedSettings);
+            setSettings({ ...defaultSettings, ...parsed });
+          } catch (e) {
+            console.error('Error parsing saved settings');
+          }
+        }
       }
-    }
+    };
+
+    void loadSettings();
+    return () => { cancelled = true; };
   }, []);
 
-  // Save settings to localStorage
+  // Save settings to localStorage immediately and persist to the backend when authenticated.
   const saveSettings = useCallback((newSettings: SettingsState) => {
     setIsSaving(true);
     localStorage.setItem(STORAGE_KEY, JSON.stringify(newSettings));
-    setLastSaved(new Date());
-    setHasUnsavedChanges(false);
-    setIsSaving(false);
+    void adminApi.put<SettingsState>('/api/settings', newSettings)
+      .then((saved) => {
+        setSettings({ ...defaultSettings, ...saved });
+        localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...defaultSettings, ...saved }));
+      })
+      .catch(() => {
+        // Public pages can still use the local settings cache when the admin is logged out.
+      })
+      .finally(() => {
+        setLastSaved(new Date());
+        setHasUnsavedChanges(false);
+        setIsSaving(false);
+      });
   }, []);
 
   // Add revision to history

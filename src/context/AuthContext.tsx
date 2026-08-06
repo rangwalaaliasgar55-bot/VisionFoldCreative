@@ -39,7 +39,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (!response.ok) {
         setUser(null);
-        setTokenState(null);
+        setToken(null);
         return;
       }
 
@@ -48,12 +48,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Validate response structure
       const validatedUser = UserSchema.parse(data.user);
       setUser(validatedUser);
-      setTokenState(data.token || null);
+      setToken(data.token || null);
       setError(null);
     } catch (err) {
       ErrorHandler.log(err, 'checkAuth');
       setUser(null);
-      setTokenState(null);
+      setToken(null);
       if (err instanceof AppError) {
         setError(err);
       }
