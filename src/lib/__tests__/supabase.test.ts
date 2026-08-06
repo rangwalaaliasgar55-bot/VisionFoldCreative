@@ -29,6 +29,10 @@ describe('Supabase Configuration', () => {
       SupaBase_SUPABASE_URL: '',
       SupaBase_SUPABASE_ANON_KEY: '',
       SupaBase_SUPABASE_SERVICE_ROLE_KEY: '',
+      SupaBase_SUPABASE_PUBLISHABLE_KEY: '',
+      NEXT_PUBLIC_SupaBase_SUPABASE_URL: '',
+      NEXT_PUBLIC_SupaBase_SUPABASE_ANON_KEY: '',
+      NEXT_PUBLIC_SupaBase_SUPABASE_PUBLISHABLE_KEY: '',
     };
   });
 
@@ -65,6 +69,13 @@ describe('Supabase Configuration', () => {
   it('should return true when SupaBase_* variants are set', async () => {
     process.env.SupaBase_SUPABASE_URL = 'https://test.supabase.co';
     process.env.SupaBase_SUPABASE_ANON_KEY = 'test-anon-key';
+    const { isSupabaseConfigured } = await import('../supabase');
+    expect(isSupabaseConfigured()).toBe(true);
+  });
+
+  it('should return true when Vercel integration NEXT_PUBLIC_SupaBase_* variants are set', async () => {
+    process.env.NEXT_PUBLIC_SupaBase_SUPABASE_URL = 'https://test.supabase.co';
+    process.env.NEXT_PUBLIC_SupaBase_SUPABASE_PUBLISHABLE_KEY = 'test-publishable-key';
     const { isSupabaseConfigured } = await import('../supabase');
     expect(isSupabaseConfigured()).toBe(true);
   });

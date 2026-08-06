@@ -21,12 +21,15 @@ export class SupabaseStorageProvider implements StorageProvider {
     // Support both Vercel Supabase integration and standard naming
     const supabaseUrl = process.env.SUPABASE_URL 
       || process.env.SupaBase_SUPABASE_URL 
+      || process.env.NEXT_PUBLIC_SupaBase_SUPABASE_URL
       || process.env.VITE_SUPABASE_URL 
       || '';
     const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY 
       || process.env.SupaBase_SUPABASE_SERVICE_ROLE_KEY 
       || process.env.SUPABASE_ANON_KEY 
       || process.env.SupaBase_SUPABASE_ANON_KEY 
+      || process.env.SupaBase_SUPABASE_PUBLISHABLE_KEY
+      || process.env.NEXT_PUBLIC_SupaBase_SUPABASE_PUBLISHABLE_KEY
       || '';
 
     this.supabase = createClient(supabaseUrl, supabaseKey);
@@ -141,7 +144,7 @@ export class R2StorageProvider implements StorageProvider {
 
 // Check if Supabase is configured and use it for production
 function createStorageProvider(): StorageProvider {
-  const supabaseUrl = process.env.SUPABASE_URL || process.env.SupaBase_SUPABASE_URL;
+  const supabaseUrl = process.env.SUPABASE_URL || process.env.SupaBase_SUPABASE_URL || process.env.NEXT_PUBLIC_SupaBase_SUPABASE_URL;
   const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SupaBase_SUPABASE_SERVICE_ROLE_KEY;
   
   // Use Supabase if configured (production)
