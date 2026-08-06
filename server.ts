@@ -202,8 +202,11 @@ export async function createApp() {
   app.use(express.urlencoded({ extended: true, limit: '20mb' }));
   app.use(cookieParser());
 
-  // Serve local uploads folder static files
-  const publicUploads = path.join(process.cwd(), 'public', 'uploads');
+  // Serve local uploads. Vercel's /var/task filesystem is read-only at runtime,
+  // so production/local fallback uploads must use the writable /tmp directory.
+  const publicUploads = process.env.NODE_ENV === 'production'
+    ? path.join('/tmp', 'visionfold-uploads')
+    : path.join(process.cwd(), 'public', 'uploads');
   if (!fs.existsSync(publicUploads)) {
     fs.mkdirSync(publicUploads, { recursive: true });
   }
