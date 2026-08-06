@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { ThreeHero } from '../ThreeHero';
 
 export function ContactPage() {
   const [formData, setFormData] = useState({
@@ -49,8 +50,10 @@ export function ContactPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#0A0A0B] py-20 px-4">
-      <div className="max-w-4xl mx-auto">
+    <div className="relative min-h-screen overflow-hidden bg-[#0A0A0B] px-4 py-20">
+      <div className="pointer-events-none absolute inset-0 opacity-30"><ThreeHero /></div>
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_18%_12%,rgba(212,175,55,0.18),transparent_28%),linear-gradient(180deg,rgba(10,10,11,0.20),#0A0A0B_78%)]" />
+      <div className="relative z-10 mx-auto max-w-4xl">
         <div className="text-center mb-16">
           <h1 className="text-4xl md:text-5xl font-bold text-[#EDEDED] mb-4">Get in Touch</h1>
           <p className="text-[#A0A0A0] max-w-2xl mx-auto">
@@ -58,7 +61,7 @@ export function ContactPage() {
           </p>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
+        <div className="grid grid-cols-1 gap-12 rounded-[2rem] border border-white/10 bg-white/[0.035] p-6 shadow-2xl shadow-black/30 backdrop-blur-xl lg:grid-cols-2 lg:p-8">
           <div>
             <h2 className="text-xl font-semibold text-[#EDEDED] mb-6">Send Us a Message</h2>
             

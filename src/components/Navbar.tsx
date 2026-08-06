@@ -14,6 +14,8 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPage, onNavigate }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const isHome = location.pathname === '/';
+  const linkClass = (page: string) =>
+    `transition-colors interactive-hover ${currentPage === page ? 'text-[#D4AF37]' : 'text-[#888891] hover:text-[#D4AF37]'}`;
 
   // On the homepage these scroll to the in-page section (matches original design).
   // On any other page, navigate to the dedicated route instead, since the section
@@ -37,13 +39,13 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPage, onNavigate }) => {
 
         <div className="flex items-center gap-8">
           <div className="hidden lg:flex items-center gap-6 text-[10px] font-bold uppercase tracking-[0.15em]">
-            <Link to="/work" onClick={playClick} onMouseEnter={playHover} className="text-[#888891] hover:text-[#D4AF37] transition-colors interactive-hover">Work</Link>
-            <button onClick={() => goToSection('transform', '/')} onMouseEnter={playHover} className="text-[#888891] hover:text-[#D4AF37] transition-colors interactive-hover">Transform</button>
-            <Link to="/services" onClick={playClick} onMouseEnter={playHover} className="text-[#888891] hover:text-[#D4AF37] transition-colors interactive-hover">Services</Link>
-            <button onClick={() => goToSection('process', '/')} onMouseEnter={playHover} className="text-[#888891] hover:text-[#D4AF37] transition-colors interactive-hover">Process</button>
-            <Link to="/contact" onClick={playClick} onMouseEnter={playHover} className="text-[#888891] hover:text-[#D4AF37] transition-colors interactive-hover">Contact</Link>
+            <Link to="/work" onClick={playClick} onMouseEnter={playHover} className={linkClass('work')}>Work</Link>
+            <button onClick={() => goToSection('transform', '/')} onMouseEnter={playHover} className={linkClass('home')}>Transform</button>
+            <Link to="/services" onClick={playClick} onMouseEnter={playHover} className={linkClass('services')}>Services</Link>
+            <button onClick={() => goToSection('process', '/')} onMouseEnter={playHover} className={linkClass('home')}>Process</button>
+            <Link to="/contact" onClick={playClick} onMouseEnter={playHover} className={linkClass('contact')}>Contact</Link>
 
-            <button onClick={() => goToSection('estimator', '/')} onMouseEnter={playHover} className="text-[#888891] hover:text-[#D4AF37] transition-colors interactive-hover">Pricing</button>
+            <button onClick={() => goToSection('estimator', '/')} onMouseEnter={playHover} className={linkClass('home')}>Pricing</button>
           </div>
 
           <div className="flex items-center gap-4 lg:border-l lg:border-[#222226] lg:pl-6">

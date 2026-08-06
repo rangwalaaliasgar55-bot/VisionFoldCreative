@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { ThreeHero } from '../ThreeHero';
 
 const services = [
   {
@@ -35,8 +36,10 @@ export function ServicesPage() {
   const [expandedService, setExpandedService] = useState<string | null>(null);
 
   return (
-    <div className="min-h-screen bg-[#0A0A0B] py-20 px-4">
-      <div className="max-w-5xl mx-auto">
+    <div className="relative min-h-screen overflow-hidden bg-[#0A0A0B] px-4 py-20">
+      <div className="pointer-events-none absolute inset-0 opacity-35"><ThreeHero /></div>
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(212,175,55,0.18),transparent_34%),linear-gradient(180deg,rgba(10,10,11,0.25),#0A0A0B_82%)]" />
+      <div className="relative z-10 mx-auto max-w-5xl">
         <div className="text-center mb-16">
           <h1 className="text-4xl md:text-5xl font-bold text-[#EDEDED] mb-4">Our Services</h1>
           <p className="text-[#A0A0A0] max-w-2xl mx-auto">
@@ -48,13 +51,13 @@ export function ServicesPage() {
           {services.map((service) => (
             <div
               key={service.title}
-              className="bg-[#141416] border border-[#2A2A2E] rounded-xl overflow-hidden"
+              className="group overflow-hidden rounded-3xl border border-white/10 bg-white/[0.045] shadow-2xl shadow-black/30 backdrop-blur-xl transition-all hover:-translate-y-1 hover:border-[#D4AF37]/50"
             >
               <button
                 onClick={() =>
                   setExpandedService(expandedService === service.title ? null : service.title)
                 }
-                className="w-full p-6 flex items-center justify-between text-left"
+                className="flex w-full items-center justify-between p-6 text-left"
               >
                 <div className="flex-1">
                   <div className="flex items-center gap-3 mb-2">
@@ -96,7 +99,7 @@ export function ServicesPage() {
                         </ul>
                       </div>
                       <div className="flex flex-col justify-center">
-                        <div className="bg-[#0A0A0B] rounded-lg p-6 text-center">
+                        <div className="rounded-2xl border border-[#D4AF37]/20 bg-black/40 p-6 text-center">
                           <p className="text-[#A0A0A0] mb-2">Starting Price</p>
                           <p className="text-3xl font-bold text-[#D4AF37]">{service.price}</p>
                           <p className="text-sm text-[#A0A0A0] mt-2">Custom quotes available</p>

@@ -151,13 +151,13 @@ function createStorageProvider(): StorageProvider {
   }
 
   if (process.env.NODE_ENV === 'production') {
-    console.warn(
-      '[STORAGE] Supabase Storage is not configured in production — using temporary local storage. ' +
-      'Uploads may not persist across serverless invocations.'
+    throw new Error(
+      '[STORAGE] SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY are not configured. ' +
+      'Configure Supabase Storage before deploying uploads to production.'
     );
   }
 
-  // Fall back to local disk/temporary disk when cloud storage is not configured
+  // Fall back to local disk when cloud storage is not configured outside production
   console.log('[STORAGE] Using Local Disk Storage fallback');
   return new LocalDiskStorageProvider();
 }

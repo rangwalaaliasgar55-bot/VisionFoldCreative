@@ -23,7 +23,7 @@ export interface ApiResponse<T> {
 }
 
 const DEFAULT_TIMEOUT = 30000; // 30 seconds
-const API_BASE_URL = (import.meta.env.VITE_API_URL as string | undefined) || 'http://localhost:3000';
+const API_BASE_URL = (import.meta.env.VITE_API_URL as string | undefined) || ''; // same-origin by default
 
 export class ApiClient {
   private baseUrl: string;
@@ -85,6 +85,7 @@ export class ApiClient {
           method,
           headers: mergedHeaders,
           signal: abortController.signal,
+          credentials: 'include',
         };
 
         // Add body for POST, PUT, PATCH if provided

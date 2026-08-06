@@ -59,6 +59,7 @@ async function generateAIResponse(
     headers: {
       'Content-Type': 'application/json',
     },
+    credentials: 'include',
     body: JSON.stringify({
       prompt: context ? `${prompt}\n\nContext: ${context}` : prompt,
       systemPrompt: 'You are a helpful AI assistant for a premium video production studio. Be concise, practical, and professional.',

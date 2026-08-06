@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, useLocation, useNavigate } from 'react-router-dom';
 import { Navbar } from './components/Navbar';
 import { Footer } from './components/Footer';
@@ -17,24 +17,27 @@ import { ContactPage } from './components/PublicPages/ContactPage';
 import { WorkDetailPage } from './components/PublicPages/WorkDetailPage';
 import { ErrorBoundary } from './components/ErrorBoundary';
 
-const MainContent: React.FC = () => {
+const pageFromPath = (pathname: string) => {
+  if (pathname.startsWith('/work')) return 'work';
+  if (pathname.startsWith('/services')) return 'services';
+  if (pathname.startsWith('/contact')) return 'contact';
+  if (pathname.startsWith('/portal')) return 'portal';
+  return 'home';
+};
+
+const PublicShell: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { editMode, isAdmin, setEditMode } = useContent();
-  const [currentPage, setCurrentPage] = useState<string>('home');
   const location = useLocation();
+  const navigate = useNavigate();
 
   const handleNavigate = (page: string) => {
-    setCurrentPage(page);
+    navigate(page === 'home' ? '/' : `/${page}`);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const goToAdmin = () => {
-    window.location.href = '/admin';
+    navigate('/admin');
   };
-
-  // Handle portal page
-  if (location.pathname === '/portal') {
-    return <Portal onNavigate={handleNavigate} />;
-  }
 
   return (
     <div className="min-h-screen bg-[#0A0A0B] text-[#EDEDED] flex flex-col font-sans selection:bg-[#D4AF37] selection:text-[#0A0A0B]">
@@ -47,10 +50,8 @@ const MainContent: React.FC = () => {
           Save & Exit Edit Mode
         </button>
       ) : null}
-      <Navbar currentPage={currentPage} onNavigate={handleNavigate} />
-      <main className="flex-1">
-        <HomePage onNavigate={handleNavigate} />
-      </main>
+      <Navbar currentPage={pageFromPath(location.pathname)} onNavigate={handleNavigate} />
+      <main className="flex-1">{children}</main>
       <FloatingWhatsApp />
       <Footer onAdminClick={goToAdmin} />
     </div>
@@ -74,22 +75,25 @@ const AppRoutes: React.FC = () => {
     };
   }, [navigate]);
 
-  // Show admin for /admin routes
   if (location.pathname.startsWith('/admin')) {
     return <AdminApp />;
   }
 
-  // Use client-side routing for other pages
+  if (location.pathname === '/portal') {
+    return <Portal onNavigate={(page) => navigate(page === 'home' ? '/' : `/${page}`)} />;
+  }
+
   return (
-    <Routes>
-      <Route path="/" element={<MainContent />} />
-      <Route path="/work" element={<PortfolioPage />} />
-      <Route path="/work/:slug" element={<WorkDetailPage />} />
-      <Route path="/services" element={<ServicesPage />} />
-      <Route path="/contact" element={<ContactPage />} />
-      <Route path="/portal" element={<Portal onNavigate={(p) => window.location.href = p === 'home' ? '/' : `/${p}`} />} />
-      <Route path="*" element={<NotFound />} />
-    </Routes>
+    <PublicShell>
+      <Routes>
+        <Route path="/" element={<HomePage onNavigate={(page) => navigate(page === 'home' ? '/' : `/${page}`)} />} />
+        <Route path="/work" element={<PortfolioPage />} />
+        <Route path="/work/:slug" element={<WorkDetailPage />} />
+        <Route path="/services" element={<ServicesPage />} />
+        <Route path="/contact" element={<ContactPage />} />
+        <Route path="*" element={<NotFound />} />
+      </Routes>
+    </PublicShell>
   );
 };
 

@@ -437,6 +437,36 @@
       "order": 2,
       "visible": true,
       "updatedAt": "2026-08-04T15:04:45.835Z"
+    },
+    {
+      "id": "cb_home_hero_kicker",
+      "page": "home",
+      "section_key": "home_hero_kicker",
+      "type": "text",
+      "value": "Premium consumer-focused video agency",
+      "order": 1,
+      "visible": true,
+      "updatedAt": "2026-08-06T00:00:00.000Z"
+    },
+    {
+      "id": "cb_home_hero_headline",
+      "page": "home",
+      "section_key": "home_hero_headline",
+      "type": "text",
+      "value": "Make every scroll stop, watch, and buy.",
+      "order": 2,
+      "visible": true,
+      "updatedAt": "2026-08-06T00:00:00.000Z"
+    },
+    {
+      "id": "cb_home_hero_subline",
+      "page": "home",
+      "section_key": "home_hero_subline",
+      "type": "text",
+      "value": "VisionFold Creative Studio edits high-retention short-form videos, launch creatives, and custom long-form stories for consumer brands, creators, and premium businesses.",
+      "order": 3,
+      "visible": true,
+      "updatedAt": "2026-08-06T00:00:00.000Z"
     }
   ],
   "portfolio": [
