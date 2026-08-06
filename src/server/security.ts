@@ -32,7 +32,6 @@ const aiLimiter = rateLimit({
 const REQUIRED_JWT_SECRET = process.env.JWT_SECRET;
 
 if (!REQUIRED_JWT_SECRET) {
-  // Never process.exit() on Vercel/serverless — it kills the function cold-start.
   console.error(
     'WARNING: JWT_SECRET is not set. Using a temporary fallback. ' +
     'Set JWT_SECRET in Vercel Project Settings → Environment Variables for production security.'
@@ -47,7 +46,7 @@ export interface AuthenticatedRequest extends Request {
 
 const messageSchema = z.object({
   name: z.string().trim().min(1),
-  email: z.string().trim().email(),
+  email: z.string().trim().min(1),
   phone: z.string().trim().min(1),
   company: z.string().trim().optional().default(''),
   projectType: z.string().trim().optional().default('Short Form'),
@@ -77,11 +76,11 @@ const portfolioSchema = z.object({
 const portfolioUpdateSchema = portfolioSchema.partial();
 
 const clientSchema = z.object({
-  email: z.string().trim().email(),
+  email: z.string().trim().optional().default(''),
   name: z.string().trim().min(1),
   company: z.string().trim().optional().default(''),
   phone: z.string().trim().optional().default(''),
-  password: z.string().trim().min(1).optional(),
+  password: z.string().trim().optional().default(''),
 });
 
 const invoiceSchema = z.object({
