@@ -43,13 +43,18 @@ export function registerBusinessRoutes(app: Application) {
   app.post('/api/clients', authenticateToken, requireAdmin, async (req, res) => {
     const parsed = clientSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten().fieldErrors });
-    const { email, name, company, phone, password } = parsed.data;
+    const { name, company, phone, password } = parsed.data;
+    let email = (parsed.data.email || '').trim().toLowerCase();
+    if (!email) {
+      const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '.').replace(/^\.+|\.+$/g, '') || 'client';
+      email = `${slug}.${Date.now().toString(36)}@clients.visionfold.local`;
+    }
     if (await dbManager.findUserByEmail(email)) return res.status(400).json({ error: 'User with this email already exists' });
-    const rawPassword = password || 'client123';
+    const rawPassword = (password && String(password).trim()) || `vf-${Math.random().toString(36).slice(2, 10)}`;
     const passwordHash = bcrypt.hashSync(rawPassword, bcrypt.genSaltSync(10));
     const newClient: User & { passwordHash: string } = {
       id: `user_client_${Date.now()}`,
-      email: email.toLowerCase(),
+      email,
       name,
       company: company || '',
       phone: phone || '',
@@ -57,7 +62,7 @@ export function registerBusinessRoutes(app: Application) {
       createdAt: new Date().toISOString(),
       passwordHash,
     };
-    res.json({ client: await dbManager.createUser(newClient), initialPassword: rawPassword });
+    res.json({ client: await dbManager.createUser(newClient), initialPassword: rawPassword, loginEmail: email });
   });
 
   app.get('/api/projects', authenticateToken, async (req: AuthenticatedRequest, res) => {
