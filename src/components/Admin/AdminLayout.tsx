@@ -1,19 +1,20 @@
 import React, { useState } from 'react';
 import {
   LayoutDashboard, Inbox, Users, FolderKanban, Image as ImageIcon,
-  Receipt, Wallet, Sparkles, Settings as SettingsIcon, LogOut, Menu, X, AlertCircle,
+  Receipt, Wallet, Sparkles, Settings as SettingsIcon, LogOut, Menu, X, AlertCircle, Zap,
 } from 'lucide-react';
 import { VisionFoldLogo } from '../VisionFoldLogo';
 import { AppError } from '../../lib/errors';
 
 export type AdminView =
-  | 'overview' | 'leads' | 'clients' | 'projects' | 'portfolio'
+  | 'overview' | 'leads' | 'clients' | 'automations' | 'projects' | 'portfolio'
   | 'invoices' | 'expenses' | 'growth' | 'settings';
 
 const NAV_ITEMS: { id: AdminView; label: string; icon: React.ElementType }[] = [
   { id: 'overview', label: 'Overview', icon: LayoutDashboard },
   { id: 'leads', label: 'Leads & Inquiries', icon: Inbox },
   { id: 'clients', label: 'Clients', icon: Users },
+  { id: 'automations', label: 'Automations', icon: Zap },
   { id: 'projects', label: 'Projects', icon: FolderKanban },
   { id: 'portfolio', label: 'Portfolio', icon: ImageIcon },
   { id: 'invoices', label: 'Invoices', icon: Receipt },
@@ -51,7 +52,7 @@ export const AdminLayout: React.FC<{
             aria-current={active ? 'page' : undefined}
           >
             <Icon className="h-4 w-4 shrink-0" />
-            <span className="truncate">{item.label}</span>
+            {item.label}
           </button>
         );
       })}
@@ -60,28 +61,26 @@ export const AdminLayout: React.FC<{
 
   return (
     <div className="flex min-h-screen bg-[#0A0A0B] text-[#EDEDED]">
-      {/* Desktop sidebar */}
-      <aside className="hidden w-64 shrink-0 flex-col border-r border-[#222226] bg-[#0D0D0F] lg:flex">
-        <div className="flex items-center border-b border-[#222226] px-6 py-5">
+      <aside className="hidden w-64 shrink-0 flex-col border-r border-[#222226] bg-[#0C0C10] lg:flex">
+        <div className="flex items-center gap-3 border-b border-[#222226] px-4 py-5">
           <div className="scale-75 origin-left"><VisionFoldLogo /></div>
         </div>
         {NavList}
         <div className="border-t border-[#222226] p-3">
           <button
             onClick={onLogout}
-            className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-[#888891] transition-colors hover:bg-[#1a1a1d] hover:text-red-400"
+            className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-[#888891] hover:text-red-400"
           >
             <LogOut className="h-4 w-4" /> Sign Out
           </button>
         </div>
       </aside>
 
-      {/* Mobile sidebar overlay */}
       {mobileOpen ? (
         <div className="fixed inset-0 z-50 lg:hidden">
           <div className="absolute inset-0 bg-black/70" onClick={() => setMobileOpen(false)} />
-          <aside className="relative flex h-full w-64 flex-col bg-[#0D0D0F]">
-            <div className="flex items-center justify-between border-b border-[#222226] px-6 py-5">
+          <aside className="absolute left-0 top-0 flex h-full w-72 flex-col border-r border-[#222226] bg-[#0C0C10]">
+            <div className="flex items-center justify-between border-b border-[#222226] px-4 py-4">
               <div className="scale-75 origin-left"><VisionFoldLogo /></div>
               <button onClick={() => setMobileOpen(false)} aria-label="Close menu"><X className="h-5 w-5 text-[#888891]" /></button>
             </div>
@@ -124,10 +123,7 @@ export const AdminLayout: React.FC<{
                 <p className="text-sm font-medium text-red-300">{error.message}</p>
               </div>
               {onClearError && (
-                <button
-                  onClick={onClearError}
-                  className="text-red-400 hover:text-red-300 font-medium text-sm"
-                >
+                <button onClick={onClearError} className="text-red-400 hover:text-red-300 font-medium text-sm">
                   Dismiss
                 </button>
               )}
