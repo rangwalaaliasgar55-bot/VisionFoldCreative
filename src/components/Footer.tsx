@@ -14,9 +14,9 @@ const quickLinks = [
 ];
 
 const policies = [
-  { label: 'Privacy', href: '/contact' },
-  { label: 'Terms', href: '/contact' },
-  { label: 'Refunds', href: '/contact' },
+  { label: 'Terms of Service', href: '/terms' },
+  { label: 'Privacy Policy', href: '/privacy' },
+  { label: 'Refund Policy', href: '/refund' },
 ];
 
 export const Footer: React.FC<FooterProps> = ({ onAdminClick }) => {
