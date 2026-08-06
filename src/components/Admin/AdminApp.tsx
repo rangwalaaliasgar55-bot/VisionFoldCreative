@@ -27,7 +27,7 @@ const VIEW_META: Record<AdminView, { title: string; subtitle?: string }> = {
 };
 
 export const AdminApp: React.FC = () => {
-  const { user, isLoading, logout, error, clearError } = useAuth();
+  const { user, isLoading, logout, error, clearError, checkAuth } = useAuth();
   const [view, setView] = useState<AdminView>('overview');
 
   const isAuthenticated = useMemo(() => user?.role === 'admin', [user?.role]);
@@ -53,6 +53,7 @@ export const AdminApp: React.FC = () => {
       <AdminLogin
         onSuccess={() => {
           clearError();
+          void checkAuth();
         }}
       />
     );

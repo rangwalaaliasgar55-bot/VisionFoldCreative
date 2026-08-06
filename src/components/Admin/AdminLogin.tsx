@@ -1,136 +1,93 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Lock, Loader2, AlertCircle } from 'lucide-react';
 import { VisionFoldLogo } from '../VisionFoldLogo';
 import { Input, PrimaryButton } from './ui';
-import { LoginSchema } from '../../lib/validation';
-import { ErrorHandler, ValidationError } from '../../lib/errors';
+import { useAuth } from '../../context/AuthContext';
 
 export const AdminLogin: React.FC<{ onSuccess: () => void }> = ({ onSuccess }) => {
-  const [email, setEmail] = useState('');
+  const { login } = useAuth();
+  const [email, setEmail] = useState('visionfoldcreative@gmail.com');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
-  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const firstInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    firstInputRef.current?.focus();
+  }, []);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    // Prevent double submission
     if (isLoading) return;
-    
+
     setIsLoading(true);
     setError('');
-    setFieldErrors({});
 
     try {
-      // Validate input
-      const validated = LoginSchema.parse({ email, password });
-
-      const response = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify(validated),
-      });
-
-      const responseText = await response.text();
-      const payload = responseText ? (() => {
-        try {
-          return JSON.parse(responseText);
-        } catch {
-          return { error: responseText };
-        }
-      })() : {};
-
-      if (!response.ok) {
-        const errorMessage = payload.error || 'Invalid credentials';
-        setError(errorMessage);
-        ErrorHandler.log(new Error(errorMessage), 'AdminLogin');
+      const result = await login(email.trim().toLowerCase(), password);
+      if (!result.success) {
+        setError(result.error || 'Invalid email or password');
         return;
       }
-
-      if (payload.user?.role !== 'admin') {
-        setError('This account does not have studio admin access');
-        return;
-      }
-
       onSuccess();
     } catch (err: any) {
-      ErrorHandler.log(err, 'AdminLogin');
-      if (err instanceof ValidationError) {
-        setFieldErrors(err.details || {});
-        setError('Please check your input and try again.');
-      } else {
-        setError(err.message || 'Authentication failed. Please try again.');
-      }
+      setError(err?.message || 'Authentication failed. Please try again.');
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Auto-focus email field on mount
-  React.useEffect(() => {
-    firstInputRef.current?.focus();
-  }, []);
-
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[#0A0A0B] px-4 py-8">
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#050507] px-4 py-8">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(212,175,55,0.12),transparent_45%),radial-gradient(circle_at_80%_80%,rgba(255,255,255,0.04),transparent_40%)]" />
       <form
         onSubmit={handleLogin}
-        className="w-full max-w-sm rounded-2xl border border-[#222226] bg-[#121215] p-8 shadow-2xl"
+        className="relative w-full max-w-sm rounded-2xl border border-white/10 bg-[#0E0E12]/90 p-8 shadow-2xl backdrop-blur-xl"
         noValidate
       >
         <div className="mb-8 flex flex-col items-center text-center">
           <div className="mb-5 scale-90">
             <VisionFoldLogo />
           </div>
-          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#222226]">
+          <div className="flex h-12 w-12 items-center justify-center rounded-full border border-[#D4AF37]/30 bg-[#D4AF37]/10">
             <Lock className="h-5 w-5 text-[#D4AF37]" />
           </div>
           <h1 className="mt-4 text-lg font-bold uppercase tracking-[0.2em] text-[#EDEDED]">Studio Dashboard</h1>
-          <p className="mt-1 text-xs uppercase tracking-[0.2em] text-[#888891]">Admin Sign In</p>
+          <p className="mt-1 text-xs uppercase tracking-[0.2em] text-[#888891]">Admin sign in</p>
         </div>
 
-        {error && (
+        {error ? (
           <div className="mb-6 flex items-start gap-3 rounded-lg border border-red-600/30 bg-red-600/10 p-3">
             <AlertCircle className="h-4 w-4 flex-shrink-0 text-red-400 mt-0.5" />
             <p className="text-xs font-medium text-red-300">{error}</p>
           </div>
-        )}
+        ) : null}
 
         <div className="space-y-4">
           <div>
+            <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-[0.18em] text-[#888891]">Email</label>
             <Input
               ref={firstInputRef}
               type="email"
-              placeholder="Email address"
+              placeholder="visionfoldcreative@gmail.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              onBlur={() => setFieldErrors(prev => ({ ...prev, email: '' }))}
               autoComplete="email"
               required
               disabled={isLoading}
             />
-            {fieldErrors.email && (
-              <p className="mt-1 text-xs text-red-400">{fieldErrors.email}</p>
-            )}
           </div>
-
           <div>
+            <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-[0.18em] text-[#888891]">Password</label>
             <Input
               type="password"
-              placeholder="Password"
+              placeholder="Your password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              onBlur={() => setFieldErrors(prev => ({ ...prev, password: '' }))}
               autoComplete="current-password"
               required
               disabled={isLoading}
             />
-            {fieldErrors.password && (
-              <p className="mt-1 text-xs text-red-400">{fieldErrors.password}</p>
-            )}
           </div>
         </div>
 
@@ -145,13 +102,17 @@ export const AdminLogin: React.FC<{ onSuccess: () => void }> = ({ onSuccess }) =
               Authenticating...
             </>
           ) : (
-            'Authenticate'
+            'Sign in to studio'
           )}
         </PrimaryButton>
 
+        <p className="mt-4 text-center text-[10px] leading-relaxed text-[#666]">
+          Default: visionfoldcreative@gmail.com
+        </p>
+
         <a
           href="/"
-          className="mt-6 block text-center text-[10px] font-bold uppercase tracking-[0.2em] text-[#888891] transition-colors hover:text-[#EDEDED]"
+          className="mt-4 block text-center text-[10px] font-bold uppercase tracking-[0.2em] text-[#888891] transition-colors hover:text-[#EDEDED]"
         >
           ← Back to site
         </a>
