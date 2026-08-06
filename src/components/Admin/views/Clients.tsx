@@ -1,97 +1,109 @@
 import React, { useEffect, useState } from 'react';
-import { UserPlus, Mail, Phone, Building2 } from 'lucide-react';
 import { adminApi } from '../../../lib/adminApi';
-import { Card, CardHeader, LoadingState, EmptyState, Input, PrimaryButton, GhostButton, formatDate } from '../ui';
 import type { User } from '../../../types';
+import { PrimaryButton, Input } from '../ui';
 
 export const Clients: React.FC = () => {
   const [clients, setClients] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ name: '', email: '', company: '', phone: '', password: '' });
-  const [creating, setCreating] = useState(false);
   const [error, setError] = useState('');
+  const [form, setForm] = useState({ name: '', email: '', company: '', phone: '', password: '' });
+  const [saving, setSaving] = useState(false);
   const [createdInfo, setCreatedInfo] = useState<string | null>(null);
 
-  const load = async () => {
-    setLoading(true);
-    try {
-      const data = await adminApi.get<User[]>('/api/clients');
-      setClients(data);
-    } finally {
-      setLoading(false);
-    }
-  };
+  useEffect(() => {
+    (async () => {
+      try {
+        setLoading(true);
+        const data = await adminApi.get<User[]>('/api/clients');
+        setClients(Array.isArray(data) ? data : []);
+      } catch (err: any) {
+        setError(err.message || 'Failed to load clients');
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, []);
 
-  useEffect(() => { void load(); }, []);
-
-  const handleCreate = async (e: React.FormEvent) => {
+  const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setCreating(true);
+    if (!form.name.trim()) {
+      setError('Name is required. Email and password are optional.');
+      return;
+    }
+    setSaving(true);
     setError('');
+    setCreatedInfo(null);
     try {
-      const result = await adminApi.post<{ client: User; initialPassword: string }>('/api/clients', form);
+      const result = await adminApi.post<{ client: User; initialPassword: string; loginEmail: string }>('/api/clients', {
+        name: form.name.trim(),
+        email: form.email.trim(),
+        company: form.company.trim(),
+        phone: form.phone.trim(),
+        password: form.password.trim(),
+      });
       setClients((prev) => [...prev, result.client]);
-      setCreatedInfo(`Client added. Temporary password: ${result.initialPassword}`);
+      setCreatedInfo(`Client saved. Login: ${result.loginEmail} · Temp password: ${result.initialPassword}`);
       setForm({ name: '', email: '', company: '', phone: '', password: '' });
-      setShowForm(false);
     } catch (err: any) {
       setError(err.message || 'Failed to create client');
     } finally {
-      setCreating(false);
+      setSaving(false);
     }
   };
 
-  if (loading) return <LoadingState />;
-
   return (
-    <div className="space-y-4">
-      {createdInfo ? (
-        <div className="rounded-lg border border-emerald-400/30 bg-emerald-400/10 px-4 py-3 text-sm text-emerald-300">{createdInfo}</div>
-      ) : null}
-
-      <Card>
-        <CardHeader
-          title="Clients"
-          subtitle={`${clients.length} onboarded`}
-          action={<PrimaryButton onClick={() => setShowForm((v) => !v)}><UserPlus className="h-4 w-4" /> Add Client</PrimaryButton>}
-        />
-
-        {showForm ? (
-          <form onSubmit={handleCreate} className="grid grid-cols-1 gap-3 border-b border-[#222226] p-5 sm:grid-cols-2">
-            <Input placeholder="Full name" required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
-            <Input type="email" placeholder="Email" required value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
-            <Input placeholder="Company (optional)" value={form.company} onChange={(e) => setForm({ ...form, company: e.target.value })} />
-            <Input placeholder="Phone (optional)" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
-            <Input placeholder="Temporary password (optional)" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} />
-            {error ? <p className="text-xs text-red-400 sm:col-span-2">{error}</p> : null}
-            <div className="flex gap-2 sm:col-span-2">
-              <PrimaryButton type="submit" disabled={creating}>{creating ? 'Creating…' : 'Create Client'}</PrimaryButton>
-              <GhostButton type="button" onClick={() => setShowForm(false)}>Cancel</GhostButton>
-            </div>
-          </form>
-        ) : null}
-
-        {clients.length === 0 ? (
-          <EmptyState message="No clients yet — add your first client to start tracking their projects and invoices." />
-        ) : (
-          <div className="divide-y divide-[#222226]">
-            {clients.map((c) => (
-              <div key={c.id} className="flex flex-wrap items-center justify-between gap-3 p-5">
-                <div>
-                  <h4 className="font-bold text-[#EDEDED]">{c.name}</h4>
-                  <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-[#888891]">
-                    <span className="flex items-center gap-1"><Mail className="h-3 w-3" /> {c.email}</span>
-                    {c.phone ? <span className="flex items-center gap-1"><Phone className="h-3 w-3" /> {c.phone}</span> : null}
-                    {c.company ? <span className="flex items-center gap-1"><Building2 className="h-3 w-3" /> {c.company}</span> : null}
-                  </div>
-                </div>
-                <span className="text-xs text-[#888891]">Joined {formatDate(c.createdAt)}</span>
-              </div>
-            ))}
+    <div className="space-y-8">
+      <div className="rounded-2xl border border-white/10 bg-[#0C0C10] p-6">
+        <h2 className="text-lg font-bold text-white">Add client (email & password optional)</h2>
+        <p className="mt-1 text-sm text-[#8A857C]">Only a name is required. Missing email/password are auto-generated.</p>
+        {createdInfo ? <div className="mt-4 rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-3 text-sm text-emerald-200">{createdInfo}</div> : null}
+        {error ? <div className="mt-4 rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-200">{error}</div> : null}
+        <form onSubmit={onSubmit} className="mt-5 grid grid-cols-1 gap-3 md:grid-cols-2">
+          <div>
+            <p className="mb-1 text-[10px] font-bold uppercase tracking-wider text-[#888891]">Name *</p>
+            <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required placeholder="Client name" />
           </div>
+          <div>
+            <p className="mb-1 text-[10px] font-bold uppercase tracking-wider text-[#888891]">Email (optional)</p>
+            <Input value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="client@email.com" />
+          </div>
+          <div>
+            <p className="mb-1 text-[10px] font-bold uppercase tracking-wider text-[#888891]">Company</p>
+            <Input value={form.company} onChange={(e) => setForm({ ...form, company: e.target.value })} />
+          </div>
+          <div>
+            <p className="mb-1 text-[10px] font-bold uppercase tracking-wider text-[#888891]">Phone</p>
+            <Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
+          </div>
+          <div>
+            <p className="mb-1 text-[10px] font-bold uppercase tracking-wider text-[#888891]">Password (optional)</p>
+            <Input type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} placeholder="Auto if empty" />
+          </div>
+          <div className="flex items-end">
+            <PrimaryButton type="submit" disabled={saving}>{saving ? 'Saving…' : 'Create client'}</PrimaryButton>
+          </div>
+        </form>
+      </div>
+      <div className="rounded-2xl border border-white/10 bg-[#0C0C10] p-6">
+        <h2 className="text-lg font-bold text-white">Client list</h2>
+        {loading ? <p className="mt-4 text-sm text-[#8A857C]">Loading…</p> : clients.length === 0 ? (
+          <p className="mt-4 text-sm text-[#8A857C]">No clients yet.</p>
+        ) : (
+          <ul className="mt-4 divide-y divide-white/5">
+            {clients.map((c) => (
+              <li key={c.id} className="flex flex-col gap-1 py-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p className="font-semibold text-white">{c.name}</p>
+                  <p className="text-sm text-[#8A857C]">{c.email}</p>
+                </div>
+                <p className="text-xs uppercase tracking-wider text-[#D4AF37]">{c.company || '—'}</p>
+              </li>
+            ))}
+          </ul>
         )}
-      </Card>
+      </div>
     </div>
   );
 };
+export default Clients;
