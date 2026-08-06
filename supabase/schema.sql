@@ -17,6 +17,8 @@ create table if not exists public.users (
   id text primary key,
   email text not null unique,
   name text not null,
+  -- Self-registered visitors are always inserted as client accounts by the app API.
+  -- Admin accounts should only be created from trusted server-side/admin flows.
   role text not null default 'client' check (role in ('admin', 'client')),
   company text default '',
   phone text default '',
@@ -310,6 +312,9 @@ create policy "Admin can update messages" on public.messages for update using (a
 
 create policy "Admin can manage users" on public.users for all using (auth.jwt() ->> 'role' = 'admin') with check (auth.jwt() ->> 'role' = 'admin');
 create policy "Users can view own profile" on public.users for select using (auth.uid()::text = id);
+-- Public client registration is handled by /api/auth/register with the Supabase
+-- service role key so raw password hashes are never accepted from browser-side
+-- Supabase clients.
 
 create policy "Admin can manage projects" on public.projects for all using (auth.jwt() ->> 'role' = 'admin') with check (auth.jwt() ->> 'role' = 'admin');
 create policy "Clients can view own projects" on public.projects for select using (auth.uid()::text = client_id);
@@ -335,6 +340,7 @@ on conflict (id) do update set public = true;
 -- INDEXES
 -- =============================================================================
 create index if not exists idx_users_email on public.users(email);
+create index if not exists idx_users_role on public.users(role);
 create index if not exists idx_content_blocks_page on public.content_blocks(page);
 create index if not exists idx_content_blocks_page_section on public.content_blocks(page, section_key);
 create index if not exists idx_portfolio_category on public.portfolio(category);

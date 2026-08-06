@@ -92,6 +92,14 @@ const clientSchema = z.object({
   password: z.string().trim().min(1).optional(),
 });
 
+const clientRegistrationSchema = z.object({
+  email: z.string().trim().toLowerCase().email(),
+  password: z.string().min(8, 'Password must be at least 8 characters'),
+  name: z.string().trim().min(2, 'Name must be at least 2 characters'),
+  company: z.string().trim().optional().default(''),
+  phone: z.string().trim().optional().default(''),
+});
+
 const invoiceSchema = z.object({
   invoiceNumber: z.string().trim().min(1),
   clientId: z.string().trim().min(1),
@@ -236,11 +244,12 @@ export async function createApp() {
   });
 
   app.post('/api/auth/register', authLimiter, async (req, res) => {
-    const { email, password, name, company, phone } = req.body;
-    if (!email || !password || !name) {
-      return res.status(400).json({ error: 'Email, password, and name are required' });
+    const parsed = clientRegistrationSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ error: parsed.error.flatten().fieldErrors });
     }
 
+    const { email, password, name, company, phone } = parsed.data;
     const existing = await dbManager.findUserByEmail(email);
     if (existing) {
       return res.status(400).json({ error: 'An account with this email already exists' });
