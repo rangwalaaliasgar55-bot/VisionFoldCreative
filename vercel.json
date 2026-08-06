@@ -13,11 +13,7 @@
   ],
   "functions": {
     "api/index.js": {
-      "includeFiles": [
-        "dist/server.cjs",
-        "data/db.json",
-        "public/**"
-      ]
+      "includeFiles": "{dist/server.cjs,data/db.json,public/**}"
     }
   }
 }
