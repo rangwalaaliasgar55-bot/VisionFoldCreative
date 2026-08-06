@@ -5,6 +5,7 @@ import { useAdmin } from '../../context/AdminContext';
 import { useContent } from '../../context/ContentContext';
 import { EditableText } from '../EditableText';
 import { VisionFoldLogo } from '../VisionFoldLogo';
+import { ThreeHero } from '../ThreeHero';
 import { useScrollReveal } from '../../hooks/useScrollReveal';
 
 interface HomePageProps {
@@ -72,6 +73,7 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
   return (
     <div className="relative flex flex-col overflow-hidden bg-[#050505] text-[#F4F1EA] font-sans">
       <div className="pointer-events-none fixed inset-0 z-0 opacity-70">
+        <ThreeHero />
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_10%,rgba(212,175,55,0.18),transparent_28%),radial-gradient(circle_at_80%_0%,rgba(255,255,255,0.12),transparent_22%),linear-gradient(135deg,#050505_0%,#101012_45%,#050505_100%)]" />
         <div className="absolute left-1/2 top-[-10%] h-[520px] w-[520px] -translate-x-1/2 rounded-full border border-[#D4AF37]/20 bg-[#D4AF37]/5 blur-2xl animate-pulse" />
         <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.03)_1px,transparent_1px)] bg-[size:70px_70px] [transform:perspective(900px)_rotateX(58deg)_translateY(-180px)]" />
@@ -107,6 +109,7 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
           <RevealSection className="relative">
             <div className="absolute -inset-8 rounded-[3rem] bg-[#D4AF37]/10 blur-3xl" />
             <div className="relative rounded-[2.5rem] border border-white/10 bg-[#F4F1EA] p-8 shadow-2xl shadow-black/60 [transform:perspective(1000px)_rotateY(-8deg)_rotateX(4deg)] transition-transform duration-700 hover:[transform:perspective(1000px)_rotateY(0deg)_rotateX(0deg)]">
+              <div className="mb-6 h-48 overflow-hidden rounded-[2rem] bg-black"><ThreeHero /></div>
               <VisionFoldLogo variant="full" color="dark" size="xl" />
               <div className="mt-8 grid grid-cols-3 gap-3">
                 {['EDIT', 'CREATE', 'INSPIRE'].map((word) => <div key={word} className="rounded-xl bg-black px-3 py-3 text-center text-[10px] font-black tracking-[0.35em] text-white">{word}</div>)}

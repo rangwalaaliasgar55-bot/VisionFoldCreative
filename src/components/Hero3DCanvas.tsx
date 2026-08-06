@@ -1,6 +1,5 @@
 import React, { useRef, useEffect } from 'react';
 import * as THREE from 'three';
-import { gsap } from 'gsap';
 
 export const Hero3DCanvas: React.FC = () => {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -58,6 +57,47 @@ export const Hero3DCanvas: React.FC = () => {
     mesh.scale.set(1.5, 1.5, 1.5);
     scene.add(mesh);
 
+    const haloGroup = new THREE.Group();
+    scene.add(haloGroup);
+
+    const ringMaterial = new THREE.MeshBasicMaterial({
+      color: 0xD4AF37,
+      transparent: true,
+      opacity: 0.16,
+      side: THREE.DoubleSide,
+      depthWrite: false,
+    });
+
+    const rings = [1.85, 2.35, 2.85].map((radius, index) => {
+      const ring = new THREE.Mesh(
+        new THREE.TorusGeometry(radius, 0.006, 12, 140),
+        ringMaterial.clone()
+      );
+      ring.rotation.x = Math.PI / 2 + index * 0.22;
+      ring.rotation.y = index * 0.42;
+      haloGroup.add(ring);
+      return ring;
+    });
+
+    const starGeometry = new THREE.BufferGeometry();
+    const starCount = 180;
+    const positions = new Float32Array(starCount * 3);
+    for (let i = 0; i < starCount; i += 1) {
+      positions[i * 3] = (Math.random() - 0.5) * 8;
+      positions[i * 3 + 1] = (Math.random() - 0.5) * 5;
+      positions[i * 3 + 2] = (Math.random() - 0.5) * 5;
+    }
+    starGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    const starMaterial = new THREE.PointsMaterial({
+      color: 0xF4F1EA,
+      size: 0.018,
+      transparent: true,
+      opacity: 0.52,
+      depthWrite: false,
+    });
+    const starfield = new THREE.Points(starGeometry, starMaterial);
+    scene.add(starfield);
+
     // Lighting
     const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
     scene.add(ambientLight);
@@ -86,8 +126,12 @@ export const Hero3DCanvas: React.FC = () => {
     document.addEventListener('mousemove', onDocumentMouseMove);
 
     // Animation Loop
+    const clock = new THREE.Clock();
+    let animationFrameId = 0;
+
     const animate = () => {
-      requestAnimationFrame(animate);
+      animationFrameId = requestAnimationFrame(animate);
+      const elapsed = clock.getElapsedTime();
 
       targetX = mouseX * 0.001;
       targetY = mouseY * 0.001;
@@ -95,8 +139,16 @@ export const Hero3DCanvas: React.FC = () => {
       mesh.rotation.y += 0.05 * (targetX - mesh.rotation.y);
       mesh.rotation.x += 0.05 * (targetY - mesh.rotation.x);
       
-      // Idle floating
-      mesh.position.y = Math.sin(Date.now() * 0.001) * 0.1;
+      // Idle floating + cinematic orbital systems
+      mesh.position.y = Math.sin(elapsed) * 0.1;
+      haloGroup.rotation.z = elapsed * 0.12;
+      haloGroup.rotation.y = elapsed * 0.08;
+      rings.forEach((ring, index) => {
+        ring.rotation.z = elapsed * (0.16 + index * 0.05);
+        (ring.material as THREE.MeshBasicMaterial).opacity = 0.1 + Math.sin(elapsed + index) * 0.035;
+      });
+      starfield.rotation.y = elapsed * 0.025;
+      starfield.rotation.x = Math.sin(elapsed * 0.25) * 0.08;
 
       renderer.render(scene, camera);
     };
@@ -115,11 +167,18 @@ export const Hero3DCanvas: React.FC = () => {
     return () => {
       window.removeEventListener('resize', handleResize);
       document.removeEventListener('mousemove', onDocumentMouseMove);
-      if (containerRef.current) {
+      cancelAnimationFrame(animationFrameId);
+      if (containerRef.current?.contains(renderer.domElement)) {
         containerRef.current.removeChild(renderer.domElement);
       }
       geometry.dispose();
       material.dispose();
+      rings.forEach((ring) => {
+        ring.geometry.dispose();
+        (ring.material as THREE.Material).dispose();
+      });
+      starGeometry.dispose();
+      starMaterial.dispose();
       renderer.dispose();
     };
   }, []);

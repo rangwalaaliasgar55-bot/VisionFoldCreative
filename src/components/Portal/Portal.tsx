@@ -43,6 +43,8 @@ export function Portal({ onNavigate }: PortalProps) {
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [revisions, setRevisions] = useState<Revision[]>([]);
   const [revisionComment, setRevisionComment] = useState('');
+  const [selectedProjectId, setSelectedProjectId] = useState('');
+  const [dataError, setDataError] = useState('');
 
   useEffect(() => {
     if (user) {
@@ -51,15 +53,15 @@ export function Portal({ onNavigate }: PortalProps) {
   }, [user]);
 
   const fetchData = async () => {
-    if (!token) return;
     
     try {
-      const headers = { Authorization: `Bearer ${token}` };
+      const headers = token ? { Authorization: `Bearer ${token}` } : undefined;
+      const requestInit: RequestInit = { headers, credentials: 'include' };
       
       const [projectsRes, invoicesRes, revisionsRes] = await Promise.all([
-        fetch('/api/projects', { headers }),
-        fetch('/api/invoices', { headers }),
-        fetch('/api/revisions', { headers }),
+        fetch('/api/projects', requestInit),
+        fetch('/api/invoices', requestInit),
+        fetch('/api/revisions', requestInit),
       ]);
 
       if (projectsRes.ok) {
@@ -74,8 +76,10 @@ export function Portal({ onNavigate }: PortalProps) {
         const data = await revisionsRes.json();
         setRevisions(Array.isArray(data) ? data : data.revisions || []);
       }
+      setDataError('');
     } catch (err) {
       console.error('Failed to fetch data:', err);
+      setDataError('Could not load portal data. Please refresh or sign in again.');
     }
   };
 
@@ -93,15 +97,16 @@ export function Portal({ onNavigate }: PortalProps) {
   };
 
   const submitRevision = async (projectId: string) => {
-    if (!revisionComment.trim() || !token) return;
+    if (!revisionComment.trim()) return;
     
     try {
       const res = await fetch('/api/revisions', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
+        credentials: 'include',
         body: JSON.stringify({ projectId, comment: revisionComment }),
       });
       
@@ -208,6 +213,8 @@ export function Portal({ onNavigate }: PortalProps) {
           </div>
         </div>
 
+        {dataError && <div className="mb-4 rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-300">{dataError}</div>}
+
         <div className="flex gap-2 mb-6 border-b border-[#2A2A2E]">
           {tabs.map((tab) => (
             <button
@@ -229,7 +236,7 @@ export function Portal({ onNavigate }: PortalProps) {
             <div className="bg-[#141416] border border-[#2A2A2E] rounded-xl p-6">
               <h3 className="text-[#A0A0A0] text-sm mb-2">Active Projects</h3>
               <p className="text-3xl font-bold text-[#EDEDED]">
-                {projects.filter((p) => p.status === 'in-progress').length}
+                {projects.filter((p) => ['in-progress', 'in_progress', 'in_review'].includes(p.status)).length}
               </p>
             </div>
             <div className="bg-[#141416] border border-[#2A2A2E] rounded-xl p-6">
@@ -261,9 +268,9 @@ export function Portal({ onNavigate }: PortalProps) {
                     </div>
                     <div className="text-right">
                       <span className={`inline-block px-3 py-1 rounded-full text-sm ${
-                        project.status === 'completed'
+                        ['completed', 'delivered'].includes(project.status)
                           ? 'bg-green-900/50 text-green-400'
-                          : project.status === 'in-progress'
+                          : ['in-progress', 'in_progress', 'in_review'].includes(project.status)
                           ? 'bg-blue-900/50 text-blue-400'
                           : 'bg-yellow-900/50 text-yellow-400'
                       }`}>
@@ -318,7 +325,7 @@ export function Portal({ onNavigate }: PortalProps) {
             {projects.length > 0 && (
               <div className="bg-[#141416] border border-[#2A2A2E] rounded-xl p-6">
                 <h3 className="text-lg font-semibold text-[#EDEDED] mb-4">Request Revision</h3>
-                <select className="w-full mb-4 px-4 py-3 bg-[#0A0A0B] border border-[#2A2A2E] rounded-lg text-[#EDEDED]">
+                <select value={selectedProjectId} onChange={(e) => setSelectedProjectId(e.target.value)} className="w-full mb-4 px-4 py-3 bg-[#0A0A0B] border border-[#2A2A2E] rounded-lg text-[#EDEDED]">
                   <option value="">Select a project</option>
                   {projects.map((p) => (
                     <option key={p.id} value={p.id}>{p.title}</option>
@@ -331,10 +338,8 @@ export function Portal({ onNavigate }: PortalProps) {
                   className="w-full mb-4 px-4 py-3 bg-[#0A0A0B] border border-[#2A2A2E] rounded-lg text-[#EDEDED] h-32 resize-none"
                 />
                 <button
-                  onClick={() => {
-                    const select = document.querySelector('select') as HTMLSelectElement;
-                    if (select.value) submitRevision(select.value);
-                  }}
+                  onClick={() => selectedProjectId && submitRevision(selectedProjectId)}
+                  disabled={!selectedProjectId || !revisionComment.trim()}
                   className="px-6 py-2 bg-[#D4AF37] text-[#0A0A0B] font-semibold rounded-lg hover:bg-[#E5C04B]"
                 >
                   Submit Request

@@ -368,6 +368,38 @@ export async function createApp() {
     });
   });
 
+
+  app.get('/api/health', async (_req, res) => {
+    try {
+      const [users, portfolio, messages, projects, invoices] = await Promise.all([
+        dbManager.getUsers(),
+        dbManager.getPortfolio(),
+        dbManager.getMessages(),
+        dbManager.getProjects(),
+        dbManager.getInvoices(),
+      ]);
+
+      res.json({
+        ok: true,
+        timestamp: new Date().toISOString(),
+        database: {
+          users: users.length,
+          portfolio: portfolio.length,
+          messages: messages.length,
+          projects: projects.length,
+          invoices: invoices.length,
+        },
+        integrations: {
+          openRouterConfigured: Boolean(process.env.OPENROUTER_API_KEY),
+          supabaseConfigured: Boolean(process.env.SUPABASE_URL || process.env.SupaBase_SUPABASE_URL || process.env.VITE_SUPABASE_URL),
+          uploadsConfigured: Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SupaBase_SUPABASE_SERVICE_ROLE_KEY),
+        },
+      });
+    } catch (err: any) {
+      res.status(500).json({ ok: false, error: err.message || 'Health check failed' });
+    }
+  });
+
   // --- MESSAGES / INQUIRIES ROUTE ---
   // Public contact form - rate limited to prevent spam
   app.post('/api/messages', messageLimiter, async (req, res) => {
