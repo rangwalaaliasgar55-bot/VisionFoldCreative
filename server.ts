@@ -44,6 +44,8 @@ const aiLimiter = rateLimit({
 
 const REQUIRED_JWT_SECRET = process.env.JWT_SECRET;
 const JWT_SECRET = REQUIRED_JWT_SECRET || 'vision_fold_creative_jwt_secret_key_2026';
+const hasSupabaseUrl = () => Boolean(process.env.SUPABASE_URL || process.env.SupaBase_SUPABASE_URL || process.env.NEXT_PUBLIC_SupaBase_SUPABASE_URL || process.env.VITE_SUPABASE_URL);
+const hasSupabaseServiceRole = () => Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SupaBase_SUPABASE_SERVICE_ROLE_KEY);
 
 if (process.env.NODE_ENV === 'production' && !REQUIRED_JWT_SECRET) {
   console.warn('JWT_SECRET is not set in production; using a temporary fallback secret. Set JWT_SECRET for secure persistent sessions.');
@@ -385,8 +387,8 @@ export async function createApp() {
         faviconUrl: '/favicon.svg',
       },
       integrations: {
-        supabaseConfigured: Boolean(process.env.SUPABASE_URL || process.env.SupaBase_SUPABASE_URL || process.env.VITE_SUPABASE_URL),
-        uploadsConfigured: Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SupaBase_SUPABASE_SERVICE_ROLE_KEY),
+        supabaseConfigured: hasSupabaseUrl(),
+        uploadsConfigured: hasSupabaseServiceRole(),
       },
     });
   });
@@ -414,8 +416,8 @@ export async function createApp() {
         },
         integrations: {
           openRouterConfigured: Boolean(process.env.OPENROUTER_API_KEY),
-          supabaseConfigured: Boolean(process.env.SUPABASE_URL || process.env.SupaBase_SUPABASE_URL || process.env.VITE_SUPABASE_URL),
-          uploadsConfigured: Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SupaBase_SUPABASE_SERVICE_ROLE_KEY),
+          supabaseConfigured: hasSupabaseUrl(),
+          uploadsConfigured: hasSupabaseServiceRole(),
         },
       });
     } catch (err: any) {
