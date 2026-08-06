@@ -40,7 +40,6 @@ export const AdminApp: React.FC = () => {
     }
   };
 
-  // Show loading state while checking auth
   if (isLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-[#0A0A0B]">
@@ -49,14 +48,12 @@ export const AdminApp: React.FC = () => {
     );
   }
 
-  // Show login if not authenticated
   if (!isAuthenticated) {
     return (
-      <AdminLogin 
+      <AdminLogin
         onSuccess={() => {
           clearError();
-          // Auth state should auto-update via useAuth hook
-        }} 
+        }}
       />
     );
   }
@@ -73,7 +70,7 @@ export const AdminApp: React.FC = () => {
       error={error}
       onClearError={clearError}
     >
-      {view === 'overview' && <Overview />}
+      {view === 'overview' && <Overview onNavigate={(v) => setView(v as AdminView)} />}
       {view === 'leads' && <Leads />}
       {view === 'clients' && <Clients />}
       {view === 'projects' && <Projects />}
