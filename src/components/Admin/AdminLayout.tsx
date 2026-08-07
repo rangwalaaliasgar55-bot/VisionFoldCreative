@@ -2,13 +2,15 @@ import React, { useState } from 'react';
 import {
   LayoutDashboard, Inbox, Users, FolderKanban, Image as ImageIcon,
   Receipt, Wallet, Sparkles, Settings as SettingsIcon, LogOut, Menu, X, AlertCircle, Zap, Upload, LayoutTemplate,
+  Navigation, Palette,
 } from 'lucide-react';
 import { VisionFoldLogo } from '../VisionFoldLogo';
 import { AppError } from '../../lib/errors';
 
 export type AdminView =
   | 'overview' | 'leads' | 'clients' | 'automations' | 'projects' | 'portfolio'
-  | 'invoices' | 'expenses' | 'growth' | 'media' | 'pages' | 'outreach' | 'settings';
+  | 'invoices' | 'expenses' | 'growth' | 'media' | 'pages' | 'nav' | 'theme'
+  | 'outreach' | 'settings';
 
 const NAV_ITEMS: { id: AdminView; label: string; icon: React.ElementType }[] = [
   { id: 'overview', label: 'Overview', icon: LayoutDashboard },
@@ -22,6 +24,8 @@ const NAV_ITEMS: { id: AdminView; label: string; icon: React.ElementType }[] = [
   { id: 'growth', label: 'AI Growth Copilot', icon: Sparkles },
   { id: 'media', label: 'Media / CMS', icon: ImageIcon },
   { id: 'pages', label: 'Page Builder', icon: LayoutTemplate },
+  { id: 'nav', label: 'Navigation', icon: Navigation },
+  { id: 'theme', label: 'Theme', icon: Palette },
   { id: 'outreach', label: 'Outreach CSV', icon: Upload },
   { id: 'settings', label: 'Pricing & Settings', icon: SettingsIcon },
 ];
@@ -66,7 +70,7 @@ export const AdminLayout: React.FC<{
     <div className="flex min-h-screen bg-[#0A0A0B] text-[#EDEDED]">
       <aside className="hidden w-64 shrink-0 flex-col border-r border-[#222226] bg-[#0C0C10] lg:flex">
         <div className="flex items-center gap-3 border-b border-[#222226] px-4 py-5">
-          <div className="scale-75 origin-left"><VisionFoldLogo /></div>
+          <div className="origin-left scale-75"><VisionFoldLogo /></div>
         </div>
         {NavList}
         <div className="border-t border-[#222226] p-3">
@@ -103,9 +107,7 @@ export const AdminLayout: React.FC<{
               {subtitle ? <p className="text-xs text-[#8A857C]">{subtitle}</p> : null}
             </div>
           </div>
-          <span className="hidden text-[10px] font-bold uppercase tracking-wider text-[#666] sm:inline">
-            ⌘K
-          </span>
+          <span className="hidden text-[10px] font-bold uppercase tracking-wider text-[#666] sm:inline">⌘K</span>
         </header>
 
         {error ? (

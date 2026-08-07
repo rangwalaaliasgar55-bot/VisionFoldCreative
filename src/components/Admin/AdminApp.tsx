@@ -15,6 +15,8 @@ import { RatesPanel } from './views/SettingsRatesSnippet';
 import { Media } from './views/Media';
 import { Outreach } from './views/Outreach';
 import { PageBuilder } from './views/PageBuilder';
+import { NavBuilder } from './views/NavBuilder';
+import { ThemeCustomizer } from './views/ThemeCustomizer';
 import { LoadingState } from './ui';
 import { useAuth } from '../../context/AuthContext';
 import { ErrorHandler } from '../../lib/errors';
@@ -32,6 +34,8 @@ const VIEW_META: Record<AdminView, { title: string; subtitle?: string }> = {
   growth: { title: 'AI Growth Copilot', subtitle: 'Action items for the business' },
   media: { title: 'Media & CMS', subtitle: 'Library and live page editing' },
   pages: { title: 'Page Builder', subtitle: 'Blocks, drafts, publish, revisions' },
+  nav: { title: 'Navigation', subtitle: 'Header links without redeploy' },
+  theme: { title: 'Theme', subtitle: 'Colors, logo, fonts' },
   outreach: { title: 'Outreach', subtitle: 'CSV import for calls and follow-ups' },
   settings: { title: 'Pricing & Settings', subtitle: 'Rates, maintenance, integrations' },
 };
@@ -87,17 +91,10 @@ export const AdminApp: React.FC = () => {
           Your account is a client portal login. Studio admin tools are not available on this account.
         </p>
         <div className="flex flex-wrap justify-center gap-3">
-          <a
-            href="/portal"
-            className="rounded-full bg-[#D4AF37] px-5 py-2.5 text-xs font-black uppercase tracking-wider text-black"
-          >
+          <a href="/portal" className="rounded-full bg-[#D4AF37] px-5 py-2.5 text-xs font-black uppercase tracking-wider text-black">
             Open client portal
           </a>
-          <button
-            type="button"
-            onClick={() => void handleLogout()}
-            className="rounded-full border border-white/15 px-5 py-2.5 text-xs font-bold uppercase tracking-wider text-[#B8B3AA]"
-          >
+          <button type="button" onClick={() => void handleLogout()} className="rounded-full border border-white/15 px-5 py-2.5 text-xs font-bold uppercase tracking-wider text-[#B8B3AA]">
             Sign out
           </button>
         </div>
@@ -141,6 +138,8 @@ export const AdminApp: React.FC = () => {
         {view === 'growth' && <GrowthCopilot />}
         {view === 'media' && <Media />}
         {view === 'pages' && <PageBuilder />}
+        {view === 'nav' && <NavBuilder />}
+        {view === 'theme' && <ThemeCustomizer />}
         {view === 'outreach' && <Outreach />}
         {view === 'settings' && (
           <div className="space-y-8">
