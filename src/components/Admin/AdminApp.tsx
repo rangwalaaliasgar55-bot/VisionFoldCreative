@@ -11,6 +11,7 @@ import { Invoices } from './views/Invoices';
 import { Expenses } from './views/Expenses';
 import { GrowthCopilot } from './views/GrowthCopilot';
 import { Settings } from './views/Settings';
+import { RatesPanel } from './views/SettingsRatesSnippet';
 import { Media } from './views/Media';
 import { Outreach } from './views/Outreach';
 import { LoadingState } from './ui';
@@ -55,7 +56,6 @@ export const AdminApp: React.FC = () => {
     );
   }
 
-  // Logged-in client trying to open /admin — hard stop (API also rejects)
   if (isClientBlocked) {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-[#0A0A0B] px-6 text-center text-[#EDEDED]">
@@ -65,7 +65,10 @@ export const AdminApp: React.FC = () => {
           Your account is a client portal login. Studio admin tools are not available on this account.
         </p>
         <div className="flex flex-wrap justify-center gap-3">
-          <a href="/portal" className="rounded-full bg-[#D4AF37] px-5 py-2.5 text-xs font-black uppercase tracking-wider text-black">
+          <a
+            href="/portal"
+            className="rounded-full bg-[#D4AF37] px-5 py-2.5 text-xs font-black uppercase tracking-wider text-black"
+          >
             Open client portal
           </a>
           <button
@@ -114,7 +117,12 @@ export const AdminApp: React.FC = () => {
       {view === 'growth' && <GrowthCopilot />}
       {view === 'media' && <Media />}
       {view === 'outreach' && <Outreach />}
-      {view === 'settings' && <Settings />}
+      {view === 'settings' && (
+        <div className="space-y-8">
+          <RatesPanel />
+          <Settings />
+        </div>
+      )}
     </AdminLayout>
   );
 };
