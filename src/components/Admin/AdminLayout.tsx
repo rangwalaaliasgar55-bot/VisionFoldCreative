@@ -1,14 +1,14 @@
 import React, { useState } from 'react';
 import {
   LayoutDashboard, Inbox, Users, FolderKanban, Image as ImageIcon,
-  Receipt, Wallet, Sparkles, Settings as SettingsIcon, LogOut, Menu, X, AlertCircle, Zap, Upload,
+  Receipt, Wallet, Sparkles, Settings as SettingsIcon, LogOut, Menu, X, AlertCircle, Zap, Upload, LayoutTemplate,
 } from 'lucide-react';
 import { VisionFoldLogo } from '../VisionFoldLogo';
 import { AppError } from '../../lib/errors';
 
 export type AdminView =
   | 'overview' | 'leads' | 'clients' | 'automations' | 'projects' | 'portfolio'
-  | 'invoices' | 'expenses' | 'growth' | 'media' | 'outreach' | 'settings';
+  | 'invoices' | 'expenses' | 'growth' | 'media' | 'pages' | 'outreach' | 'settings';
 
 const NAV_ITEMS: { id: AdminView; label: string; icon: React.ElementType }[] = [
   { id: 'overview', label: 'Overview', icon: LayoutDashboard },
@@ -21,6 +21,7 @@ const NAV_ITEMS: { id: AdminView; label: string; icon: React.ElementType }[] = [
   { id: 'expenses', label: 'Expenses', icon: Wallet },
   { id: 'growth', label: 'AI Growth Copilot', icon: Sparkles },
   { id: 'media', label: 'Media / CMS', icon: ImageIcon },
+  { id: 'pages', label: 'Page Builder', icon: LayoutTemplate },
   { id: 'outreach', label: 'Outreach CSV', icon: Upload },
   { id: 'settings', label: 'Pricing & Settings', icon: SettingsIcon },
 ];
@@ -81,59 +82,46 @@ export const AdminLayout: React.FC<{
       {mobileOpen ? (
         <div className="fixed inset-0 z-50 lg:hidden">
           <div className="absolute inset-0 bg-black/70" onClick={() => setMobileOpen(false)} />
-          <aside className="absolute left-0 top-0 flex h-full w-72 flex-col border-r border-[#222226] bg-[#0C0C10]">
+          <aside className="absolute left-0 top-0 flex h-full w-64 flex-col bg-[#0C0C10]">
             <div className="flex items-center justify-between border-b border-[#222226] px-4 py-4">
-              <div className="scale-75 origin-left"><VisionFoldLogo /></div>
-              <button onClick={() => setMobileOpen(false)} aria-label="Close menu"><X className="h-5 w-5 text-[#888891]" /></button>
+              <span className="text-xs font-bold uppercase tracking-wider text-[#D4AF37]">Menu</span>
+              <button type="button" onClick={() => setMobileOpen(false)}><X className="h-5 w-5" /></button>
             </div>
             {NavList}
-            <div className="border-t border-[#222226] p-3">
-              <button
-                onClick={onLogout}
-                className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-[#888891] hover:text-red-400"
-              >
-                <LogOut className="h-4 w-4" /> Sign Out
-              </button>
-            </div>
           </aside>
         </div>
       ) : null}
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex items-center justify-between border-b border-[#222226] bg-[#0A0A0B]/95 px-4 py-4 backdrop-blur sm:px-8">
+        <header className="flex items-center justify-between border-b border-[#222226] px-4 py-4 lg:px-8">
           <div className="flex items-center gap-3">
-            <button className="text-[#888891] lg:hidden" onClick={() => setMobileOpen(true)} aria-label="Open menu">
+            <button type="button" className="lg:hidden" onClick={() => setMobileOpen(true)}>
               <Menu className="h-5 w-5" />
             </button>
             <div>
-              <h1 className="text-base font-bold uppercase tracking-[0.15em] text-[#EDEDED] sm:text-lg">{title}</h1>
-              {subtitle ? <p className="mt-0.5 text-xs text-[#888891]">{subtitle}</p> : null}
+              <h1 className="text-lg font-black text-white">{title}</h1>
+              {subtitle ? <p className="text-xs text-[#8A857C]">{subtitle}</p> : null}
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <span className="hidden items-center gap-1.5 rounded-full border border-[#222226] px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-[#888891] sm:flex">
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" /> Live
-            </span>
-          </div>
+          <span className="hidden text-[10px] font-bold uppercase tracking-wider text-[#666] sm:inline">
+            ⌘K
+          </span>
         </header>
 
-        <main className="flex-1 overflow-y-auto p-4 sm:p-8">
-          {error && (
-            <div className="mb-6 flex items-start gap-3 rounded-lg border border-red-600/30 bg-red-600/10 p-4">
-              <AlertCircle className="h-5 w-5 flex-shrink-0 text-red-400 mt-0.5" />
-              <div className="flex-1">
-                <p className="text-sm font-medium text-red-300">{error.message}</p>
-              </div>
-              {onClearError && (
-                <button onClick={onClearError} className="text-red-400 hover:text-red-300 font-medium text-sm">
-                  Dismiss
-                </button>
-              )}
-            </div>
-          )}
-          {children}
-        </main>
+        {error ? (
+          <div className="mx-4 mt-4 flex items-start gap-2 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200 lg:mx-8">
+            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+            <div className="flex-1">{error.message}</div>
+            {onClearError ? (
+              <button type="button" onClick={onClearError} className="text-xs underline">Dismiss</button>
+            ) : null}
+          </div>
+        ) : null}
+
+        <div className="flex-1 overflow-auto p-4 lg:p-8">{children}</div>
       </div>
     </div>
   );
 };
+
+export default AdminLayout;
