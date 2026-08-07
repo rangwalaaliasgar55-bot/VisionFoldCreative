@@ -1,49 +1,85 @@
 import fs from 'fs';
 import path from 'path';
-import { createClient } from '@supabase/supabase-js';
+import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 
 export interface StorageProvider {
-  upload(fileBuffer: Buffer, fileName: string, mimeType: string): Promise<string>;
+  upload(fileBuffer: Buffer, fileName: string, mimeType: string, folder?: string): Promise<string>;
   getUrl(key: string): string;
   delete(key: string): Promise<void>;
+  list(prefix?: string): Promise<StorageObjectMeta[]>;
+  isCloud(): boolean;
 }
 
-/**
- * Supabase Storage Provider
- * Uses Supabase Storage for persistent file storage.
- * Files are stored in the 'visionfold-uploads' bucket.
- */
+export interface StorageObjectMeta {
+  key: string;
+  url: string;
+  size?: number;
+  mimeType?: string;
+  updatedAt?: string;
+}
+
+function supabaseEnv() {
+  const url =
+    process.env.SUPABASE_URL ||
+    process.env.SupaBase_SUPABASE_URL ||
+    process.env.VITE_SUPABASE_URL ||
+    '';
+  const key =
+    process.env.SUPABASE_SERVICE_ROLE_KEY ||
+    process.env.SupaBase_SUPABASE_SERVICE_ROLE_KEY ||
+    process.env.SUPABASE_SERVICE_KEY ||
+    '';
+  return { url, key };
+}
+
+export function isCloudStorageConfigured(): boolean {
+  const { url, key } = supabaseEnv();
+  return Boolean(url && key);
+}
+
 export class SupabaseStorageProvider implements StorageProvider {
-  private supabase: ReturnType<typeof createClient>;
-  private bucketId: string = 'visionfold-uploads';
+  private supabase: SupabaseClient;
+  private bucketId = 'visionfold-uploads';
 
   constructor() {
-    // Support both Vercel Supabase integration and standard naming
-    const supabaseUrl = process.env.SUPABASE_URL 
-      || process.env.SupaBase_SUPABASE_URL 
-      || process.env.VITE_SUPABASE_URL 
-      || '';
-    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY 
-      || process.env.SupaBase_SUPABASE_SERVICE_ROLE_KEY 
-      || process.env.SUPABASE_ANON_KEY 
-      || process.env.SupaBase_SUPABASE_ANON_KEY 
-      || '';
-
-    this.supabase = createClient(supabaseUrl, supabaseKey);
+    const { url, key } = supabaseEnv();
+    if (!url || !key) {
+      throw new Error('Supabase Storage requires SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY');
+    }
+    this.supabase = createClient(url, key, {
+      auth: { persistSession: false, autoRefreshToken: false },
+    });
   }
 
-  async upload(fileBuffer: Buffer, fileName: string, mimeType: string): Promise<string> {
-    const cleanName = fileName.replace(/[^a-zA-Z0-9.-]/g, '_');
-    const key = `${Date.now()}_${cleanName}`;
-    
-    const { data, error } = await this.supabase.storage
-      .from(this.bucketId)
-      .upload(key, fileBuffer, {
-        contentType: mimeType,
-        upsert: true,
-      });
+  isCloud() {
+    return true;
+  }
+
+  async upload(
+    fileBuffer: Buffer,
+    fileName: string,
+    mimeType: string,
+    folder = 'media'
+  ): Promise<string> {
+    const cleanName = fileName.replace(/[^a-zA-Z0-9._-]/g, '_');
+    const safeFolder = folder.replace(/[^a-zA-Z0-9_-]/g, '') || 'media';
+    const key = `${safeFolder}/${Date.now()}_${cleanName}`;
+
+    const { error } = await this.supabase.storage.from(this.bucketId).upload(key, fileBuffer, {
+      contentType: mimeType,
+      upsert: false,
+      cacheControl: '31536000',
+    });
 
     if (error) {
+      // Retry with upsert if object collision (rare)
+      if (/exists|duplicate/i.test(error.message)) {
+        const { error: err2 } = await this.supabase.storage
+          .from(this.bucketId)
+          .upload(key, fileBuffer, { contentType: mimeType, upsert: true });
+        if (err2) throw new Error(`Supabase upload failed: ${err2.message}`);
+        return key;
+      }
       throw new Error(`Supabase upload failed: ${error.message}`);
     }
 
@@ -54,7 +90,6 @@ export class SupabaseStorageProvider implements StorageProvider {
     if (key.startsWith('http://') || key.startsWith('https://') || key.startsWith('data:')) {
       return key;
     }
-    
     const { data } = this.supabase.storage.from(this.bucketId).getPublicUrl(key);
     return data.publicUrl;
   }
@@ -62,35 +97,82 @@ export class SupabaseStorageProvider implements StorageProvider {
   async delete(key: string): Promise<void> {
     const { error } = await this.supabase.storage.from(this.bucketId).remove([key]);
     if (error) {
-      console.warn(`Failed to delete ${key} from Supabase:`, error.message);
+      throw new Error(`Supabase delete failed: ${error.message}`);
     }
+  }
+
+  async list(prefix = ''): Promise<StorageObjectMeta[]> {
+    const folder = prefix.replace(/^\/+|\/+$/g, '') || '';
+    // List root and one level of folders commonly used
+    const folders = folder ? [folder] : ['', 'media', 'portfolio', 'cms'];
+    const seen = new Set<string>();
+    const out: StorageObjectMeta[] = [];
+
+    for (const f of folders) {
+      const { data, error } = await this.supabase.storage.from(this.bucketId).list(f || undefined, {
+        limit: 200,
+        sortBy: { column: 'created_at', order: 'desc' },
+      });
+      if (error) {
+        console.warn('[STORAGE] list failed for', f, error.message);
+        continue;
+      }
+      for (const obj of data || []) {
+        // Skip folder placeholders
+        if (!obj.name || obj.id === null && !obj.metadata) {
+          // may be a subfolder entry
+          if (obj.name && !obj.metadata) continue;
+        }
+        const key = f ? `${f}/${obj.name}` : obj.name;
+        if (!obj.name || seen.has(key)) continue;
+        // Heuristic: entries without metadata and without id are prefixes
+        if (!(obj as any).metadata && !(obj as any).id) continue;
+        seen.add(key);
+        out.push({
+          key,
+          url: this.getUrl(key),
+          size: (obj as any).metadata?.size ?? (obj as any).metadata?.contentLength,
+          mimeType: (obj as any).metadata?.mimetype,
+          updatedAt: obj.updated_at || obj.created_at,
+        });
+      }
+    }
+
+    return out.sort((a, b) => String(b.updatedAt || '').localeCompare(String(a.updatedAt || '')));
   }
 }
 
-/**
- * LocalDiskStorageProvider implementation.
- * Stores files in the public/uploads directory during development/local execution.
- * WARNING: Files stored here will be lost on Vercel (serverless) deployments!
- */
 export class LocalDiskStorageProvider implements StorageProvider {
   private uploadDir: string;
   private baseUrl: string;
 
   constructor() {
-    this.uploadDir = process.env.NODE_ENV === 'production'
-      ? path.join('/tmp', 'visionfold-uploads')
-      : path.join(process.cwd(), 'public', 'uploads');
+    this.uploadDir =
+      process.env.NODE_ENV === 'production'
+        ? path.join('/tmp', 'visionfold-uploads')
+        : path.join(process.cwd(), 'public', 'uploads');
     this.baseUrl = '/uploads';
     if (!fs.existsSync(this.uploadDir)) {
       fs.mkdirSync(this.uploadDir, { recursive: true });
     }
   }
 
-  async upload(fileBuffer: Buffer, fileName: string, _mimeType: string): Promise<string> {
-    const cleanName = fileName.replace(/[^a-zA-Z0-9.-]/g, '_');
-    const key = `${Date.now()}_${cleanName}`;
-    const filePath = path.join(this.uploadDir, key);
-    await fs.promises.writeFile(filePath, fileBuffer);
+  isCloud() {
+    return false;
+  }
+
+  async upload(
+    fileBuffer: Buffer,
+    fileName: string,
+    _mimeType: string,
+    folder = 'media'
+  ): Promise<string> {
+    const cleanName = fileName.replace(/[^a-zA-Z0-9._-]/g, '_');
+    const safeFolder = folder.replace(/[^a-zA-Z0-9_-]/g, '') || 'media';
+    const dir = path.join(this.uploadDir, safeFolder);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    const key = `${safeFolder}/${Date.now()}_${cleanName}`;
+    await fs.promises.writeFile(path.join(this.uploadDir, key), fileBuffer);
     return key;
   }
 
@@ -103,64 +185,50 @@ export class LocalDiskStorageProvider implements StorageProvider {
 
   async delete(key: string): Promise<void> {
     const filePath = path.join(this.uploadDir, key);
-    if (fs.existsSync(filePath)) {
-      await fs.promises.unlink(filePath);
-    }
+    if (fs.existsSync(filePath)) await fs.promises.unlink(filePath);
+  }
+
+  async list(prefix = ''): Promise<StorageObjectMeta[]> {
+    const results: StorageObjectMeta[] = [];
+    const walk = async (rel: string) => {
+      const abs = path.join(this.uploadDir, rel);
+      if (!fs.existsSync(abs)) return;
+      const entries = await fs.promises.readdir(abs, { withFileTypes: true });
+      for (const e of entries) {
+        const child = rel ? `${rel}/${e.name}` : e.name;
+        if (e.isDirectory()) {
+          await walk(child);
+        } else {
+          if (prefix && !child.startsWith(prefix)) continue;
+          const st = await fs.promises.stat(path.join(this.uploadDir, child));
+          results.push({
+            key: child,
+            url: this.getUrl(child),
+            size: st.size,
+            updatedAt: st.mtime.toISOString(),
+          });
+        }
+      }
+    };
+    await walk('');
+    return results.sort((a, b) => String(b.updatedAt || '').localeCompare(String(a.updatedAt || '')));
   }
 }
 
-/**
- * AWS S3 Storage Provider
- */
-export class S3StorageProvider implements StorageProvider {
-  async upload(_fileBuffer: Buffer, _fileName: string, _mimeType: string): Promise<string> {
-    throw new Error('S3 Storage is not configured yet. Configure AWS environment variables.');
-  }
-  getUrl(key: string): string {
-    return `https://s3.amazonaws.com/your-bucket-name/${key}`;
-  }
-  async delete(_key: string): Promise<void> {
-    throw new Error('S3 Storage is not configured yet.');
-  }
-}
-
-/**
- * Cloudflare R2 Storage Provider
- */
-export class R2StorageProvider implements StorageProvider {
-  async upload(_fileBuffer: Buffer, _fileName: string, _mimeType: string): Promise<string> {
-    throw new Error('Cloudflare R2 is not configured yet.');
-  }
-  getUrl(key: string): string {
-    return `https://r2.yourdomain.com/${key}`;
-  }
-  async delete(_key: string): Promise<void> {
-    throw new Error('Cloudflare R2 is not configured yet.');
-  }
-}
-
-// Check if Supabase is configured and use it for production
 function createStorageProvider(): StorageProvider {
-  const supabaseUrl = process.env.SUPABASE_URL || process.env.SupaBase_SUPABASE_URL;
-  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SupaBase_SUPABASE_SERVICE_ROLE_KEY;
-  
-  // Use Supabase if configured (production)
-  if (supabaseUrl && supabaseKey) {
-    console.log('[STORAGE] Using Supabase Storage (production)');
+  if (isCloudStorageConfigured()) {
+    console.log('[STORAGE] Using Supabase Storage (durable)');
     return new SupabaseStorageProvider();
   }
 
   if (process.env.NODE_ENV === 'production') {
     console.warn(
-      '[STORAGE] Supabase Storage is not configured in production — using temporary local storage. ' +
-      'Uploads may not persist across serverless invocations.'
+      '[STORAGE] Supabase not configured — uploads use /tmp and will NOT persist across serverless cold starts. Set SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY.'
     );
+  } else {
+    console.log('[STORAGE] Using local disk storage (dev)');
   }
-
-  // Fall back to local disk/temporary disk when cloud storage is not configured
-  console.log('[STORAGE] Using Local Disk Storage fallback');
   return new LocalDiskStorageProvider();
 }
 
-// Default storage provider singleton
 export const storageProvider: StorageProvider = createStorageProvider();
