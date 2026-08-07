@@ -1,7 +1,6 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { adminApi } from '../lib/adminApi';
 
-// Types for comprehensive settings
 export interface SiteIdentity {
   siteTitle: string;
   tagline: string;
@@ -76,35 +75,29 @@ export interface SettingsState {
 }
 
 interface AdminContextType {
-  // Current settings
   settings: SettingsState;
   updateSettings: (section: keyof SettingsState, data: any) => void;
+  saveNow: () => Promise<void>;
   resetSettings: () => void;
   importSettings: (json: string) => boolean;
   exportSettings: () => string;
-  
-  // Revision history
   revisionHistory: RevisionHistory[];
   undo: () => void;
   redo: () => void;
   canUndo: boolean;
   canRedo: boolean;
-  
-  // Legacy support
   baselineRate: number;
   setBaselineRate: (rate: number) => void;
   addonRates: RateSettings['addonRates'];
   setAddonRates: (rates: RateSettings['addonRates']) => void;
   metrics: MetricsSettings;
   setMetrics: (metrics: MetricsSettings) => void;
-  
-  // UI state
   isSaving: boolean;
   lastSaved: Date | null;
   hasUnsavedChanges: boolean;
+  saveError: string;
 }
 
-// Default values
 const defaultSiteIdentity: SiteIdentity = {
   siteTitle: 'VisionFold Creative',
   tagline: 'Premium Video Production Studio',
@@ -141,7 +134,8 @@ const defaultAdvanced: AdvancedSettings = {
   customCSS: '',
   customJS: '',
   googleAnalyticsId: '',
-  metaDescription: 'VisionFold Creative - Premium video production studio delivering cinematic brand stories.',
+  metaDescription:
+    'VisionFold Creative - Premium video production studio delivering cinematic brand stories.',
   enableMaintenanceMode: false,
 };
 
@@ -174,27 +168,32 @@ const defaultSettings: SettingsState = {
 const STORAGE_KEY = 'visionfold_settings_v2';
 const REVISION_LIMIT = 50;
 
-const AdminContext = createContext<AdminContextType>({
-  settings: defaultSettings,
-  updateSettings: () => {},
-  resetSettings: () => {},
-  importSettings: () => false,
-  exportSettings: () => '',
-  revisionHistory: [],
-  undo: () => {},
-  redo: () => {},
-  canUndo: false,
-  canRedo: false,
-  baselineRate: defaultRates.baselineRate,
-  setBaselineRate: () => {},
-  addonRates: defaultRates.addonRates,
-  setAddonRates: () => {},
-  metrics: defaultMetrics,
-  setMetrics: () => {},
-  isSaving: false,
-  lastSaved: null,
-  hasUnsavedChanges: false,
-});
+const AdminContext = createContext<AdminContextType>(null as any);
+
+function normalizeRemote(remote: any): SettingsState {
+  return {
+    ...defaultSettings,
+    ...remote,
+    siteIdentity: { ...defaultSiteIdentity, ...(remote?.siteIdentity || {}) },
+    appearance: { ...defaultAppearance, ...(remote?.appearance || {}) },
+    socialLinks: { ...defaultSocialLinks, ...(remote?.socialLinks || {}) },
+    apiKeys: { ...defaultApiKeys, ...(remote?.apiKeys || {}) },
+    advanced: { ...defaultAdvanced, ...(remote?.advanced || {}) },
+    rates: {
+      ...defaultRates,
+      ...(remote?.rates || {}),
+      baselineRate:
+        remote?.rates?.baselineRate ??
+        remote?.baseline_rate ??
+        defaultRates.baselineRate,
+      addonRates: {
+        ...defaultRates.addonRates,
+        ...(remote?.rates?.addonRates || remote?.addon_rates || {}),
+      },
+    },
+    metrics: { ...defaultMetrics, ...(remote?.metrics || {}) },
+  };
+}
 
 export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [settings, setSettings] = useState<SettingsState>(defaultSettings);
@@ -203,16 +202,21 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [isSaving, setIsSaving] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [saveError, setSaveError] = useState('');
+  const settingsRef = useRef(settings);
+  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Load settings from the API first, then fall back to localStorage for offline/dev use.
+  useEffect(() => {
+    settingsRef.current = settings;
+  }, [settings]);
+
   useEffect(() => {
     let cancelled = false;
-
     const loadSettings = async () => {
       try {
-        const remote = await adminApi.get<Partial<SettingsState>>('/api/settings');
+        const remote = await adminApi.get<any>('/api/settings');
         if (!cancelled) {
-          const merged = { ...defaultSettings, ...remote };
+          const merged = normalizeRemote(remote);
           setSettings(merged);
           localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
           setLastSaved(new Date());
@@ -221,170 +225,160 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         const savedSettings = localStorage.getItem(STORAGE_KEY);
         if (savedSettings && !cancelled) {
           try {
-            const parsed = JSON.parse(savedSettings);
-            setSettings({ ...defaultSettings, ...parsed });
-          } catch (e) {
-            console.error('Error parsing saved settings');
+            setSettings(normalizeRemote(JSON.parse(savedSettings)));
+          } catch {
+            /* ignore */
           }
         }
       }
     };
-
     void loadSettings();
-    return () => { cancelled = true; };
-  }, []);
-
-  // Save settings to localStorage immediately and persist to the backend when authenticated.
-  const saveSettings = useCallback((newSettings: SettingsState) => {
-    setIsSaving(true);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(newSettings));
-    void adminApi.put<SettingsState>('/api/settings', newSettings)
-      .then((saved) => {
-        setSettings({ ...defaultSettings, ...saved });
-        localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...defaultSettings, ...saved }));
-      })
-      .catch(() => {
-        // Public pages can still use the local settings cache when the admin is logged out.
-      })
-      .finally(() => {
-        setLastSaved(new Date());
-        setHasUnsavedChanges(false);
-        setIsSaving(false);
-      });
-  }, []);
-
-  // Add revision to history
-  const addRevision = useCallback((section: keyof SettingsState, changes: Record<string, { before: any; after: any }>) => {
-    const revision: RevisionHistory = {
-      id: `rev_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-      timestamp: new Date().toISOString(),
-      section,
-      changes,
+    return () => {
+      cancelled = true;
     };
-    
-    setRevisionHistory((prev) => {
-      const newHistory = prev.slice(0, revisionIndex + 1);
-      newHistory.push(revision);
-      // Limit history size
-      if (newHistory.length > REVISION_LIMIT) {
-        newHistory.shift();
-      }
-      return newHistory;
-    });
-    setRevisionIndex((prev) => Math.min(prev + 1, REVISION_LIMIT - 1));
-  }, [revisionIndex]);
+  }, []);
 
-  // Update a specific section of settings
-  const updateSettings = useCallback((section: keyof SettingsState, data: any) => {
-    setSettings((prev) => {
-      const newSettings = { ...prev, [section]: { ...prev[section], ...data } };
-      
-      // Track changes for revision
-      const changes: Record<string, { before: any; after: any }> = {};
-      Object.keys(data).forEach((key) => {
-        if (JSON.stringify(prev[section][key]) !== JSON.stringify(data[key])) {
-          changes[key] = { before: prev[section][key], after: data[key] };
-        }
-      });
-      
-      if (Object.keys(changes).length > 0) {
-        addRevision(section, changes);
-      }
-      
+  const persist = useCallback(async (next: SettingsState) => {
+    setIsSaving(true);
+    setSaveError('');
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+    try {
+      const saved = await adminApi.put<any>('/api/settings', next);
+      const merged = normalizeRemote(saved);
+      setSettings(merged);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
+      setLastSaved(new Date());
+      setHasUnsavedChanges(false);
+    } catch (err: any) {
+      setSaveError(err?.message || 'Could not save settings to server');
       setHasUnsavedChanges(true);
+    } finally {
+      setIsSaving(false);
+    }
+  }, []);
+
+  const scheduleSave = useCallback(
+    (next: SettingsState) => {
+      if (saveTimer.current) clearTimeout(saveTimer.current);
+      saveTimer.current = setTimeout(() => {
+        void persist(next);
+      }, 600);
+    },
+    [persist]
+  );
+
+  const saveNow = useCallback(async () => {
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    await persist(settingsRef.current);
+  }, [persist]);
+
+  const addRevision = useCallback(
+    (section: keyof SettingsState, changes: Record<string, { before: any; after: any }>) => {
+      const revision: RevisionHistory = {
+        id: `rev_${Date.now()}`,
+        timestamp: new Date().toISOString(),
+        section,
+        changes,
+      };
+      setRevisionHistory((prev) => {
+        const newHistory = prev.slice(0, revisionIndex + 1);
+        newHistory.push(revision);
+        if (newHistory.length > REVISION_LIMIT) newHistory.shift();
+        return newHistory;
+      });
+      setRevisionIndex((prev) => Math.min(prev + 1, REVISION_LIMIT - 1));
+    },
+    [revisionIndex]
+  );
+
+  const updateSettings = useCallback(
+    (section: keyof SettingsState, data: any) => {
+      setSettings((prev) => {
+        const newSettings = { ...prev, [section]: { ...prev[section], ...data } };
+        const changes: Record<string, { before: any; after: any }> = {};
+        Object.keys(data).forEach((key) => {
+          if (JSON.stringify((prev[section] as any)[key]) !== JSON.stringify(data[key])) {
+            changes[key] = { before: (prev[section] as any)[key], after: data[key] };
+          }
+        });
+        if (Object.keys(changes).length > 0) addRevision(section, changes);
+        setHasUnsavedChanges(true);
+        scheduleSave(newSettings);
+        return newSettings;
+      });
+    },
+    [addRevision, scheduleSave]
+  );
+
+  const resetSettings = useCallback(() => {
+    setSettings(defaultSettings);
+    void persist(defaultSettings);
+  }, [persist]);
+
+  const importSettings = useCallback(
+    (json: string): boolean => {
+      try {
+        const imported = normalizeRemote(JSON.parse(json));
+        setSettings(imported);
+        void persist(imported);
+        return true;
+      } catch {
+        return false;
+      }
+    },
+    [persist]
+  );
+
+  const exportSettings = useCallback(() => JSON.stringify(settings, null, 2), [settings]);
+
+  const undo = useCallback(() => {
+    if (revisionIndex < 0) return;
+    const revision = revisionHistory[revisionIndex];
+    setSettings((prev) => {
+      const newSettings = { ...prev, [revision.section]: { ...prev[revision.section] } };
+      Object.keys(revision.changes).forEach((key) => {
+        (newSettings[revision.section] as any)[key] = revision.changes[key].before;
+      });
+      scheduleSave(newSettings);
       return newSettings;
     });
-  }, [addRevision]);
+    setRevisionIndex((prev) => prev - 1);
+  }, [revisionIndex, revisionHistory, scheduleSave]);
 
-  // Reset settings to defaults
-  const resetSettings = useCallback(() => {
-    const oldSettings = { ...settings };
-    setSettings(defaultSettings);
-    
-    // Add revision for reset
-    const changes: Record<string, { before: any; after: any }> = {};
-    Object.keys(defaultSettings).forEach((key) => {
-      if (JSON.stringify(settings[key as keyof SettingsState]) !== JSON.stringify(defaultSettings[key as keyof SettingsState])) {
-        changes[key] = { before: settings[key as keyof SettingsState], after: defaultSettings[key as keyof SettingsState] };
-      }
-    });
-    if (Object.keys(changes).length > 0) {
-      addRevision('siteIdentity', changes);
-    }
-    
-    saveSettings(defaultSettings);
-  }, [settings, saveSettings, addRevision]);
-
-  // Import settings from JSON
-  const importSettings = useCallback((json: string): boolean => {
-    try {
-      const imported = JSON.parse(json);
-      const newSettings = { ...defaultSettings, ...imported };
-      setSettings(newSettings);
-      saveSettings(newSettings);
-      return true;
-    } catch (e) {
-      console.error('Error importing settings:', e);
-      return false;
-    }
-  }, [saveSettings]);
-
-  // Export settings as JSON
-  const exportSettings = useCallback((): string => {
-    return JSON.stringify(settings, null, 2);
-  }, [settings]);
-
-  // Undo last change
-  const undo = useCallback(() => {
-    if (revisionIndex >= 0) {
-      const revision = revisionHistory[revisionIndex];
-      setSettings((prev) => {
-        const newSettings = { ...prev };
-        Object.keys(revision.changes).forEach((key) => {
-          (newSettings[revision.section] as any)[key] = revision.changes[key].before;
-        });
-        saveSettings(newSettings);
-        return newSettings;
-      });
-      setRevisionIndex((prev) => prev - 1);
-    }
-  }, [revisionIndex, revisionHistory, saveSettings]);
-
-  // Redo last undone change
   const redo = useCallback(() => {
-    if (revisionIndex < revisionHistory.length - 1) {
-      const newIndex = revisionIndex + 1;
-      setRevisionIndex(newIndex);
-      const revision = revisionHistory[newIndex];
-      setSettings((prev) => {
-        const newSettings = { ...prev };
-        Object.keys(revision.changes).forEach((key) => {
-          (newSettings[revision.section] as any)[key] = revision.changes[key].after;
-        });
-        saveSettings(newSettings);
-        return newSettings;
+    if (revisionIndex >= revisionHistory.length - 1) return;
+    const newIndex = revisionIndex + 1;
+    setRevisionIndex(newIndex);
+    const revision = revisionHistory[newIndex];
+    setSettings((prev) => {
+      const newSettings = { ...prev, [revision.section]: { ...prev[revision.section] } };
+      Object.keys(revision.changes).forEach((key) => {
+        (newSettings[revision.section] as any)[key] = revision.changes[key].after;
       });
-    }
-  }, [revisionIndex, revisionHistory, saveSettings]);
+      scheduleSave(newSettings);
+      return newSettings;
+    });
+  }, [revisionIndex, revisionHistory, scheduleSave]);
 
-  // Legacy support methods
-  const setBaselineRate = useCallback((rate: number) => {
-    updateSettings('rates', { baselineRate: rate });
-  }, [updateSettings]);
-
-  const setAddonRates = useCallback((rates: RateSettings['addonRates']) => {
-    updateSettings('rates', { addonRates: rates });
-  }, [updateSettings]);
-
-  const setMetrics = useCallback((metrics: MetricsSettings) => {
-    updateSettings('metrics', metrics);
-  }, [updateSettings]);
+  const setBaselineRate = useCallback(
+    (rate: number) => updateSettings('rates', { baselineRate: rate }),
+    [updateSettings]
+  );
+  const setAddonRates = useCallback(
+    (rates: RateSettings['addonRates']) => updateSettings('rates', { addonRates: rates }),
+    [updateSettings]
+  );
+  const setMetrics = useCallback(
+    (metrics: MetricsSettings) => updateSettings('metrics', metrics),
+    [updateSettings]
+  );
 
   return (
     <AdminContext.Provider
       value={{
         settings,
         updateSettings,
+        saveNow,
         resetSettings,
         importSettings,
         exportSettings,
@@ -402,6 +396,7 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         isSaving,
         lastSaved,
         hasUnsavedChanges,
+        saveError,
       }}
     >
       {children}
