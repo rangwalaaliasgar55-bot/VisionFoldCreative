@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import {
   LayoutDashboard, Inbox, Users, FolderKanban, Image as ImageIcon,
   Receipt, Wallet, Sparkles, Settings as SettingsIcon, LogOut, Menu, X, AlertCircle, Zap, Upload, LayoutTemplate,
-  Navigation, Palette,
+  Navigation, Palette, Clapperboard, Film,
 } from 'lucide-react';
 import { VisionFoldLogo } from '../VisionFoldLogo';
 import { AppError } from '../../lib/errors';
@@ -10,7 +10,7 @@ import { AppError } from '../../lib/errors';
 export type AdminView =
   | 'overview' | 'leads' | 'clients' | 'automations' | 'projects' | 'portfolio'
   | 'invoices' | 'expenses' | 'growth' | 'media' | 'pages' | 'nav' | 'theme'
-  | 'outreach' | 'settings';
+  | 'autoclip' | 'review' | 'outreach' | 'settings';
 
 const NAV_ITEMS: { id: AdminView; label: string; icon: React.ElementType }[] = [
   { id: 'overview', label: 'Overview', icon: LayoutDashboard },
@@ -26,6 +26,8 @@ const NAV_ITEMS: { id: AdminView; label: string; icon: React.ElementType }[] = [
   { id: 'pages', label: 'Page Builder', icon: LayoutTemplate },
   { id: 'nav', label: 'Navigation', icon: Navigation },
   { id: 'theme', label: 'Theme', icon: Palette },
+  { id: 'autoclip', label: 'AutoClip Studio', icon: Clapperboard },
+  { id: 'review', label: 'Frame Review', icon: Film },
   { id: 'outreach', label: 'Outreach CSV', icon: Upload },
   { id: 'settings', label: 'Pricing & Settings', icon: SettingsIcon },
 ];

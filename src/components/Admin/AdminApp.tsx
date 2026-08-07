@@ -17,6 +17,8 @@ import { Outreach } from './views/Outreach';
 import { PageBuilder } from './views/PageBuilder';
 import { NavBuilder } from './views/NavBuilder';
 import { ThemeCustomizer } from './views/ThemeCustomizer';
+import { AutoClipStudio } from './views/AutoClipStudio';
+import { FrameReview } from './views/FrameReview';
 import { LoadingState } from './ui';
 import { useAuth } from '../../context/AuthContext';
 import { ErrorHandler } from '../../lib/errors';
@@ -36,6 +38,8 @@ const VIEW_META: Record<AdminView, { title: string; subtitle?: string }> = {
   pages: { title: 'Page Builder', subtitle: 'Blocks, drafts, publish, revisions' },
   nav: { title: 'Navigation', subtitle: 'Header links without redeploy' },
   theme: { title: 'Theme', subtitle: 'Colors, logo, fonts' },
+  autoclip: { title: 'AutoClip Studio', subtitle: 'AI long-form → vertical clips (external engine)' },
+  review: { title: 'Frame Review', subtitle: 'Timecode comments and cut approval' },
   outreach: { title: 'Outreach', subtitle: 'CSV import for calls and follow-ups' },
   settings: { title: 'Pricing & Settings', subtitle: 'Rates, maintenance, integrations' },
 };
@@ -140,6 +144,8 @@ export const AdminApp: React.FC = () => {
         {view === 'pages' && <PageBuilder />}
         {view === 'nav' && <NavBuilder />}
         {view === 'theme' && <ThemeCustomizer />}
+        {view === 'autoclip' && <AutoClipStudio />}
+        {view === 'review' && <FrameReview />}
         {view === 'outreach' && <Outreach />}
         {view === 'settings' && (
           <div className="space-y-8">
