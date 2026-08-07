@@ -1,9 +1,18 @@
 /**
- * VisionFold AI provider — Phase D (Google Gemini).
- * Server-side only. Never import from browser bundles that ship to clients.
+ * VisionFold AI provider — NVIDIA NIM (primary, free tier) + optional Gemini fallback.
+ * Server-side only. Never import from browser bundles.
  *
- * Uses the Generative Language REST API (no SDK required).
- * Docs: https://ai.google.dev/api/generate-content
+ * NVIDIA: OpenAI-compatible Chat Completions
+ *   POST https://integrate.api.nvidia.com/v1/chat/completions
+ *   Authorization: Bearer $NVIDIA_API_KEY
+ *
+ * Env (preferred):
+ *   NVIDIA_API_KEY or NVAPI_KEY
+ *   NVIDIA_MODEL (default: meta/llama-3.1-8b-instruct)
+ *   AI_DAILY_TOKEN_BUDGET (default 250000)
+ *
+ * Optional fallback if NVIDIA unset:
+ *   GEMINI_API_KEY
  */
 
 export interface ChatMessage {
@@ -15,16 +24,7 @@ export interface GenerateOptions {
   model?: string;
   temperature?: number;
   maxTokens?: number;
-  /** When true, instruct model toward JSON-only output. */
   json?: boolean;
-}
-
-export interface GenerateResultMeta {
-  model: string;
-  promptTokens?: number;
-  candidatesTokens?: number;
-  totalTokens?: number;
-  latencyMs: number;
 }
 
 export class AiProviderError extends Error {
@@ -43,7 +43,17 @@ export class AiProviderError extends Error {
   }
 }
 
-function getApiKey(): string | undefined {
+type ProviderName = 'nvidia' | 'gemini' | 'none';
+
+function getNvidiaKey(): string | undefined {
+  const key =
+    process.env.NVIDIA_API_KEY ||
+    process.env.NVAPI_KEY ||
+    process.env.NVIDIA_NIM_API_KEY;
+  return key?.trim() || undefined;
+}
+
+function getGeminiKey(): string | undefined {
   const key =
     process.env.GEMINI_API_KEY ||
     process.env.GOOGLE_GENERATIVE_AI_API_KEY ||
@@ -51,25 +61,41 @@ function getApiKey(): string | undefined {
   return key?.trim() || undefined;
 }
 
+export function getActiveProvider(): ProviderName {
+  if (getNvidiaKey()) return 'nvidia';
+  if (getGeminiKey()) return 'gemini';
+  return 'none';
+}
+
 export function isAiConfigured(): boolean {
-  return Boolean(getApiKey());
+  return getActiveProvider() !== 'none';
 }
 
 export function getDefaultModel(): string {
-  return (
-    process.env.GEMINI_MODEL ||
-    process.env.GOOGLE_GEMINI_MODEL ||
-    'gemini-2.0-flash'
-  );
+  const provider = getActiveProvider();
+  if (provider === 'nvidia') {
+    return (
+      process.env.NVIDIA_MODEL ||
+      process.env.NIM_MODEL ||
+      'meta/llama-3.1-8b-instruct'
+    );
+  }
+  if (provider === 'gemini') {
+    return process.env.GEMINI_MODEL || 'gemini-2.0-flash';
+  }
+  return 'none';
 }
 
-/** Soft daily token budget (per serverless instance — not a global ledger). */
 function getDailyTokenBudget(): number {
-  const n = Number(process.env.GEMINI_DAILY_TOKEN_BUDGET || '250000');
+  const n = Number(
+    process.env.AI_DAILY_TOKEN_BUDGET ||
+      process.env.NVIDIA_DAILY_TOKEN_BUDGET ||
+      process.env.GEMINI_DAILY_TOKEN_BUDGET ||
+      '250000'
+  );
   return Number.isFinite(n) && n > 0 ? n : 250000;
 }
 
-// In-memory counters (reset on cold start — still useful for runaway loops)
 let dayKey = new Date().toISOString().slice(0, 10);
 let tokensUsedToday = 0;
 let callsToday = 0;
@@ -91,6 +117,7 @@ export function getAiUsageSnapshot() {
     calls: callsToday,
     budget: getDailyTokenBudget(),
     model: getDefaultModel(),
+    provider: getActiveProvider(),
     configured: isAiConfigured(),
   };
 }
@@ -99,7 +126,7 @@ function assertBudget() {
   rollDay();
   if (tokensUsedToday >= getDailyTokenBudget()) {
     throw new AiProviderError(
-      `AI daily token budget exceeded (${tokensUsedToday}/${getDailyTokenBudget()}). Raise GEMINI_DAILY_TOKEN_BUDGET or wait until UTC midnight.`,
+      `AI daily token budget exceeded (${tokensUsedToday}/${getDailyTokenBudget()}).`,
       'QUOTA',
       429
     );
@@ -109,19 +136,10 @@ function assertBudget() {
 function recordUsage(totalTokens: number | undefined) {
   rollDay();
   callsToday += 1;
-  if (typeof totalTokens === 'number' && totalTokens > 0) {
-    tokensUsedToday += totalTokens;
-  } else {
-    // Rough floor so budget still moves if API omits usageMetadata
-    tokensUsedToday += 500;
-  }
+  tokensUsedToday += typeof totalTokens === 'number' && totalTokens > 0 ? totalTokens : 500;
 }
 
-function logAiEvent(
-  event: string,
-  data: Record<string, unknown>
-) {
-  // Structured log — visible in Vercel function logs
+function logAiEvent(event: string, data: Record<string, unknown>) {
   console.log(
     JSON.stringify({
       scope: 'visionfold.ai',
@@ -132,84 +150,55 @@ function logAiEvent(
   );
 }
 
-/** Map chat messages to Gemini contents + systemInstruction. */
-function toGeminiPayload(messages: ChatMessage[], options: GenerateOptions) {
-  const systemParts = messages
-    .filter((m) => m.role === 'system')
-    .map((m) => m.content)
-    .filter(Boolean);
-  if (options.json) {
-    systemParts.push('Respond with valid JSON only. No markdown fences.');
-  }
-
-  const contents: Array<{ role: string; parts: Array<{ text: string }> }> = [];
-  for (const m of messages) {
-    if (m.role === 'system') continue;
-    const role = m.role === 'assistant' ? 'model' : 'user';
-    const last = contents[contents.length - 1];
-    if (last && last.role === role) {
-      last.parts[0].text += '\n\n' + m.content;
-    } else {
-      contents.push({ role, parts: [{ text: m.content }] });
-    }
-  }
-
-  if (!contents.length) {
-    contents.push({ role: 'user', parts: [{ text: 'Hello' }] });
-  }
-
-  // Gemini requires alternating user/model starting with user
-  if (contents[0].role !== 'user') {
-    contents.unshift({ role: 'user', parts: [{ text: '(context)' }] });
+async function generateViaNvidia(
+  messages: ChatMessage[],
+  options: GenerateOptions
+): Promise<string> {
+  const apiKey = getNvidiaKey();
+  if (!apiKey) {
+    throw new AiProviderError('NVIDIA_API_KEY is not set', 'NOT_CONFIGURED', 503);
   }
 
   const model = options.model || getDefaultModel();
-  const body: Record<string, unknown> = {
-    contents,
-    generationConfig: {
-      temperature: options.temperature ?? 0.7,
-      maxOutputTokens: options.maxTokens ?? 1024,
-    },
-  };
-  if (systemParts.length) {
-    body.systemInstruction = { parts: [{ text: systemParts.join('\n\n') }] };
-  }
-  if (options.json) {
-    (body.generationConfig as any).responseMimeType = 'application/json';
-  }
-  return { model, body };
-}
+  const systemExtra = options.json
+    ? ' Respond with valid JSON only. No markdown fences.'
+    : '';
 
-export async function generateText(
-  messages: ChatMessage[],
-  options: GenerateOptions = {}
-): Promise<string> {
-  const apiKey = getApiKey();
-  if (!apiKey) {
-    throw new AiProviderError(
-      'AI provider is not configured. Set GEMINI_API_KEY in Vercel environment variables.',
-      'NOT_CONFIGURED',
-      503
-    );
+  const openaiMessages = messages.map((m) => ({
+    role: m.role,
+    content: m.role === 'system' ? m.content + systemExtra : m.content,
+  }));
+
+  if (options.json && !openaiMessages.some((m) => m.role === 'system')) {
+    openaiMessages.unshift({
+      role: 'system',
+      content: 'Respond with valid JSON only. No markdown fences.',
+    });
   }
 
-  assertBudget();
-
-  const { model, body } = toGeminiPayload(messages, options);
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`;
-
+  const url = 'https://integrate.api.nvidia.com/v1/chat/completions';
   const started = Date.now();
   let response: Response;
   try {
     response = await fetch(url, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+      },
+      body: JSON.stringify({
+        model,
+        messages: openaiMessages,
+        temperature: options.temperature ?? 0.7,
+        max_tokens: options.maxTokens ?? 1024,
+        stream: false,
+      }),
     });
   } catch (err: any) {
-    logAiEvent('network_error', { model, message: err?.message });
+    logAiEvent('network_error', { provider: 'nvidia', model, message: err?.message });
     throw new AiProviderError(
-      `Gemini network error: ${err?.message || 'fetch failed'}`,
+      `NVIDIA network error: ${err?.message || 'fetch failed'}`,
       'PROVIDER_ERROR',
       502
     );
@@ -228,11 +217,12 @@ export async function generateText(
     const msg =
       data?.error?.message ||
       data?.message ||
-      `Gemini HTTP ${response.status}`;
+      data?.detail ||
+      `NVIDIA HTTP ${response.status}`;
     const isQuota =
-      response.status === 429 ||
-      /quota|rate limit|resource exhausted/i.test(String(msg));
+      response.status === 429 || /quota|rate limit|resource/i.test(String(msg));
     logAiEvent('provider_error', {
+      provider: 'nvidia',
       model,
       status: response.status,
       message: msg,
@@ -245,39 +235,113 @@ export async function generateText(
     );
   }
 
-  const text =
-    data?.candidates?.[0]?.content?.parts
-      ?.map((p: any) => p?.text || '')
-      .join('')
-      .trim() || '';
-
-  const usage = data?.usageMetadata || {};
+  const text = String(data?.choices?.[0]?.message?.content || '').trim();
+  const usage = data?.usage || {};
   const totalTokens =
-    usage.totalTokenCount ??
-    (typeof usage.promptTokenCount === 'number' && typeof usage.candidatesTokenCount === 'number'
-      ? usage.promptTokenCount + usage.candidatesTokenCount
+    usage.total_tokens ??
+    (typeof usage.prompt_tokens === 'number' && typeof usage.completion_tokens === 'number'
+      ? usage.prompt_tokens + usage.completion_tokens
       : undefined);
 
   recordUsage(totalTokens);
   logAiEvent('generate_ok', {
+    provider: 'nvidia',
     model,
     latencyMs,
-    promptTokens: usage.promptTokenCount,
-    candidatesTokens: usage.candidatesTokenCount,
+    promptTokens: usage.prompt_tokens,
+    completionTokens: usage.completion_tokens,
     totalTokens,
     tokensUsedToday,
     callsToday,
   });
 
   if (!text) {
-    throw new AiProviderError(
-      'Gemini returned an empty response',
-      'BAD_RESPONSE',
-      502
-    );
+    throw new AiProviderError('NVIDIA returned an empty response', 'BAD_RESPONSE', 502);
+  }
+  return text;
+}
+
+async function generateViaGemini(
+  messages: ChatMessage[],
+  options: GenerateOptions
+): Promise<string> {
+  const apiKey = getGeminiKey();
+  if (!apiKey) {
+    throw new AiProviderError('GEMINI_API_KEY is not set', 'NOT_CONFIGURED', 503);
   }
 
+  const systemParts = messages
+    .filter((m) => m.role === 'system')
+    .map((m) => m.content);
+  if (options.json) systemParts.push('Respond with valid JSON only. No markdown fences.');
+
+  const contents: Array<{ role: string; parts: Array<{ text: string }> }> = [];
+  for (const m of messages) {
+    if (m.role === 'system') continue;
+    const role = m.role === 'assistant' ? 'model' : 'user';
+    const last = contents[contents.length - 1];
+    if (last && last.role === role) last.parts[0].text += '\n\n' + m.content;
+    else contents.push({ role, parts: [{ text: m.content }] });
+  }
+  if (!contents.length) contents.push({ role: 'user', parts: [{ text: 'Hello' }] });
+  if (contents[0].role !== 'user') {
+    contents.unshift({ role: 'user', parts: [{ text: '(context)' }] });
+  }
+
+  const model = options.model || getDefaultModel();
+  const body: Record<string, unknown> = {
+    contents,
+    generationConfig: {
+      temperature: options.temperature ?? 0.7,
+      maxOutputTokens: options.maxTokens ?? 1024,
+      ...(options.json ? { responseMimeType: 'application/json' } : {}),
+    },
+  };
+  if (systemParts.length) {
+    body.systemInstruction = { parts: [{ text: systemParts.join('\n\n') }] };
+  }
+
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`;
+  const started = Date.now();
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  const latencyMs = Date.now() - started;
+  const data = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    const msg = data?.error?.message || `Gemini HTTP ${response.status}`;
+    const isQuota = response.status === 429;
+    logAiEvent('provider_error', { provider: 'gemini', model, status: response.status, message: msg, latencyMs });
+    throw new AiProviderError(msg, isQuota ? 'QUOTA' : 'PROVIDER_ERROR', isQuota ? 429 : 502);
+  }
+
+  const text =
+    data?.candidates?.[0]?.content?.parts?.map((p: any) => p?.text || '').join('').trim() || '';
+  const usage = data?.usageMetadata || {};
+  recordUsage(usage.totalTokenCount);
+  logAiEvent('generate_ok', { provider: 'gemini', model, latencyMs, totalTokens: usage.totalTokenCount });
+  if (!text) throw new AiProviderError('Gemini returned an empty response', 'BAD_RESPONSE', 502);
   return text;
+}
+
+export async function generateText(
+  messages: ChatMessage[],
+  options: GenerateOptions = {}
+): Promise<string> {
+  const provider = getActiveProvider();
+  if (provider === 'none') {
+    throw new AiProviderError(
+      'AI is not configured. Set NVIDIA_API_KEY (recommended free tier) or GEMINI_API_KEY in Vercel.',
+      'NOT_CONFIGURED',
+      503
+    );
+  }
+  assertBudget();
+  if (provider === 'nvidia') return generateViaNvidia(messages, options);
+  return generateViaGemini(messages, options);
 }
 
 export async function generateFromPrompt(
@@ -291,20 +355,15 @@ export async function generateFromPrompt(
   return generateText(messages, options);
 }
 
-/** Generate and parse JSON; falls back to throwing BAD_RESPONSE. */
 export async function generateJson<T = unknown>(
   prompt: string,
   systemPrompt?: string,
   options: GenerateOptions = {}
 ): Promise<T> {
-  const text = await generateFromPrompt(prompt, systemPrompt, {
-    ...options,
-    json: true,
-  });
+  const text = await generateFromPrompt(prompt, systemPrompt, { ...options, json: true });
   try {
     return JSON.parse(text) as T;
   } catch {
-    // Strip accidental markdown fences
     const cleaned = text.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '');
     try {
       return JSON.parse(cleaned) as T;

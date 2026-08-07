@@ -7,6 +7,7 @@ import {
   isAiConfigured,
   getAiUsageSnapshot,
   getDefaultModel,
+  getActiveProvider,
   AiProviderError,
 } from '../lib/aiProvider';
 import {
@@ -42,14 +43,13 @@ function aiErrorPayload(err: unknown) {
 
 export function registerAiRoutes(app: Application) {
   app.get('/api/ai/status', (_req, res) => {
-    const usage = getAiUsageSnapshot();
     res.json({
       configured: isAiConfigured(),
-      provider: isAiConfigured() ? 'gemini' : 'none',
+      provider: getActiveProvider(),
       model: getDefaultModel(),
       openRouterRemoved: true,
-      phase: 'D',
-      usage,
+      phase: 'F',
+      usage: getAiUsageSnapshot(),
     });
   });
 
@@ -66,7 +66,7 @@ export function registerAiRoutes(app: Application) {
         }
         if (!isAiConfigured()) {
           return res.status(503).json({
-            error: 'AI is not configured. Set GEMINI_API_KEY in Vercel.',
+            error: 'AI is not configured. Set NVIDIA_API_KEY in Vercel.',
             code: 'NOT_CONFIGURED',
             configured: false,
             usage: getAiUsageSnapshot(),
@@ -75,7 +75,12 @@ export function registerAiRoutes(app: Application) {
         const text = messages
           ? await generateText(messages, { temperature, maxTokens, model })
           : await generateFromPrompt(prompt, systemPrompt, { temperature, maxTokens, model });
-        res.json({ text, configured: true, source: 'gemini', usage: getAiUsageSnapshot() });
+        res.json({
+          text,
+          configured: true,
+          source: getActiveProvider(),
+          usage: getAiUsageSnapshot(),
+        });
       } catch (err: unknown) {
         const { status, body } = aiErrorPayload(err);
         res.status(status).json(body);
@@ -96,7 +101,7 @@ export function registerAiRoutes(app: Application) {
         }
         if (!isAiConfigured()) {
           return res.status(503).json({
-            error: 'AI chat needs GEMINI_API_KEY.',
+            error: 'AI chat needs NVIDIA_API_KEY.',
             code: 'NOT_CONFIGURED',
             configured: false,
           });
@@ -111,7 +116,12 @@ export function registerAiRoutes(app: Application) {
           ...messages.slice(-10),
         ];
         const text = await generateText(conversationMessages, { temperature: 0.7, maxTokens: 600 });
-        res.json({ text, configured: true, source: 'gemini', usage: getAiUsageSnapshot() });
+        res.json({
+          text,
+          configured: true,
+          source: getActiveProvider(),
+          usage: getAiUsageSnapshot(),
+        });
       } catch (err: unknown) {
         const { status, body } = aiErrorPayload(err);
         res.status(status).json(body);
@@ -156,11 +166,10 @@ export function registerAiRoutes(app: Application) {
                 'Deadline, revisions, and brand references?',
               ],
         configured: true,
-        source: questions.length ? 'gemini' : 'template',
+        source: questions.length ? getActiveProvider() : 'template',
         usage: getAiUsageSnapshot(),
       });
     } catch (err: unknown) {
-      // Soft-fail to template so the contact form never dies
       if (err instanceof AiProviderError && err.code === 'NOT_CONFIGURED') {
         return res.json({
           questions: [
@@ -198,7 +207,7 @@ export function registerAiRoutes(app: Application) {
 
         if (!isAiConfigured()) {
           return res.json({
-            summary: `Studio snapshot (rules-based, AI offline): ${projects.length} projects, ₹${revenue.toLocaleString('en-IN')} paid revenue, ${openLeads} open leads. Set GEMINI_API_KEY for AI narrative insights.`,
+            summary: `Studio snapshot (rules-based, AI offline): ${projects.length} projects, ₹${revenue.toLocaleString('en-IN')} paid revenue, ${openLeads} open leads. Set NVIDIA_API_KEY for AI narrative insights.`,
             opportunities: openLeads
               ? [`Follow up ${openLeads} open lead(s) from the contact form.`]
               : ['No open leads — push WhatsApp CTA on the homepage.'],
@@ -247,7 +256,7 @@ export function registerAiRoutes(app: Application) {
           followUps: Array.isArray(payload.followUps) ? payload.followUps : [],
           appreciation: Array.isArray(payload.appreciation) ? payload.appreciation : [],
           configured: true,
-          source: 'gemini',
+          source: getActiveProvider(),
           usage: getAiUsageSnapshot(),
         });
       } catch (err: unknown) {
@@ -283,7 +292,12 @@ export function registerAiRoutes(app: Application) {
           temperature: 0.7,
           maxTokens: 600,
         });
-        res.json({ text, configured: true, source: 'gemini', usage: getAiUsageSnapshot() });
+        res.json({
+          text,
+          configured: true,
+          source: getActiveProvider(),
+          usage: getAiUsageSnapshot(),
+        });
       } catch (err: unknown) {
         const { status, body } = aiErrorPayload(err);
         res.status(status).json(body);
