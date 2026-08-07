@@ -3,6 +3,7 @@ import { Lock, Loader2, AlertCircle, Eye, EyeOff } from 'lucide-react';
 import { VisionFoldLogo } from '../VisionFoldLogo';
 import { Input, PrimaryButton } from './ui';
 import { useAuth } from '../../context/AuthContext';
+import { prefersReducedMotion } from '../../lib/motion';
 
 export const AdminLogin: React.FC<{ onSuccess: () => void }> = ({ onSuccess }) => {
   const { login } = useAuth();
@@ -12,6 +13,7 @@ export const AdminLogin: React.FC<{ onSuccess: () => void }> = ({ onSuccess }) =
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const firstInputRef = useRef<HTMLInputElement>(null);
+  const reduce = typeof window !== 'undefined' && prefersReducedMotion();
 
   useEffect(() => {
     firstInputRef.current?.focus();
@@ -29,7 +31,10 @@ export const AdminLogin: React.FC<{ onSuccess: () => void }> = ({ onSuccess }) =
     try {
       const result = await login(email.trim().toLowerCase(), password);
       if (!result.success) {
-        setError(result.error || 'Invalid email or password. Check JWT_SECRET and admin user on the server.');
+        setError(
+          result.error ||
+            'Invalid email or password. Check JWT_SECRET and admin user on the server.'
+        );
         return;
       }
       onSuccess();
@@ -42,7 +47,11 @@ export const AdminLogin: React.FC<{ onSuccess: () => void }> = ({ onSuccess }) =
 
   return (
     <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#050507] px-4 py-8">
-      <div className="pointer-events-none absolute -left-20 top-10 h-72 w-72 rounded-full bg-[#D4AF37]/15 blur-3xl" />
+      <div
+        className={`pointer-events-none absolute -left-20 top-10 h-72 w-72 rounded-full bg-[#D4AF37]/15 blur-3xl ${
+          reduce ? '' : 'animate-pulse'
+        }`}
+      />
       <div className="pointer-events-none absolute -right-16 bottom-10 h-64 w-64 rounded-full bg-white/5 blur-3xl" />
       <div
         className="pointer-events-none absolute inset-0 opacity-30"
@@ -55,8 +64,8 @@ export const AdminLogin: React.FC<{ onSuccess: () => void }> = ({ onSuccess }) =
 
       <form
         onSubmit={handleLogin}
-        className="relative w-full max-w-sm rounded-2xl border border-white/10 bg-[#0E0E12]/95 p-8 shadow-2xl backdrop-blur-xl"
-        style={{ transform: 'perspective(1000px) rotateX(2deg)', transformStyle: 'preserve-3d' }}
+        className="relative w-full max-w-sm rounded-2xl border border-white/10 bg-[#0E0E12]/95 p-8 shadow-2xl backdrop-blur-xl transition-transform duration-500"
+        style={reduce ? undefined : { transform: 'perspective(1000px) rotateX(2deg)' }}
         noValidate
       >
         <div className="mb-8 flex flex-col items-center text-center">
@@ -66,7 +75,9 @@ export const AdminLogin: React.FC<{ onSuccess: () => void }> = ({ onSuccess }) =
           <div className="flex h-12 w-12 items-center justify-center rounded-full border border-[#D4AF37]/30 bg-[#D4AF37]/10">
             <Lock className="h-5 w-5 text-[#D4AF37]" />
           </div>
-          <h1 className="mt-4 text-lg font-bold uppercase tracking-[0.2em] text-[#EDEDED]">Studio Dashboard</h1>
+          <h1 className="mt-4 text-lg font-bold uppercase tracking-[0.2em] text-[#EDEDED]">
+            Studio Dashboard
+          </h1>
           <p className="mt-1 text-xs uppercase tracking-[0.2em] text-[#888891]">Admin sign in</p>
         </div>
 
@@ -79,7 +90,9 @@ export const AdminLogin: React.FC<{ onSuccess: () => void }> = ({ onSuccess }) =
 
         <div className="space-y-4">
           <div>
-            <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-[0.2em] text-[#888891]">Email</label>
+            <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-[0.2em] text-[#888891]">
+              Email
+            </label>
             <Input
               ref={firstInputRef}
               type="email"
@@ -91,7 +104,9 @@ export const AdminLogin: React.FC<{ onSuccess: () => void }> = ({ onSuccess }) =
             />
           </div>
           <div>
-            <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-[0.2em] text-[#888891]">Password</label>
+            <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-[0.2em] text-[#888891]">
+              Password
+            </label>
             <div className="relative">
               <Input
                 type={showPw ? 'text' : 'password'}
