@@ -11,20 +11,26 @@ export async function createApp() {
   // Required behind Vercel so express-rate-limit can use X-Forwarded-For safely
   app.set('trust proxy', 1);
 
-  app.use(helmet({
-    contentSecurityPolicy: {
-      directives: {
-        defaultSrc: ["'self'"],
-        scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
-        styleSrc: ["'self'", "'unsafe-inline'"],
-        imgSrc: ["'self'", 'data:', 'https:', 'blob:'],
-        mediaSrc: ["'self'", 'data:', 'https:', 'blob:'],
-        connectSrc: ["'self'", 'https://openrouter.ai'],
-        fontSrc: ["'self'", 'data:'],
+  app.use(
+    helmet({
+      contentSecurityPolicy: {
+        directives: {
+          defaultSrc: ["'self'"],
+          scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
+          styleSrc: ["'self'", "'unsafe-inline'"],
+          imgSrc: ["'self'", 'data:', 'https:', 'blob:'],
+          mediaSrc: ["'self'", 'data:', 'https:', 'blob:'],
+          connectSrc: [
+            "'self'",
+            'https://*.supabase.co',
+            'https://generativelanguage.googleapis.com',
+          ],
+          fontSrc: ["'self'", 'data:'],
+        },
       },
-    },
-    crossOriginEmbedderPolicy: false,
-  }));
+      crossOriginEmbedderPolicy: false,
+    })
+  );
 
   app.use(express.json({ limit: '20mb' }));
   app.use(express.urlencoded({ extended: true, limit: '20mb' }));

@@ -2,7 +2,6 @@ import { Application } from 'express';
 import bcrypt from 'bcryptjs';
 import { dbManager } from '../lib/db';
 import { User } from '../types';
-import { storageProvider } from '../lib/storage';
 import {
   messageLimiter,
   authenticateToken,
@@ -83,7 +82,6 @@ export function registerBusinessRoutes(app: Application) {
   app.put('/api/clients/:id', authenticateToken, requireAdmin, async (req, res) => {
     const id = req.params.id;
     const { name, email, company, phone, password, role } = req.body || {};
-    // Never allow elevating a client to admin via this endpoint
     if (role === 'admin') {
       return res.status(403).json({ error: 'Cannot assign admin role via client API', code: 'FORBIDDEN_ROLE' });
     }
@@ -196,7 +194,6 @@ export function registerBusinessRoutes(app: Application) {
     res.json(await dbManager.createInvoice(parsed.data));
   });
 
-  // Status / amount changes are admin-only. Clients may only view invoices.
   app.patch('/api/invoices/:id', authenticateToken, requireAdmin, async (req: AuthenticatedRequest, res) => {
     const parsed = invoiceUpdateSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten().fieldErrors });
@@ -220,26 +217,7 @@ export function registerBusinessRoutes(app: Application) {
     res.json({ success: true });
   });
 
-  app.post('/api/upload', authenticateToken, requireAdmin, async (req, res) => {
-    try {
-      const { fileName, fileData, mimeType } = req.body || {};
-      if (!fileData || !fileName) {
-        return res.status(400).json({ error: 'fileData and fileName are required' });
-      }
-      const buffer = Buffer.from(String(fileData).replace(/^data:[^;]+;base64,/, ''), 'base64');
-      if (buffer.length > 15 * 1024 * 1024) {
-        return res.status(400).json({ error: 'File too large (max 15MB)' });
-      }
-      const detected = mimeType || 'image/png';
-      if (!['image/jpeg', 'image/png', 'image/webp', 'video/mp4'].includes(detected)) {
-        return res.status(400).json({ error: 'Invalid file type' });
-      }
-      const key = await storageProvider.upload(buffer, fileName, detected);
-      res.json({ key, url: storageProvider.getUrl(key) });
-    } catch (err: any) {
-      res.status(500).json({ error: err.message || 'Upload failed' });
-    }
-  });
+  // Upload moved to routesMedia.ts (Phase E)
 
   registerAiRoutes(app);
 }
