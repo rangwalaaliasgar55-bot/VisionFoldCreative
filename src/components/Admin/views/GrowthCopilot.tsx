@@ -8,6 +8,8 @@ interface GrowthPayload {
   opportunities: string[];
   followUps: string[];
   appreciation: string[];
+  configured?: boolean;
+  source?: string;
 }
 
 const Section: React.FC<{ title: string; items: string[] }> = ({ title, items }) => (
@@ -53,7 +55,7 @@ export const GrowthCopilot: React.FC = () => {
       const payload = await adminApi.post<GrowthPayload>('/api/ai/insights', {});
       setResult(payload);
     } catch (err: any) {
-      setError(err.message || 'Growth insights failed — check OPENROUTER_API_KEY');
+      setError(err.message || 'Growth insights failed — AI provider not configured (Phase D: GEMINI_API_KEY)');
     } finally {
       setLoading(false);
     }
@@ -75,15 +77,23 @@ export const GrowthCopilot: React.FC = () => {
     setSocialLoading(true);
     setError('');
     try {
-      const res = await adminApi.post<{ text?: string; content?: string }>('/api/ai/generate', {
-        prompt: `Write 3 short Instagram/X captions for VisionFold Creative about: ${socialDraft || topic}. Premium tone, no hashtag spam. Number them.`,
-        systemPrompt: 'You are a social strategist for a luxury video editing studio in India.',
-        temperature: 0.85,
-        maxTokens: 500,
-      });
-      setSocialOut((res as any).text || (res as any).content || JSON.stringify(res));
+      const res = await adminApi.post<{ text?: string; content?: string; error?: string; configured?: boolean }>(
+        '/api/ai/generate',
+        {
+          prompt: `Write 3 short Instagram/X captions for VisionFold Creative about: ${socialDraft || topic}. Premium tone, no hashtag spam. Number them.`,
+          systemPrompt: 'You are a social strategist for a luxury video editing studio in India.',
+          temperature: 0.85,
+          maxTokens: 500,
+        }
+      );
+      if ((res as any).error) {
+        setError((res as any).error);
+        setSocialOut('');
+      } else {
+        setSocialOut((res as any).text || (res as any).content || '');
+      }
     } catch (err: any) {
-      setError(err.message || 'Social draft failed');
+      setError(err.message || 'Social draft unavailable until Gemini is wired (Phase D)');
     } finally {
       setSocialLoading(false);
     }
@@ -93,8 +103,8 @@ export const GrowthCopilot: React.FC = () => {
     <div className="space-y-6">
       <Card>
         <CardHeader
-          title="AI Growth Copilot"
-          subtitle="Business brief from live leads, projects, and invoices"
+          title="Growth Copilot"
+          subtitle="Business brief from live leads, projects, and invoices (rules-based until Gemini Phase D)"
           action={
             <PrimaryButton onClick={() => void generate()} disabled={loading}>
               {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />} Generate Brief
@@ -105,10 +115,13 @@ export const GrowthCopilot: React.FC = () => {
           {error ? <p className="mb-4 text-sm text-red-400">{error}</p> : null}
           {!result ? (
             <p className="text-sm text-[#888891]">
-              Generate an AI brief of where the studio stands, growth opportunities, follow-ups, and clients worth appreciating.
+              Generate a studio snapshot from real data. With AI offline, this uses deterministic rules — not fake LLM text.
             </p>
           ) : (
             <div className="space-y-6">
+              {result.source === 'rules' ? (
+                <p className="text-[10px] font-bold uppercase tracking-wider text-[#888891]">Source: rules (AI offline)</p>
+              ) : null}
               <div className="rounded-lg border border-[#D4AF37]/30 bg-[#D4AF37]/5 px-5 py-4">
                 <h4 className="mb-2 text-xs font-bold uppercase tracking-wider text-[#D4AF37]">Summary</h4>
                 <p className="text-sm text-[#EDEDED]">{result.summary}</p>
@@ -126,7 +139,7 @@ export const GrowthCopilot: React.FC = () => {
       <Card>
         <CardHeader
           title="Brand image prompts"
-          subtitle="Copy-ready prompts for Midjourney / ChatGPT Images / Flux — no API required"
+          subtitle="Copy-ready prompts for Midjourney / image models — local templates, no API"
           action={
             <PrimaryButton type="button" onClick={makePrompts}>
               <ImageIcon className="h-4 w-4" /> Generate prompts
@@ -155,7 +168,7 @@ export const GrowthCopilot: React.FC = () => {
       <Card>
         <CardHeader
           title="Social caption drafts"
-          subtitle="Uses OpenRouter when OPENROUTER_API_KEY is set"
+          subtitle="Requires GEMINI_API_KEY after Phase D — OpenRouter removed"
           action={
             <PrimaryButton type="button" onClick={() => void draftSocial()} disabled={socialLoading}>
               {socialLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />} Draft captions

@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { dbManager } from '../lib/db';
 import { User } from '../types';
+import { isAiConfigured } from '../lib/aiProvider';
 import {
   JWT_SECRET,
   authLimiter,
@@ -27,7 +28,6 @@ export function registerAuthAndCmsRoutes(app: Application) {
 
     let userWithHash = await dbManager.findUserByEmail(email);
 
-    // If admin bootstrap credentials are used but user row is missing (empty Supabase), create it.
     if (!userWithHash && isAdminBootstrap) {
       const passwordHash = bcrypt.hashSync(password, 10);
       const created = await dbManager.createUser({
@@ -56,17 +56,15 @@ export function registerAuthAndCmsRoutes(app: Application) {
       valid = false;
     }
 
-    // Bootstrap for studio admin when hash is missing/mismatched (common with Supabase-only rows)
     if (!valid && isAdminBootstrap) {
       valid = true;
       const newHash = bcrypt.hashSync(password, 10);
       try {
         await dbManager.updateUserPassword(userWithHash.id, newHash);
       } catch {
-        /* Vercel FS may be read-only; cookie auth still works this request */
+        /* Vercel FS may be read-only */
       }
       (userWithHash as any).passwordHash = newHash;
-      // Ensure role is admin for bootstrap account
       if ((userWithHash as any).role !== 'admin') {
         (userWithHash as any).role = 'admin';
       }
@@ -194,9 +192,14 @@ export function registerAuthAndCmsRoutes(app: Application) {
       ...settings,
       integrations: {
         ...(settings.integrations || {}),
-        supabaseConfigured: Boolean(process.env.SUPABASE_URL || process.env.SupaBase_SUPABASE_URL || process.env.VITE_SUPABASE_URL),
-        uploadsConfigured: Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SupaBase_SUPABASE_SERVICE_ROLE_KEY),
-        openRouterConfigured: Boolean(process.env.OPENROUTER_API_KEY),
+        supabaseConfigured: Boolean(
+          process.env.SUPABASE_URL || process.env.SupaBase_SUPABASE_URL || process.env.VITE_SUPABASE_URL
+        ),
+        uploadsConfigured: Boolean(
+          process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SupaBase_SUPABASE_SERVICE_ROLE_KEY
+        ),
+        aiConfigured: isAiConfigured(),
+        openRouterRemoved: true,
       },
     });
   });
@@ -205,7 +208,6 @@ export function registerAuthAndCmsRoutes(app: Application) {
     res.json(await dbManager.updateSettings(req.body || {}));
   });
 
-  // ——— Maintenance mode (public status + admin control) ———
   app.get('/api/maintenance', async (_req, res) => {
     try {
       const settings = await dbManager.getSettings();
@@ -236,7 +238,6 @@ export function registerAuthAndCmsRoutes(app: Application) {
     }
   });
 
-  // ——— Public client ratings (from revision comments tagged Client rating:) ———
   app.get('/api/public/ratings', async (_req, res) => {
     try {
       const revisions = await dbManager.getRevisions();
@@ -254,9 +255,8 @@ export function registerAuthAndCmsRoutes(app: Application) {
         })
         .slice(0, 24);
       res.json({ ratings });
-    } catch (err: any) {
+    } catch {
       res.json({ ratings: [] });
     }
   });
-
 }
