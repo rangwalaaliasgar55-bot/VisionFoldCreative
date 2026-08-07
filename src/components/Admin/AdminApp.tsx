@@ -33,11 +33,11 @@ const VIEW_META: Record<AdminView, { title: string; subtitle?: string }> = {
   invoices: { title: 'Invoices', subtitle: 'Billing and payment status' },
   expenses: { title: 'Expenses', subtitle: 'Track studio costs' },
   growth: { title: 'AI Growth Copilot', subtitle: 'Action items for the business' },
-  media: { title: 'Media & CMS', subtitle: 'Library and live page editing' },
+  media: { title: 'Media & CMS', subtitle: 'Upload library and portfolio' },
   pages: { title: 'Page Builder', subtitle: 'Blocks, drafts, publish, revisions' },
   nav: { title: 'Navigation', subtitle: 'Header links without redeploy' },
   theme: { title: 'Theme', subtitle: 'Colors, logo, fonts' },
-  autoclip: { title: 'AutoClip Studio', subtitle: 'AI long-form → vertical clips (external engine)' },
+  autoclip: { title: 'AutoClip Studio', subtitle: 'Optional external clip engine' },
   review: { title: 'Frame Review', subtitle: 'Timecode comments and cut approval' },
   outreach: { title: 'Outreach', subtitle: 'CSV import for calls and follow-ups' },
   settings: { title: 'Pricing & Settings', subtitle: 'Rates, site config, integrations, live preview' },
@@ -90,17 +90,10 @@ export const AdminApp: React.FC = () => {
       <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-[#0A0A0B] px-6 text-center text-[#EDEDED]">
         <p className="text-[10px] font-black uppercase tracking-[0.25em] text-[#D4AF37]">Access denied</p>
         <h1 className="text-2xl font-black">Admin only</h1>
-        <p className="max-w-md text-sm text-[#8A857C]">
-          Your account is a client portal login. Studio admin tools are not available on this account.
-        </p>
-        <div className="flex flex-wrap justify-center gap-3">
-          <a href="/portal" className="rounded-full bg-[#D4AF37] px-5 py-2.5 text-xs font-black uppercase tracking-wider text-black">
-            Open client portal
-          </a>
-          <button type="button" onClick={() => void handleLogout()} className="rounded-full border border-white/15 px-5 py-2.5 text-xs font-bold uppercase tracking-wider text-[#B8B3AA]">
-            Sign out
-          </button>
-        </div>
+        <p className="max-w-md text-sm text-[#8A857C]">Client accounts use the portal only.</p>
+        <a href="/portal" className="rounded-full bg-[#D4AF37] px-5 py-2.5 text-xs font-black uppercase tracking-wider text-black">
+          Open client portal
+        </a>
       </div>
     );
   }
