@@ -127,6 +127,25 @@ export const Automations: React.FC = () => {
         </p>
       </div>
 
+      <div className="rounded-2xl border border-white/10 bg-[#0C0C10] p-6">
+        <h3 className="font-bold text-white">Automation strategy (practical)</h3>
+        <p className="mt-2 text-sm leading-6 text-[#B8B3AA]">
+          Build in this order so nothing is half-broken: (1) capture leads via Contact + Outreach Excel/CSV,
+          (2) score with NVIDIA on submit, (3) email confirms via Resend, (4) WhatsApp deep-links for human reply,
+          (5) X drafts only until paid API. Never auto-post to X on free tier.
+        </p>
+        <ol className="mt-4 list-decimal space-y-2 pl-5 text-sm text-[#B8B3AA]">
+          <li><span className="text-white">Week 1:</span> Outreach import + lead score on contact form.</li>
+          <li><span className="text-white">Week 2:</span> Resend — new lead confirm + invoice status emails.</li>
+          <li><span className="text-white">Week 3:</span> WhatsApp click-to-chat templates from Admin leads.</li>
+          <li><span className="text-white">Later:</span> Meta WhatsApp Cloud API (after Business verification).</li>
+          <li><span className="text-white">Never free:</span> full X auto-publish — keep human Approve on drafts.</li>
+        </ol>
+        <p className="mt-4 text-xs text-[#666]">
+          Env when you enable: RESEND_API_KEY, optional WHATSAPP_PHONE. NVIDIA_API_KEY already used for drafts.
+        </p>
+      </div>
+
       <div className="grid gap-4 md:grid-cols-2">
         {CARDS.map((c) => (
           <div key={c.id} className="rounded-2xl border border-white/10 bg-[#0C0C10] p-5">
