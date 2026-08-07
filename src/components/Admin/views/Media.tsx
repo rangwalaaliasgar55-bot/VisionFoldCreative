@@ -31,54 +31,6 @@ interface MediaAsset {
   source?: string;
 }
 
-const MAX_CLIENT_BYTES = 4 * 1024 * 1024;
-
-function fileToDataUrl(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(String(reader.result || ''));
-    reader.onerror = () => reject(new Error('Could not read file'));
-    reader.readAsDataURL(file);
-  });
-}
-
-/** Downscale large images so they fit serverless body limits. */
-async function maybeCompressImage(file: File): Promise<{ dataUrl: string; mimeType: string; name: string }> {
-  if (!file.type.startsWith('image/') || file.type === 'image/gif') {
-    return { dataUrl: await fileToDataUrl(file), mimeType: file.type || 'application/octet-stream', name: file.name };
-  }
-  if (file.size <= MAX_CLIENT_BYTES * 0.7) {
-    return { dataUrl: await fileToDataUrl(file), mimeType: file.type, name: file.name };
-  }
-
-  const bitmap = await createImageBitmap(file);
-  const maxEdge = 1920;
-  let { width, height } = bitmap;
-  if (width > maxEdge || height > maxEdge) {
-    const scale = maxEdge / Math.max(width, height);
-    width = Math.round(width * scale);
-    height = Math.round(height * scale);
-  }
-  const canvas = document.createElement('canvas');
-  canvas.width = width;
-  canvas.height = height;
-  const ctx = canvas.getContext('2d');
-  if (!ctx) {
-    bitmap.close();
-    return { dataUrl: await fileToDataUrl(file), mimeType: file.type, name: file.name };
-  }
-  ctx.drawImage(bitmap, 0, 0, width, height);
-  bitmap.close();
-
-  const mimeType = file.type === 'image/png' ? 'image/png' : 'image/jpeg';
-  const dataUrl = canvas.toDataURL(mimeType, 0.82);
-  const name =
-    mimeType === 'image/jpeg' && !/\.jpe?g$/i.test(file.name)
-      ? file.name.replace(/\.[^.]+$/, '') + '.jpg'
-      : file.name;
-  return { dataUrl, mimeType, name };
-}
-
 export const Media: React.FC = () => {
   const [items, setItems] = useState<PortfolioItem[]>([]);
   const [assets, setAssets] = useState<MediaAsset[]>([]);
@@ -90,6 +42,7 @@ export const Media: React.FC = () => {
   const [lastKey, setLastKey] = useState('');
   const [copied, setCopied] = useState('');
   const [cloud, setCloud] = useState<boolean | null>(null);
+  const [directUpload, setDirectUpload] = useState(false);
   const [folder, setFolder] = useState('portfolio');
   const [statusHint, setStatusHint] = useState('');
 
@@ -98,16 +51,19 @@ export const Media: React.FC = () => {
     try {
       const [portfolio, media, status] = await Promise.all([
         adminApi.get<any>('/api/portfolio').catch(() => []),
-        adminApi.get<{ assets: MediaAsset[]; cloud: boolean }>('/api/media').catch(() => ({
+        adminApi.get<{ assets: MediaAsset[]; cloud: boolean; directUpload?: boolean }>('/api/media').catch(() => ({
           assets: [],
           cloud: false,
         })),
-        adminApi.get<{ cloud: boolean; hint?: string }>('/api/media/status').catch(() => null),
+        adminApi
+          .get<{ cloud: boolean; hint?: string; directUpload?: boolean }>('/api/media/status')
+          .catch(() => null),
       ]);
       const list = Array.isArray(portfolio) ? portfolio : portfolio.portfolio || [];
       setItems(list);
       setAssets(media.assets || []);
       setCloud(Boolean(media.cloud ?? status?.cloud));
+      setDirectUpload(Boolean(media.directUpload ?? status?.directUpload));
       if (status?.hint) setStatusHint(status.hint);
     } catch {
       setItems([]);
@@ -121,6 +77,45 @@ export const Media: React.FC = () => {
     void load();
   }, [load]);
 
+  /** Preferred path: signed URL → browser PUT → register (bypasses Vercel body limit). */
+  const uploadDirect = async (file: File) => {
+    const signed = await adminApi.post<{
+      key: string;
+      signedUrl: string;
+      publicUrl: string;
+      mimeType: string;
+    }>('/api/media/signed-upload', {
+      fileName: file.name,
+      mimeType: file.type || 'application/octet-stream',
+      size: file.size,
+      folder,
+    });
+
+    const put = await fetch(signed.signedUrl, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': signed.mimeType || file.type || 'application/octet-stream',
+      },
+      body: file,
+    });
+
+    if (!put.ok) {
+      const t = await put.text().catch(() => '');
+      throw new Error(`Direct upload to storage failed (${put.status}). ${t.slice(0, 120)}`);
+    }
+
+    const registered = await adminApi.post<{ url: string; key: string }>('/api/media/register', {
+      key: signed.key,
+      url: signed.publicUrl,
+      fileName: file.name,
+      mimeType: signed.mimeType || file.type,
+      size: file.size,
+      folder,
+    });
+
+    return { url: registered.url || signed.publicUrl, key: registered.key || signed.key };
+  };
+
   const onFile = async (file: File | null) => {
     if (!file) return;
     setUploading(true);
@@ -130,42 +125,26 @@ export const Media: React.FC = () => {
     setLastKey('');
 
     try {
-      if (file.size > 12 * 1024 * 1024) {
-        throw new Error('File is too large. Use under ~4MB (images are auto-compressed when possible).');
-      }
-
-      const prepared = await maybeCompressImage(file);
-      // Rough base64 size check
-      if (prepared.dataUrl.length > MAX_CLIENT_BYTES * 1.4) {
+      if (!directUpload && !cloud) {
         throw new Error(
-          'After encoding this file is still too large for upload. Try a smaller image or shorter clip.'
+          'Storage not configured. Set SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY on Vercel, create public bucket visionfold-uploads, redeploy.'
         );
       }
 
-      const result = await adminApi.post<{ key: string; url: string; cloud?: boolean }>(
-        '/api/upload',
-        {
-          fileName: prepared.name,
-          fileData: prepared.dataUrl,
-          mimeType: prepared.mimeType,
-          folder,
-        }
-      );
-
-      if (!result?.url) {
-        throw new Error('Upload returned no URL — check Supabase storage config');
-      }
+      // Always prefer direct upload when cloud is available
+      const result = await uploadDirect(file);
+      if (!result?.url) throw new Error('Upload returned no URL');
 
       setLastUrl(result.url);
       setLastKey(result.key);
-      setUploadMsg(`Uploaded ${prepared.name} → ${folder}`);
-      if (typeof result.cloud === 'boolean') setCloud(result.cloud);
+      setUploadMsg(`Uploaded ${file.name} → ${folder} (direct to Supabase)`);
+      setCloud(true);
       await load();
     } catch (err: any) {
-      const msg =
+      setUploadError(
         err?.message ||
-        'Upload failed. Sign out/in if auth error, and set SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY on Vercel.';
-      setUploadError(msg);
+          'Upload failed. Check Supabase keys, public bucket visionfold-uploads, and that you are signed in as admin.'
+      );
     } finally {
       setUploading(false);
     }
@@ -222,13 +201,13 @@ export const Media: React.FC = () => {
           <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#D4AF37]">CMS</p>
           <h2 className="text-xl font-black text-white">Media & content</h2>
           <p className="text-sm text-[#8A857C]">
-            Upload → copy URL or add straight to Portfolio.
+            Direct-to-Supabase uploads (bypass Vercel size limits) · then Add to Portfolio
           </p>
         </div>
         <div className="flex items-center gap-2 text-xs text-[#8A857C]">
           {cloud === null ? null : cloud ? (
             <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1 text-emerald-300">
-              <Cloud className="h-3.5 w-3.5" /> Supabase Storage
+              <Cloud className="h-3.5 w-3.5" /> Direct Supabase
             </span>
           ) : (
             <span className="inline-flex items-center gap-1 rounded-full border border-amber-500/30 bg-amber-500/10 px-2.5 py-1 text-amber-200">
@@ -249,10 +228,10 @@ export const Media: React.FC = () => {
         <div className="flex items-start gap-3 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
           <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
           <div>
-            <p className="font-semibold">Durable uploads need Supabase</p>
+            <p className="font-semibold">Uploads need Supabase</p>
             <p className="mt-1 text-xs text-amber-100/80">
               {statusHint ||
-                'Set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY in Vercel → Environment Variables, then redeploy. Bucket visionfold-uploads is created automatically on first upload (must be Public).'}
+                'Set SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY on Vercel. Bucket visionfold-uploads should be Public.'}
             </p>
           </div>
         </div>
@@ -264,7 +243,7 @@ export const Media: React.FC = () => {
             <FileText className="h-5 w-5 text-[#D4AF37]" />
             <div>
               <h3 className="font-bold text-white">Edit website text</h3>
-              <p className="text-xs text-[#8A857C]">Live CMS on the public site while logged in as admin</p>
+              <p className="text-xs text-[#8A857C]">Live CMS while logged in as admin</p>
             </div>
           </div>
           <PrimaryButton type="button" className="mt-4" onClick={() => window.open('/', '_blank')}>
@@ -277,7 +256,9 @@ export const Media: React.FC = () => {
             <Upload className="h-5 w-5 text-[#D4AF37]" />
             <div>
               <h3 className="font-bold text-white">Upload media</h3>
-              <p className="text-xs text-[#8A857C]">JPEG/PNG/WebP/GIF/MP4/WebM — max ~4MB (images auto-compress)</p>
+              <p className="text-xs text-[#8A857C]">
+                JPEG/PNG/WebP/GIF/MP4/WebM — up to ~100MB via direct storage (not through Vercel)
+              </p>
             </div>
           </div>
           <div className="mt-3 flex flex-wrap gap-2">
@@ -314,7 +295,7 @@ export const Media: React.FC = () => {
               <Upload className="h-6 w-6 text-[#D4AF37]" />
             )}
             <span className="mt-2 text-xs font-bold uppercase tracking-wider text-[#B8B3AA]">
-              {uploading ? 'Uploading…' : 'Choose file'}
+              {uploading ? 'Uploading to storage…' : 'Choose file'}
             </span>
           </label>
           {uploadError ? (
@@ -342,10 +323,7 @@ export const Media: React.FC = () => {
       </div>
 
       <Card padding="none">
-        <CardHeader
-          title="Upload library"
-          subtitle="Copy URLs or push an item into Portfolio"
-        />
+        <CardHeader title="Upload library" subtitle="Copy URLs or push into Portfolio" />
         {loading ? (
           <div className="grid gap-3 p-5 sm:grid-cols-3">
             {[1, 2, 3].map((i) => (
@@ -357,10 +335,7 @@ export const Media: React.FC = () => {
         ) : (
           <div className="grid gap-3 p-5 sm:grid-cols-2 lg:grid-cols-3">
             {assets.map((asset) => (
-              <div
-                key={asset.key}
-                className="overflow-hidden rounded-xl border border-white/10 bg-black/40"
-              >
+              <div key={asset.key} className="overflow-hidden rounded-xl border border-white/10 bg-black/40">
                 {isVideo(asset.mimeType, asset.fileName) ? (
                   <video src={asset.url} className="aspect-video w-full object-cover" muted playsInline />
                 ) : asset.url ? (
@@ -381,15 +356,14 @@ export const Media: React.FC = () => {
                   <p className="truncate text-sm font-bold text-white">
                     {asset.fileName || asset.key.split('/').pop()}
                   </p>
-                  <p className="truncate text-[10px] text-[#666]">{asset.key}</p>
                   <div className="flex flex-wrap gap-2">
                     <button
                       type="button"
                       onClick={() => void copyText(asset.url, asset.key)}
-                      className="inline-flex items-center gap-1 rounded-full border border-white/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-[#B8B3AA] hover:border-[#D4AF37]/40"
+                      className="inline-flex items-center gap-1 rounded-full border border-white/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-[#B8B3AA]"
                     >
                       {copied === asset.key ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
-                      {copied === asset.key ? 'Copied' : 'Copy URL'}
+                      Copy
                     </button>
                     <button
                       type="button"
@@ -422,7 +396,7 @@ export const Media: React.FC = () => {
             ))}
           </div>
         ) : items.length === 0 ? (
-          <EmptyState message="No portfolio items yet — upload and click Add to Portfolio." />
+          <EmptyState message="No portfolio items — upload and click Add to Portfolio." />
         ) : (
           <div className="grid gap-3 p-5 sm:grid-cols-2 lg:grid-cols-3">
             {items.slice(0, 12).map((item) => (
