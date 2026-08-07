@@ -3,8 +3,10 @@ import { registerAuthAndCmsRoutes } from './routesAuth';
 import { registerBusinessRoutes } from './routesBusiness';
 import { registerMediaRoutes } from './routesMedia';
 import { registerGrowthRoutes } from './routesGrowth';
+import { registerPlatformRoutes } from './routesPlatform';
 
 export function registerApiRoutes(app: Application) {
+  registerPlatformRoutes(app);
   registerAuthAndCmsRoutes(app);
   registerMediaRoutes(app);
   registerGrowthRoutes(app);

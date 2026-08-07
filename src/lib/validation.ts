@@ -1,89 +1,65 @@
 import { z } from 'zod';
 
-// User Validation — createdAt must accept common DB formats (ISO, date-only, missing tz)
-export const UserRoleSchema = z.enum(['admin', 'client']);
-export const UserSchema = z.object({
-  id: z.string().min(1),
-  email: z.string().min(1),
-  name: z.string().min(1),
-  role: UserRoleSchema,
-  company: z.string().optional().nullable(),
-  phone: z.string().optional().nullable(),
-  createdAt: z.string().optional().nullable(),
-});
-
-export const CreateUserSchema = z.object({
-  email: z.string().email('Invalid email address'),
-  name: z.string().min(2, 'Name must be at least 2 characters'),
-  role: UserRoleSchema,
-  password: z.string().min(8, 'Password must be at least 8 characters'),
-  company: z.string().optional(),
-  phone: z.string().optional(),
-});
-
-export const UpdateUserSchema = CreateUserSchema.partial().omit({ password: true }).extend({
-  password: z.string().min(8).optional(),
-});
-
-const FlexibleDateSchema = z.string().refine(
-  (val) => !isNaN(Date.parse(val)),
-  'Must be a valid date string (ISO 8601 or YYYY-MM-DD)'
+const FlexibleDateSchema = z.union([z.string(), z.date()]).transform((v) =>
+  typeof v === 'string' ? v : v.toISOString()
 );
 
-export const ContentBlockTypeSchema = z.enum(['text', 'richtext', 'image', 'list', 'price']);
+export const UserRoleSchema = z.enum(['admin', 'client']);
 
-export const ListItemSchema = z.union([
-  z.string(),
-  z.object({
-    title: z.string().optional(),
-    description: z.string().optional(),
-    icon: z.string().optional(),
-  }).passthrough(),
-]);
+export const UserSchema = z.object({
+  id: z.string().min(1),
+  email: z.string().email(),
+  name: z.string().min(1),
+  role: UserRoleSchema,
+  company: z.string().optional().default(''),
+  phone: z.string().optional().default(''),
+  createdAt: z.string().optional(),
+});
+
+export const LoginSchema = z.object({
+  email: z.string().email(),
+  password: z.string().min(1),
+});
 
 export const ContentBlockSchema = z.object({
   id: z.string().min(1),
-  page: z.enum(['home', 'about', 'services', 'portfolio', 'contact', 'global']),
-  section_key: z.string().min(1),
-  type: ContentBlockTypeSchema,
-  value: z.union([
-    z.string(),
-    z.array(ListItemSchema),
-    z.object({
-      headline: z.string().optional(),
-      bullets: z.array(z.string()).optional(),
-    }).passthrough(),
-  ]),
-  order: z.number().int().nonnegative(),
-  visible: z.boolean(),
+  key: z.string().min(1),
+  value: z.string(),
+  type: z.enum(['text', 'html', 'image', 'json']).optional(),
   updatedAt: z.string().optional(),
 });
-
-export const CreateContentBlockSchema = ContentBlockSchema.omit({ id: true, updatedAt: true });
-export const UpdateContentBlockSchema = CreateContentBlockSchema.partial();
 
 export const PortfolioItemSchema = z.object({
   id: z.string().min(1),
   title: z.string().min(1),
   clientName: z.string().optional(),
-  hideClientName: z.boolean().optional(),
-  category: z.enum(['Short Form', 'Brand Content', 'Long Form', 'Social Media', 'Documentary']),
-  thumbnailUrl: z.string().url().or(z.literal('')).optional(),
-  videoUrl: z.string().url().or(z.literal('')).optional(),
-  teaser: z.string().min(10),
-  fullDescription: z.string().min(20),
-  dateCreated: z.string().refine(
-    (val) => !isNaN(Date.parse(val)),
-    'Must be a valid date string (ISO 8601 or YYYY-MM-DD)'
-  ),
-  toolsUsed: z.array(z.string()).min(1),
-  resultsImpact: z.string().min(1),
-  order: z.number().int().nonnegative(),
-  featured: z.boolean(),
+  category: z.enum(['Short Form', 'Brand Content', 'Long Form', 'Social Media', 'Documentary']).or(z.string()),
+  thumbnailUrl: z.string().optional().default(''),
+  videoUrl: z.string().optional().default(''),
+  teaser: z.string().optional().default(''),
+  fullDescription: z.string().optional().default(''),
+  resultsImpact: z.string().optional().default(''),
+  toolsUsed: z.array(z.string()).optional().default([]),
+  order: z.number().optional().default(0),
+  featured: z.boolean().optional().default(false),
+  dateCreated: z.string().optional(),
+  rating: z.number().min(0).max(5).optional(),
+  ratingNote: z.string().optional(),
 });
 
 export const CreatePortfolioItemSchema = PortfolioItemSchema.omit({ id: true, dateCreated: true });
 export const UpdatePortfolioItemSchema = CreatePortfolioItemSchema.partial();
+
+/** Lead pipeline: new → contacted → qualified → proposal → won | lost | closed */
+export const LeadStatusSchema = z.enum([
+  'new',
+  'contacted',
+  'qualified',
+  'proposal',
+  'won',
+  'lost',
+  'closed',
+]);
 
 export const MessageSchema = z.object({
   id: z.string().min(1),
@@ -95,16 +71,16 @@ export const MessageSchema = z.object({
   budgetRange: z.string().min(1),
   deadline: FlexibleDateSchema.optional(),
   message: z.string().min(10),
-  status: z.enum(['new', 'contacted', 'closed']),
+  status: LeadStatusSchema,
   createdAt: z.string().optional(),
 });
 
 export const CreateMessageSchema = MessageSchema.omit({ id: true, status: true, createdAt: true }).extend({
-  status: z.enum(['new', 'contacted', 'closed']).optional(),
+  status: LeadStatusSchema.optional(),
 });
 
 export const UpdateMessageStatusSchema = z.object({
-  status: z.enum(['new', 'contacted', 'closed']),
+  status: LeadStatusSchema,
 });
 
 export const ProjectStatusSchema = z.enum(['in_progress', 'in_review', 'delivered']);
@@ -139,58 +115,42 @@ export const UpdateProjectSchema = CreateProjectSchema.partial();
 export const RevisionSchema = z.object({
   id: z.string().min(1),
   projectId: z.string().min(1),
-  clientId: z.string().min(1),
-  clientName: z.string().min(1),
+  clientId: z.string().optional(),
   comment: z.string().min(1),
   status: z.enum(['pending', 'in_progress', 'resolved']),
   createdAt: z.string().optional(),
-  updatedAt: z.string().optional(),
 });
 
-export const CreateRevisionSchema = RevisionSchema.omit({ id: true, createdAt: true, updatedAt: true });
-export const UpdateRevisionSchema = z.object({
-  comment: z.string().min(1).optional(),
+export const CreateRevisionSchema = RevisionSchema.omit({ id: true, createdAt: true }).extend({
   status: z.enum(['pending', 'in_progress', 'resolved']).optional(),
 });
 
 export const InvoiceSchema = z.object({
   id: z.string().min(1),
-  invoiceNumber: z.string().min(1),
-  projectId: z.string().optional(),
   clientId: z.string().min(1),
   clientName: z.string().min(1),
+  invoiceNumber: z.string().optional(),
   amountINR: z.number().nonnegative(),
-  dueDate: FlexibleDateSchema,
-  status: z.enum(['paid', 'unpaid', 'overdue']),
   description: z.string().min(1),
-  paidAt: z.string().optional(),
+  dueDate: FlexibleDateSchema,
+  status: z.enum(['draft', 'sent', 'paid', 'overdue', 'unpaid']),
   createdAt: z.string().optional(),
 });
-
-export const CreateInvoiceSchema = InvoiceSchema.omit({ id: true, createdAt: true });
-export const UpdateInvoiceSchema = CreateInvoiceSchema.partial();
 
 export const ExpenseSchema = z.object({
   id: z.string().min(1),
   title: z.string().min(1),
-  category: z.enum(['Software/Tools', 'Subcontracting', 'Equipment', 'Marketing', 'Operations']),
-  amountINR: z.number().positive(),
-  date: FlexibleDateSchema,
-  description: z.string().optional(),
+  amountINR: z.number().nonnegative(),
+  category: z.string().optional(),
+  date: FlexibleDateSchema.optional(),
+  notes: z.string().optional(),
   createdAt: z.string().optional(),
-});
-
-export const CreateExpenseSchema = ExpenseSchema.omit({ id: true, createdAt: true });
-export const UpdateExpenseSchema = CreateExpenseSchema.partial();
-
-export const LoginSchema = z.object({
-  email: z.string().min(1, 'Email is required').transform((s) => s.trim().toLowerCase()),
-  password: z.string().min(1, 'Password is required'),
 });
 
 export const AuthStateSchema = z.object({
   user: UserSchema.nullable(),
   token: z.string().nullable(),
+  isAuthenticated: z.boolean(),
 });
 
 export type User = z.infer<typeof UserSchema>;
