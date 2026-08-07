@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { ErrorHandler, AppError, ErrorCode } from '../lib/errors';
 import { setApiToken } from '../lib/api';
+import { setStoredToken } from '../lib/adminApi';
 import { UserSchema, LoginSchema } from '../lib/validation';
 import type { User } from '../lib/validation';
 
@@ -30,7 +31,6 @@ function coerceUser(raw: any): User | null {
       createdAt: raw.createdAt || new Date().toISOString(),
     });
   } catch {
-    // Last-resort map so portal never soft-locks after a successful login
     if (raw.id && raw.email) {
       return {
         id: String(raw.id),
@@ -57,12 +57,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const setToken = useCallback((newToken: string | null) => {
     setTokenState(newToken);
     setApiToken(newToken);
+    setStoredToken(newToken);
   }, []);
 
   const checkAuth = useCallback(async () => {
     try {
       setIsLoading(true);
-      const response = await fetch('/api/auth/me', { credentials: 'include' });
+      const headers: Record<string, string> = {};
+      const stored = (() => {
+        try {
+          return localStorage.getItem('vf_auth_token');
+        } catch {
+          return null;
+        }
+      })();
+      if (stored) headers.Authorization = `Bearer ${stored}`;
+
+      const response = await fetch('/api/auth/me', { credentials: 'include', headers });
       const responseText = await response.text();
       const data = responseText
         ? (() => {
@@ -87,7 +98,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return;
       }
       setUser(validatedUser);
-      setToken(data.token || null);
+      setToken(data.token || stored || null);
       setError(null);
     } catch (err) {
       ErrorHandler.log(err, 'checkAuth');
@@ -138,8 +149,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       setUser(validatedUser);
-      setTokenState(data.token || null);
-      setApiToken(data.token || null);
+      setToken(data.token || null);
       setError(null);
       return { success: true, user: validatedUser };
     } catch (err: any) {
@@ -163,8 +173,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       ErrorHandler.log(err, 'logout');
     } finally {
       setUser(null);
-      setTokenState(null);
-      setApiToken(null);
+      setToken(null);
       setError(null);
     }
   };
