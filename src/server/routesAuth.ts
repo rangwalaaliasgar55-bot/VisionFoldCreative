@@ -9,20 +9,41 @@ import {
   authLimiter,
   authenticateToken,
   requireAdmin,
+  toSafeUser,
   portfolioSchema,
   portfolioUpdateSchema,
   type AuthenticatedRequest,
 } from './security';
+
+function signToken(user: { id: string; email: string; role: string }) {
+  return jwt.sign(
+    { id: user.id, email: user.email, role: user.role },
+    JWT_SECRET,
+    { expiresIn: '7d' }
+  );
+}
+
+function setAuthCookie(res: any, token: string) {
+  res.cookie('vf_token', token, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    maxAge: 7 * 24 * 60 * 60 * 1000,
+    path: '/',
+  });
+}
 
 export function registerAuthAndCmsRoutes(app: Application) {
   app.post('/api/auth/login', authLimiter, async (req, res) => {
     const email = String(req.body?.email || '').trim().toLowerCase();
     const password = String(req.body?.password || '');
     if (!email || !password) {
-      return res.status(400).json({ error: 'Email and password are required' });
+      return res.status(400).json({ error: 'Email and password are required', code: 'VALIDATION' });
     }
 
-    const adminEmail = String(process.env.ADMIN_EMAIL || 'visionfoldcreative@gmail.com').trim().toLowerCase();
+    const adminEmail = String(process.env.ADMIN_EMAIL || 'visionfoldcreative@gmail.com')
+      .trim()
+      .toLowerCase();
     const adminPassword = String(process.env.ADMIN_PASSWORD || 'aliasgar134');
     const isAdminBootstrap = email === adminEmail && password === adminPassword;
 
@@ -44,7 +65,7 @@ export function registerAuthAndCmsRoutes(app: Application) {
     }
 
     if (!userWithHash) {
-      return res.status(401).json({ error: 'Invalid email or password' });
+      return res.status(401).json({ error: 'Invalid email or password', code: 'INVALID_CREDENTIALS' });
     }
 
     let valid = false;
@@ -65,43 +86,36 @@ export function registerAuthAndCmsRoutes(app: Application) {
         /* Vercel FS may be read-only */
       }
       (userWithHash as any).passwordHash = newHash;
-      if ((userWithHash as any).role !== 'admin') {
-        (userWithHash as any).role = 'admin';
-      }
+      (userWithHash as any).role = 'admin';
     }
 
     if (!valid) {
-      return res.status(401).json({ error: 'Invalid email or password' });
+      return res.status(401).json({ error: 'Invalid email or password', code: 'INVALID_CREDENTIALS' });
     }
 
-    const { passwordHash, ...safeUser } = userWithHash as any;
-    const token = jwt.sign(
-      { id: safeUser.id, email: safeUser.email, role: isAdminBootstrap ? 'admin' : safeUser.role },
-      JWT_SECRET,
-      { expiresIn: '7d' }
-    );
-
-    res.cookie('vf_token', token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: 7 * 24 * 60 * 60 * 1000,
-    });
-
+    // Role always from DB after bootstrap normalization
+    if (isAdminBootstrap) (userWithHash as any).role = 'admin';
+    const safeUser = toSafeUser(userWithHash);
+    const token = signToken(safeUser);
+    setAuthCookie(res, token);
     res.json({ user: safeUser, token });
   });
 
   app.post('/api/auth/register', authLimiter, async (req, res) => {
     const { email, password, name, company, phone } = req.body || {};
     if (!email || !password || !name) {
-      return res.status(400).json({ error: 'Email, password, and name are required' });
+      return res.status(400).json({ error: 'Email, password, and name are required', code: 'VALIDATION' });
+    }
+    if (String(password).length < 8) {
+      return res.status(400).json({ error: 'Password must be at least 8 characters', code: 'VALIDATION' });
     }
 
     const existing = await dbManager.findUserByEmail(String(email).trim());
     if (existing) {
-      return res.status(400).json({ error: 'An account with this email already exists' });
+      return res.status(400).json({ error: 'An account with this email already exists', code: 'EMAIL_TAKEN' });
     }
 
+    // Public registration is always client — never admin
     const salt = bcrypt.genSaltSync(10);
     const passwordHash = bcrypt.hashSync(password, salt);
     const newClient: User & { passwordHash: string } = {
@@ -115,30 +129,72 @@ export function registerAuthAndCmsRoutes(app: Application) {
       passwordHash,
     };
 
-    const safeUser = await dbManager.createUser(newClient);
-    const token = jwt.sign(
-      { id: safeUser.id, email: safeUser.email, role: safeUser.role },
-      JWT_SECRET,
-      { expiresIn: '7d' }
-    );
-
-    res.cookie('vf_token', token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: 7 * 24 * 60 * 60 * 1000,
-    });
-
+    const created = await dbManager.createUser(newClient);
+    const safeUser = toSafeUser(created);
+    const token = signToken(safeUser);
+    setAuthCookie(res, token);
     res.json({ user: safeUser, token });
   });
 
   app.get('/api/auth/me', authenticateToken, (req: AuthenticatedRequest, res) => {
-    res.json({ user: req.user });
+    res.json({ user: req.user, token: req.authToken || null });
   });
 
   app.post('/api/auth/logout', (_req, res) => {
-    res.clearCookie('vf_token');
+    res.clearCookie('vf_token', { path: '/' });
     res.json({ success: true });
+  });
+
+  /** Authenticated user changes own password (current password required). */
+  app.post('/api/auth/change-password', authLimiter, authenticateToken, async (req: AuthenticatedRequest, res) => {
+    const currentPassword = String(req.body?.currentPassword || '');
+    const newPassword = String(req.body?.newPassword || '');
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ error: 'currentPassword and newPassword are required', code: 'VALIDATION' });
+    }
+    if (newPassword.length < 8) {
+      return res.status(400).json({ error: 'New password must be at least 8 characters', code: 'VALIDATION' });
+    }
+
+    const row = await dbManager.findUserById(req.user!.id);
+    if (!row) return res.status(401).json({ error: 'User not found', code: 'USER_NOT_FOUND' });
+
+    let ok = false;
+    try {
+      if ((row as any).passwordHash) ok = bcrypt.compareSync(currentPassword, (row as any).passwordHash);
+    } catch {
+      ok = false;
+    }
+    if (!ok) {
+      return res.status(401).json({ error: 'Current password is incorrect', code: 'INVALID_CREDENTIALS' });
+    }
+
+    const newHash = bcrypt.hashSync(newPassword, 10);
+    try {
+      await dbManager.updateUserPassword(req.user!.id, newHash);
+    } catch (err: any) {
+      return res.status(500).json({ error: err.message || 'Could not update password' });
+    }
+    res.json({ success: true });
+  });
+
+  /**
+   * Self-service email reset is deferred until RESEND is confirmed in production.
+   * Admin can set a client password via PUT /api/clients/:id { password }.
+   */
+  app.post('/api/auth/request-password-reset', authLimiter, async (_req, res) => {
+    if (!process.env.RESEND_API_KEY) {
+      return res.status(503).json({
+        error:
+          'Email password reset is not configured. Ask the studio admin to set a temporary password, or enable RESEND_API_KEY.',
+        code: 'EMAIL_NOT_CONFIGURED',
+      });
+    }
+    // Placeholder for Phase later — do not pretend a reset was sent
+    return res.status(501).json({
+      error: 'Self-service password reset email flow is not enabled yet. Contact admin.',
+      code: 'NOT_IMPLEMENTED',
+    });
   });
 
   app.get('/api/content', async (req, res) => {
@@ -174,7 +230,7 @@ export function registerAuthAndCmsRoutes(app: Application) {
 
   app.put('/api/portfolio/:id', authenticateToken, requireAdmin, async (req, res) => {
     const parsed = portfolioUpdateSchema.safeParse(req.body);
-    if (!parsed.success) return res.status(404).json({ error: parsed.error.flatten().fieldErrors });
+    if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten().fieldErrors });
     const updated = await dbManager.updatePortfolioItem(req.params.id, parsed.data);
     if (!updated) return res.status(404).json({ error: 'Portfolio item not found' });
     res.json(updated);
@@ -200,6 +256,7 @@ export function registerAuthAndCmsRoutes(app: Application) {
         ),
         aiConfigured: isAiConfigured(),
         openRouterRemoved: true,
+        emailConfigured: Boolean(process.env.RESEND_API_KEY),
       },
     });
   });
@@ -212,10 +269,11 @@ export function registerAuthAndCmsRoutes(app: Application) {
     try {
       const settings = await dbManager.getSettings();
       const m = (settings as any).maintenance || {};
-      const enabled = Boolean(m.enabled);
-      const until = m.until || null;
-      const message = m.message || 'We are upgrading the studio. Back soon.';
-      res.json({ enabled, until, message });
+      res.json({
+        enabled: Boolean(m.enabled),
+        until: m.until || null,
+        message: m.message || 'We are upgrading the studio. Back soon.',
+      });
     } catch {
       res.json({ enabled: false, until: null, message: '' });
     }

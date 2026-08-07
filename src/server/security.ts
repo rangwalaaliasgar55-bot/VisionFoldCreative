@@ -34,7 +34,7 @@ const REQUIRED_JWT_SECRET = process.env.JWT_SECRET;
 if (!REQUIRED_JWT_SECRET) {
   console.error(
     'WARNING: JWT_SECRET is not set. Using a temporary fallback. ' +
-    'Set JWT_SECRET in Vercel Project Settings → Environment Variables for production security.'
+      'Set JWT_SECRET in Vercel Project Settings → Environment Variables for production security.'
   );
 }
 
@@ -42,6 +42,21 @@ const JWT_SECRET = REQUIRED_JWT_SECRET || 'dev-only-insecure-jwt-secret-change-m
 
 export interface AuthenticatedRequest extends Request {
   user?: User;
+  authToken?: string;
+}
+
+/** Public-safe user (never includes passwordHash). */
+export function toSafeUser(user: any): User {
+  if (!user) throw new Error('User required');
+  return {
+    id: String(user.id),
+    email: String(user.email),
+    name: String(user.name || user.email),
+    role: user.role === 'admin' ? 'admin' : user.role === 'editor' ? 'client' : 'client',
+    company: user.company ?? '',
+    phone: user.phone ?? '',
+    createdAt: user.createdAt || user.created_at || new Date().toISOString(),
+  };
 }
 
 const messageSchema = z.object({
@@ -55,7 +70,13 @@ const messageSchema = z.object({
   message: z.string().trim().min(1),
 });
 
-const portfolioCategorySchema = z.enum(['Short Form', 'Brand Content', 'Long Form', 'Social Media', 'Documentary']);
+const portfolioCategorySchema = z.enum([
+  'Short Form',
+  'Brand Content',
+  'Long Form',
+  'Social Media',
+  'Documentary',
+]);
 
 const portfolioSchema = z.object({
   title: z.string().trim().min(1),
@@ -97,8 +118,14 @@ const invoiceSchema = z.object({
 const invoiceUpdateSchema = invoiceSchema.partial();
 
 async function sendInquiryEmail(payload: {
-  name: string; email: string; message: string; phone: string;
-  company?: string; projectType?: string; budgetRange?: string; deadline?: string;
+  name: string;
+  email: string;
+  message: string;
+  phone: string;
+  company?: string;
+  projectType?: string;
+  budgetRange?: string;
+  deadline?: string;
 }) {
   const apiKey = process.env.RESEND_API_KEY;
   if (!apiKey) {
@@ -127,25 +154,69 @@ async function sendInquiryEmail(payload: {
   }
 }
 
+/**
+ * Authenticate via httpOnly cookie or Authorization Bearer.
+ * Role is always taken from the database user record — never trusted from JWT alone.
+ */
 async function authenticateToken(req: AuthenticatedRequest, res: Response, next: NextFunction) {
-  const token = req.cookies?.vf_token || (req.headers.authorization && req.headers.authorization.split(' ')[1]);
-  if (!token) return res.status(401).json({ error: 'Authentication required' });
+  const header = req.headers.authorization;
+  const bearer = header?.startsWith('Bearer ') ? header.slice(7).trim() : undefined;
+  const token = req.cookies?.vf_token || bearer;
+
+  if (!token) {
+    return res.status(401).json({ error: 'Authentication required', code: 'UNAUTHENTICATED' });
+  }
+
   try {
-    const decoded = jwt.verify(token, JWT_SECRET) as any;
-    const user = await dbManager.findUserById(decoded.id);
-    if (!user) return res.status(401).json({ error: 'User not found' });
-    req.user = user;
+    const decoded = jwt.verify(token, JWT_SECRET) as { id?: string; email?: string; role?: string };
+    if (!decoded?.id) {
+      return res.status(403).json({ error: 'Invalid token payload', code: 'INVALID_TOKEN' });
+    }
+
+    const userWithHash = await dbManager.findUserById(decoded.id);
+    if (!userWithHash) {
+      return res.status(401).json({ error: 'User not found', code: 'USER_NOT_FOUND' });
+    }
+
+    // DB is source of truth for role (prevents privilege escalation via forged JWT claims)
+    const safe = toSafeUser(userWithHash);
+    req.user = safe;
+    req.authToken = token;
     next();
   } catch {
-    return res.status(403).json({ error: 'Invalid or expired token' });
+    return res.status(403).json({ error: 'Invalid or expired token', code: 'INVALID_TOKEN' });
   }
 }
 
+function requireRole(...roles: Array<'admin' | 'client'>) {
+  return (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+    if (!req.user) {
+      return res.status(401).json({ error: 'Authentication required', code: 'UNAUTHENTICATED' });
+    }
+    if (!roles.includes(req.user.role as 'admin' | 'client')) {
+      return res.status(403).json({
+        error: `Requires role: ${roles.join(' or ')}`,
+        code: 'FORBIDDEN_ROLE',
+        role: req.user.role,
+      });
+    }
+    next();
+  };
+}
+
 function requireAdmin(req: AuthenticatedRequest, res: Response, next: NextFunction) {
-  if (!req.user || req.user.role !== 'admin') {
-    return res.status(403).json({ error: 'Admin access required' });
-  }
-  next();
+  return requireRole('admin')(req, res, next);
+}
+
+function requireClient(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+  return requireRole('client')(req, res, next);
+}
+
+/** Ensure resource clientId matches the authenticated client (admins pass). */
+function assertClientOwns(req: AuthenticatedRequest, clientId: string | undefined | null): boolean {
+  if (!req.user) return false;
+  if (req.user.role === 'admin') return true;
+  return Boolean(clientId && clientId === req.user.id);
 }
 
 export {
@@ -155,6 +226,9 @@ export {
   aiLimiter,
   authenticateToken,
   requireAdmin,
+  requireClient,
+  requireRole,
+  assertClientOwns,
   messageSchema,
   portfolioSchema,
   portfolioUpdateSchema,
