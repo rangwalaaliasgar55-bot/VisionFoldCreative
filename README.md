@@ -28,14 +28,22 @@ npm run dev
 | `ADMIN_EMAIL` | Bootstrap admin email |
 | `ADMIN_PASSWORD` | Bootstrap admin password |
 | `SUPABASE_URL` | Optional Supabase project URL |
-| `SUPABASE_SERVICE_ROLE_KEY` | Optional server key |
+| `SUPABASE_SERVICE_ROLE_KEY` | Optional server key (bypasses RLS) |
 | `SUPABASE_ANON_KEY` | Optional anon key |
 | `RESEND_API_KEY` | Optional inquiry emails |
 | `GEMINI_API_KEY` | Phase D — not wired yet |
 
-**OpenRouter was removed in Phase A.** Do not set `OPENROUTER_API_KEY`; it is unused.
+**OpenRouter was removed in Phase A.** Do not set `OPENROUTER_API_KEY`.
 
-Also map any `SupaBase_*` keys you already created to the standard names above if needed.
+## Supabase (Phase B)
+
+1. Run migration: `supabase/migrations/20260807_phase_b_rls_baseline.sql` in the SQL Editor
+2. Read policy guide: `supabase/RLS.md`
+3. Ensure bucket `visionfold-uploads` exists (migration creates it)
+
+**Note:** The Express API uses the **service role** key, which bypasses RLS. Client data isolation is still enforced in API routes until Phase C. RLS protects anon-key access and future user-scoped clients.
+
+Legacy bootstrap seed (optional): `supabase/schema.sql`
 
 ## Admin login
 
