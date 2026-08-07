@@ -1196,6 +1196,66 @@ export class SupabaseDBManager {
     }
   }
 
+  async updateUser(id: string, updates: Partial<User> & { passwordHash?: string }): Promise<User | null> {
+    const current = this.db.users.find((u) => u.id === id);
+    if (!this.useSupabase || !this.supabaseClient) {
+      if (!current) return null;
+      const merged = { ...current, ...updates } as any;
+      this.db.users = this.db.users.map((u) => (u.id === id ? merged : u));
+      this.saveLocalDB(this.db);
+      const { passwordHash, ...safe } = merged;
+      return safe;
+    }
+    try {
+      const row: any = {};
+      if (updates.name !== undefined) row.name = updates.name;
+      if (updates.email !== undefined) row.email = updates.email;
+      if (updates.company !== undefined) row.company = updates.company;
+      if (updates.phone !== undefined) row.phone = updates.phone;
+      if (updates.role !== undefined) row.role = updates.role;
+      if (updates.passwordHash !== undefined) row.password_hash = updates.passwordHash;
+      const { data, error } = await this.supabaseClient.from('users').update(row).eq('id', id).select('*').maybeSingle();
+      if (error) throw error;
+      if (!data) return null;
+      const user = this.mapUser(data);
+      this.db.users = this.db.users.map((u) => (u.id === id ? (user as any) : u));
+      this.saveLocalDB(this.db);
+      const { passwordHash, ...safe } = user as any;
+      return safe;
+    } catch (err) {
+      this.guardFallback(err);
+      if (!current) return null;
+      const merged = { ...current, ...updates } as any;
+      this.db.users = this.db.users.map((u) => (u.id === id ? merged : u));
+      this.saveLocalDB(this.db);
+      const { passwordHash, ...safe } = merged;
+      return safe;
+    }
+  }
+
+  async deleteUser(id: string): Promise<boolean> {
+    if (!this.useSupabase || !this.supabaseClient) {
+      const before = this.db.users.length;
+      this.db.users = this.db.users.filter((u) => u.id !== id);
+      this.saveLocalDB(this.db);
+      return this.db.users.length < before;
+    }
+    try {
+      const { error } = await this.supabaseClient.from('users').delete().eq('id', id);
+      if (error) throw error;
+      this.db.users = this.db.users.filter((u) => u.id !== id);
+      this.saveLocalDB(this.db);
+      return true;
+    } catch (err) {
+      this.guardFallback(err);
+      const before = this.db.users.length;
+      this.db.users = this.db.users.filter((u) => u.id !== id);
+      this.saveLocalDB(this.db);
+      return this.db.users.length < before;
+    }
+  }
+
+
   async getContentBlocks(page?: string): Promise<ContentBlock[]> {
     if (!this.useSupabase || !this.supabaseClient) {
       const list = page

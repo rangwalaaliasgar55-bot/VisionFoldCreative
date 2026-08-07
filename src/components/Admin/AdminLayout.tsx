@@ -1,14 +1,14 @@
 import React, { useState } from 'react';
 import {
   LayoutDashboard, Inbox, Users, FolderKanban, Image as ImageIcon,
-  Receipt, Wallet, Sparkles, Settings as SettingsIcon, LogOut, Menu, X, AlertCircle, Zap,
+  Receipt, Wallet, Sparkles, Settings as SettingsIcon, LogOut, Menu, X, AlertCircle, Zap, Upload,
 } from 'lucide-react';
 import { VisionFoldLogo } from '../VisionFoldLogo';
 import { AppError } from '../../lib/errors';
 
 export type AdminView =
   | 'overview' | 'leads' | 'clients' | 'automations' | 'projects' | 'portfolio'
-  | 'invoices' | 'expenses' | 'growth' | 'media' | 'settings';
+  | 'invoices' | 'expenses' | 'growth' | 'media' | 'outreach' | 'settings';
 
 const NAV_ITEMS: { id: AdminView; label: string; icon: React.ElementType }[] = [
   { id: 'overview', label: 'Overview', icon: LayoutDashboard },
@@ -21,6 +21,7 @@ const NAV_ITEMS: { id: AdminView; label: string; icon: React.ElementType }[] = [
   { id: 'expenses', label: 'Expenses', icon: Wallet },
   { id: 'growth', label: 'AI Growth Copilot', icon: Sparkles },
   { id: 'media', label: 'Media / CMS', icon: ImageIcon },
+  { id: 'outreach', label: 'Outreach CSV', icon: Upload },
   { id: 'settings', label: 'Pricing & Settings', icon: SettingsIcon },
 ];
 

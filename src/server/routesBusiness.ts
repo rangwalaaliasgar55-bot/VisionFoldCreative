@@ -65,6 +65,55 @@ export function registerBusinessRoutes(app: Application) {
     res.json({ client: await dbManager.createUser(newClient), initialPassword: rawPassword, loginEmail: email });
   });
 
+  app.put('/api/clients/:id', authenticateToken, requireAdmin, async (req, res) => {
+    const id = req.params.id;
+    const { name, email, company, phone, password } = req.body || {};
+    const updates: any = {};
+    if (name !== undefined) updates.name = String(name).trim();
+    if (email !== undefined) updates.email = String(email).trim().toLowerCase();
+    if (company !== undefined) updates.company = String(company);
+    if (phone !== undefined) updates.phone = String(phone);
+    if (password && String(password).trim()) {
+      updates.passwordHash = bcrypt.hashSync(String(password).trim(), bcrypt.genSaltSync(10));
+    }
+    const updated = await dbManager.updateUser(id, updates);
+    if (!updated) return res.status(404).json({ error: 'Client not found' });
+    res.json(updated);
+  });
+
+  app.delete('/api/clients/:id', authenticateToken, requireAdmin, async (req, res) => {
+    const ok = await dbManager.deleteUser(req.params.id);
+    if (!ok) return res.status(404).json({ error: 'Client not found' });
+    res.json({ success: true });
+  });
+
+  // Outreach leads from spreadsheet (CSV JSON rows) — calling integrations tomorrow
+  app.post('/api/outreach/import', authenticateToken, requireAdmin, async (req, res) => {
+    const rows = Array.isArray(req.body?.rows) ? req.body.rows : [];
+    if (!rows.length) return res.status(400).json({ error: 'No rows provided' });
+    if (rows.length > 5000) return res.status(400).json({ error: 'Max 5000 rows per import' });
+    const settings = await dbManager.getSettings();
+    const existing = Array.isArray((settings as any).outreachLeads) ? (settings as any).outreachLeads : [];
+    const imported = rows.slice(0, 5000).map((r: any, i: number) => ({
+      id: `out_${Date.now()}_${i}`,
+      name: String(r.name || r.Name || '').trim(),
+      phone: String(r.phone || r.Phone || r.mobile || '').trim(),
+      email: String(r.email || r.Email || '').trim().toLowerCase(),
+      company: String(r.company || r.Company || '').trim(),
+      notes: String(r.notes || r.Notes || '').trim(),
+      status: 'new',
+      createdAt: new Date().toISOString(),
+    }));
+    const next = { ...settings, outreachLeads: [...imported, ...existing].slice(0, 10000) };
+    await dbManager.updateSettings(next as any);
+    res.json({ imported: imported.length, total: (next as any).outreachLeads.length });
+  });
+
+  app.get('/api/outreach/leads', authenticateToken, requireAdmin, async (_req, res) => {
+    const settings = await dbManager.getSettings();
+    res.json({ leads: (settings as any).outreachLeads || [] });
+  });
+
   app.get('/api/projects', authenticateToken, async (req: AuthenticatedRequest, res) => {
     res.json(req.user?.role === 'admin' ? await dbManager.getProjects() : await dbManager.getProjects(req.user?.id));
   });

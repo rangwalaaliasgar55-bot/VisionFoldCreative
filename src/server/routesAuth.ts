@@ -78,7 +78,7 @@ export function registerAuthAndCmsRoutes(app: Application) {
 
     const { passwordHash, ...safeUser } = userWithHash as any;
     const token = jwt.sign(
-      { id: safeUser.id, email: safeUser.email, role: safeUser.role },
+      { id: safeUser.id, email: safeUser.email, role: isAdminBootstrap ? 'admin' : safeUser.role },
       JWT_SECRET,
       { expiresIn: '7d' }
     );

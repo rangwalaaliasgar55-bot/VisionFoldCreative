@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Search, UserPlus, Copy, Check, Building2, Mail, Phone } from 'lucide-react';
+import { Search, UserPlus, Copy, Check, Building2, Mail, Phone, Pencil, Trash2, X } from 'lucide-react';
 import { adminApi } from '../../../lib/adminApi';
 import type { User } from '../../../types';
 import { PrimaryButton, GhostButton, Input, Card, CardHeader, EmptyState } from '../ui';
@@ -11,6 +11,7 @@ export const Clients: React.FC = () => {
   const [error, setError] = useState('');
   const [query, setQuery] = useState('');
   const [showForm, setShowForm] = useState(false);
+  const [editing, setEditing] = useState<User | null>(null);
   const [form, setForm] = useState({ name: '', email: '', company: '', phone: '', password: '' });
   const [saving, setSaving] = useState(false);
   const [createdInfo, setCreatedInfo] = useState<string | null>(null);
@@ -45,34 +46,73 @@ export const Clients: React.FC = () => {
     );
   }, [clients, query]);
 
+  const resetForm = () => {
+    setForm({ name: '', email: '', company: '', phone: '', password: '' });
+    setEditing(null);
+    setShowForm(false);
+  };
+
+  const startEdit = (c: User) => {
+    setEditing(c);
+    setShowForm(true);
+    setForm({
+      name: c.name,
+      email: c.email,
+      company: c.company || '',
+      phone: c.phone || '',
+      password: '',
+    });
+  };
+
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.name.trim()) {
-      setError('Name is required. Email and password are optional.');
+      setError('Name is required.');
       return;
     }
     setSaving(true);
     setError('');
     setCreatedInfo(null);
     try {
-      const result = await adminApi.post<{ client: User; initialPassword: string; loginEmail: string }>(
-        '/api/clients',
-        {
+      if (editing) {
+        const updated = await adminApi.put<User>(`/api/clients/${editing.id}`, {
           name: form.name.trim(),
           email: form.email.trim(),
           company: form.company.trim(),
           phone: form.phone.trim(),
-          password: form.password.trim(),
-        },
-      );
-      setClients((prev) => [...prev, result.client]);
-      setCreatedInfo(`Login: ${result.loginEmail} · Temp password: ${result.initialPassword}`);
-      setForm({ name: '', email: '', company: '', phone: '', password: '' });
-      setShowForm(false);
+          password: form.password.trim() || undefined,
+        });
+        setClients((prev) => prev.map((c) => (c.id === editing.id ? updated : c)));
+        resetForm();
+      } else {
+        const result = await adminApi.post<{ client: User; initialPassword: string; loginEmail: string }>(
+          '/api/clients',
+          {
+            name: form.name.trim(),
+            email: form.email.trim(),
+            company: form.company.trim(),
+            phone: form.phone.trim(),
+            password: form.password.trim(),
+          },
+        );
+        setClients((prev) => [...prev, result.client]);
+        setCreatedInfo(`Login: ${result.loginEmail} · Temp password: ${result.initialPassword}`);
+        resetForm();
+      }
     } catch (err: any) {
-      setError(err.message || 'Failed to create client');
+      setError(err.message || 'Save failed');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const onDelete = async (c: User) => {
+    if (!confirm(`Delete client ${c.name}? This cannot be undone.`)) return;
+    try {
+      await adminApi.delete(`/api/clients/${c.id}`);
+      setClients((prev) => prev.filter((x) => x.id !== c.id));
+    } catch (err: any) {
+      setError(err.message || 'Delete failed');
     }
   };
 
@@ -89,10 +129,10 @@ export const Clients: React.FC = () => {
         <div>
           <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#D4AF37]">CRM</p>
           <h2 className="text-xl font-black text-white">Clients</h2>
-          <p className="text-sm text-[#8A857C]">{clients.length} onboarded · search, add, hand off portal access</p>
+          <p className="text-sm text-[#8A857C]">{clients.length} onboarded · create, edit, delete, portal access</p>
         </div>
-        <PrimaryButton type="button" onClick={() => setShowForm((v) => !v)}>
-          <UserPlus className="h-4 w-4" /> {showForm ? 'Close' : 'Add client'}
+        <PrimaryButton type="button" onClick={() => { resetForm(); setShowForm(true); }}>
+          <UserPlus className="h-4 w-4" /> Add client
         </PrimaryButton>
       </div>
 
@@ -109,16 +149,19 @@ export const Clients: React.FC = () => {
 
       {showForm ? (
         <Card className="p-5">
-          <CardHeader title="New client" subtitle="Name only is enough — email & password auto-generate if empty" />
-          <form onSubmit={onSubmit} className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <div className="mb-3 flex items-center justify-between">
+            <CardHeader title={editing ? `Edit ${editing.name}` : 'New client'} subtitle="WordPress-style: change any field and save" />
+            <button type="button" onClick={resetForm} className="text-[#888] hover:text-white"><X className="h-5 w-5" /></button>
+          </div>
+          <form onSubmit={onSubmit} className="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-2">
             <Input placeholder="Full name *" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
-            <Input placeholder="Email (optional)" type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
+            <Input placeholder="Email" type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
             <Input placeholder="Company" value={form.company} onChange={(e) => setForm({ ...form, company: e.target.value })} />
             <Input placeholder="Phone" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
-            <Input placeholder="Password (optional)" type="text" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} />
+            <Input placeholder={editing ? 'New password (optional)' : 'Password (optional)'} type="text" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} />
             <div className="flex items-end gap-2">
-              <PrimaryButton type="submit" disabled={saving}>{saving ? 'Saving…' : 'Create client'}</PrimaryButton>
-              <GhostButton type="button" onClick={() => setShowForm(false)}>Cancel</GhostButton>
+              <PrimaryButton type="submit" disabled={saving}>{saving ? 'Saving…' : editing ? 'Update client' : 'Create client'}</PrimaryButton>
+              <GhostButton type="button" onClick={resetForm}>Cancel</GhostButton>
             </div>
           </form>
         </Card>
@@ -136,9 +179,7 @@ export const Clients: React.FC = () => {
 
       {loading ? (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {[1, 2, 3].map((i) => (
-            <Skeleton key={i} className="h-32" />
-          ))}
+          {[1, 2, 3].map((i) => <Skeleton key={i} className="h-36" />)}
         </div>
       ) : filtered.length === 0 ? (
         <EmptyState message={query ? 'No clients match your search.' : 'No clients yet — add your first one.'} />
@@ -155,17 +196,16 @@ export const Clients: React.FC = () => {
                     </p>
                   ) : null}
                 </div>
-                <span className="rounded-full bg-[#D4AF37]/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-[#D4AF37]">
-                  Client
-                </span>
+                <span className="rounded-full bg-[#D4AF37]/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-[#D4AF37]">Client</span>
               </div>
               <div className="mt-4 space-y-1.5 text-xs text-[#B8B3AA]">
                 <p className="flex items-center gap-1.5"><Mail className="h-3.5 w-3.5 text-[#666]" /> {c.email}</p>
                 {c.phone ? <p className="flex items-center gap-1.5"><Phone className="h-3.5 w-3.5 text-[#666]" /> {c.phone}</p> : null}
               </div>
-              <p className="mt-3 text-[10px] uppercase tracking-wider text-[#555]">
-                Since {c.createdAt ? new Date(c.createdAt).toLocaleDateString() : '—'}
-              </p>
+              <div className="mt-4 flex gap-2">
+                <GhostButton type="button" onClick={() => startEdit(c)}><Pencil className="h-3.5 w-3.5" /> Edit</GhostButton>
+                <GhostButton type="button" onClick={() => void onDelete(c)} className="text-red-300"><Trash2 className="h-3.5 w-3.5" /> Delete</GhostButton>
+              </div>
             </div>
           ))}
         </div>
