@@ -65,7 +65,6 @@ function toNum(s: string): number {
   return Number(String(s).replace(/,/g, '').replace(/^₹/, '').replace(/%$/, ''));
 }
 
-/** Profile up to maxRows from a text CSV/TSV string in the browser. */
 export function profileCsvText(text: string, fileName: string, maxRows = 50000): SheetProfile {
   const warnings: string[] = [];
   const raw = text.replace(/^\uFEFF/, '');
@@ -115,11 +114,7 @@ export function profileCsvText(text: string, fileName: string, maxRows = 50000):
 
   const columns: ColumnProfile[] = headers.map((name) => {
     const vals = rows.map((r) => r[name]).filter((v) => v !== '');
-    return {
-      name,
-      nonEmpty: vals.length,
-      sampleValues: vals.slice(0, 5),
-    };
+    return { name, nonEmpty: vals.length, sampleValues: vals.slice(0, 5) };
   });
 
   const numericColumns: NumericProfile[] = [];
