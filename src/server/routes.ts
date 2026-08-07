@@ -7,11 +7,13 @@ import { registerPlatformRoutes } from './routesPlatform';
 import { registerPipelineRoutes } from './routesPipeline';
 import { registerSpreadsheetProfileRoute } from './routesGrowthProfile';
 import { registerCmsRoutes } from './routesCms';
+import { registerClientPortalRoutes } from './routesClientPortal';
 
 export function registerApiRoutes(app: Application) {
   registerPlatformRoutes(app);
   registerAuthAndCmsRoutes(app);
   registerCmsRoutes(app);
+  registerClientPortalRoutes(app);
   registerMediaRoutes(app);
   registerGrowthRoutes(app);
   registerSpreadsheetProfileRoute(app);

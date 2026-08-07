@@ -17,5 +17,11 @@
       "includeFiles": "{dist/server.cjs,data/db.json,public/**}",
       "maxDuration": 30
     }
-  }
+  },
+  "crons": [
+    {
+      "path": "/api/cms/run-scheduled",
+      "schedule": "*/15 * * * *"
+    }
+  ]
 }

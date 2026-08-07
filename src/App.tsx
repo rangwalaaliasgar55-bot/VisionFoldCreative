@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { BrowserRouter, Routes, Route, useLocation, useNavigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
 import { Navbar } from './components/Navbar';
 import { Footer } from './components/Footer';
 import { HomePage } from './components/PublicPages/HomePage';
@@ -17,6 +17,7 @@ import { PortfolioPage } from './components/PublicPages/PortfolioPage';
 import { ServicesPage } from './components/PublicPages/ServicesPage';
 import { ContactPage } from './components/PublicPages/ContactPage';
 import { WorkDetailPage } from './components/PublicPages/WorkDetailPage';
+import { CmsPageView } from './components/PublicPages/CmsPageView';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { MaintenancePage } from './components/PublicPages/MaintenancePage';
 import { AudioMeshBackground } from './components/AudioMeshBackground';
@@ -31,10 +32,6 @@ const MainContent: React.FC = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const goToAdmin = () => {
-    window.location.href = '/admin';
-  };
-
   if (location.pathname === '/portal') {
     return <Portal onNavigate={handleNavigate} />;
   }
@@ -47,98 +44,74 @@ const MainContent: React.FC = () => {
       <div className="pointer-events-none fixed inset-0 z-0 bg-[radial-gradient(circle_at_top_left,rgba(212,175,55,0.10),transparent_32%),radial-gradient(circle_at_bottom_right,rgba(255,255,255,0.06),transparent_28%)]" />
       <div className="relative z-10 flex min-h-screen flex-col">
         {isAdmin ? (
-          <div className="fixed right-4 top-4 z-[110] flex flex-col items-end gap-2">
+          <div className="fixed right-4 top-20 z-50 flex gap-2">
             <button
               type="button"
               onClick={() => setEditMode(!editMode)}
-              className="rounded-full border border-[#D4AF37]/40 bg-[#121215]/95 px-4 py-2 text-[10px] font-bold uppercase tracking-[0.2em] text-[#EDEDED] shadow-lg backdrop-blur"
+              className="rounded-full border border-[#D4AF37]/40 bg-black/80 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-[#D4AF37]"
             >
-              {editMode ? 'Exit edit mode' : 'Edit page content'}
+              {editMode ? 'Exit edit' : 'Edit site'}
             </button>
-            {editMode ? (
-              <p className="max-w-xs rounded-lg border border-[#D4AF37]/30 bg-black/80 px-3 py-2 text-[10px] leading-relaxed text-[#D4AF37]">
-                Click any pencil text on the page, edit, then click outside or press Enter to save.
-              </p>
-            ) : null}
+            <a
+              href="/admin"
+              className="rounded-full border border-white/15 bg-black/80 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-[#B8B3AA]"
+            >
+              Admin
+            </a>
           </div>
         ) : null}
         <Navbar currentPage={currentPage} onNavigate={handleNavigate} />
         <main className="flex-1">
           <HomePage onNavigate={handleNavigate} />
         </main>
+        <Footer />
         <FloatingWhatsApp />
-        <Footer onAdminClick={goToAdmin} />
+        <SiteChat />
       </div>
     </div>
   );
 };
 
+const MaintenanceGate: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [maintenance, setMaintenance] = useState(false);
+  const { user } = useAuth();
+
+  useEffect(() => {
+    fetch('/api/settings')
+      .then((r) => r.json())
+      .then((s) => setMaintenance(Boolean(s?.maintenanceMode)))
+      .catch(() => undefined);
+  }, []);
+
+  if (maintenance && user?.role !== 'admin') {
+    return <MaintenancePage />;
+  }
+  return <>{children}</>;
+};
+
 const AppRoutes: React.FC = () => {
   const location = useLocation();
-  const navigate = useNavigate();
-  const { user, isLoading } = useAuth();
-  const [maintenance, setMaintenance] = React.useState<{ enabled: boolean; until: string | null; message: string } | null>(null);
-
-  React.useEffect(() => {
-    fetch('/api/maintenance')
-      .then((r) => r.json())
-      .then((d) => setMaintenance(d))
-      .catch(() => setMaintenance({ enabled: false, until: null, message: '' }));
-  }, [location.pathname]);
-
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === 'a') {
-        e.preventDefault();
-        navigate('/admin');
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-    };
-  }, [navigate]);
-
-  useEffect(() => {
-    if (isLoading || !user) return;
-    if (user.role === 'client' && location.pathname === '/') {
-      navigate('/portal', { replace: true });
-    }
-  }, [user, isLoading, location.pathname, navigate]);
-
-  // Public site locked during maintenance; admin + portal always reachable for staff/clients
-  if (
-    maintenance?.enabled &&
-    user?.role !== 'admin' &&
-    !location.pathname.startsWith('/admin') &&
-    !location.pathname.startsWith('/api')
-  ) {
-    // Allow portal only if already logged-in client
-    if (!(user?.role === 'client' && location.pathname.startsWith('/portal'))) {
-      return <MaintenancePage data={maintenance} />;
-    }
-  }
 
   if (location.pathname.startsWith('/admin')) {
     return <AdminApp />;
   }
 
   return (
-    <>
+    <MaintenanceGate>
       <Routes>
         <Route path="/" element={<MainContent />} />
         <Route path="/work" element={<PortfolioPage />} />
         <Route path="/work/:slug" element={<WorkDetailPage />} />
         <Route path="/services" element={<ServicesPage />} />
         <Route path="/contact" element={<ContactPage />} />
+        <Route path="/p/:slug" element={<CmsPageView />} />
         <Route path="/terms" element={<PolicyPage kind="terms" />} />
         <Route path="/privacy" element={<PolicyPage kind="privacy" />} />
         <Route path="/refund" element={<PolicyPage kind="refund" />} />
-        <Route path="/portal" element={<Portal onNavigate={(p) => window.location.href = p === 'home' ? '/' : `/${p}`} />} />
+        <Route path="/portal" element={<Portal onNavigate={(p) => (window.location.href = p === 'home' ? '/' : `/${p}`)} />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
-      <SiteChat />
-    </>
+    </MaintenanceGate>
   );
 };
 
@@ -146,15 +119,15 @@ export default function App() {
   return (
     <ErrorBoundary>
       <BrowserRouter>
-        <AdminProvider>
-          <ContentProvider>
-            <SfxProvider>
-              <AuthProvider>
+        <SfxProvider>
+          <AuthProvider>
+            <AdminProvider>
+              <ContentProvider>
                 <AppRoutes />
-              </AuthProvider>
-            </SfxProvider>
-          </ContentProvider>
-        </AdminProvider>
+              </ContentProvider>
+            </AdminProvider>
+          </AuthProvider>
+        </SfxProvider>
       </BrowserRouter>
     </ErrorBoundary>
   );
