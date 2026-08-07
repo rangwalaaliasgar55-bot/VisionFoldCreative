@@ -10,6 +10,8 @@ import {
   Loader2,
   RotateCcw,
   LayoutTemplate,
+  ExternalLink,
+  AlertCircle,
 } from 'lucide-react';
 import { adminApi } from '../../../lib/adminApi';
 import { BLOCK_CATALOG, type CmsPage, type CmsBlock, type CmsRevision } from '../../../lib/cmsTypes';
@@ -24,28 +26,31 @@ export const PageBuilder: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState('');
+  const [err, setErr] = useState('');
   const [preview, setPreview] = useState(false);
 
   const loadList = useCallback(async () => {
     setLoading(true);
+    setErr('');
     try {
       const res = await adminApi.get<{ pages: CmsPage[] }>('/api/cms/pages/admin');
       setPages(res.pages || []);
-    } catch (err: any) {
-      setMsg(err.message || 'Failed to load pages');
+    } catch (e: any) {
+      setErr(e.message || 'Failed to load pages — sign in again if session expired');
     } finally {
       setLoading(false);
     }
   }, []);
 
   const loadPage = async (id: string) => {
+    setErr('');
     try {
       const res = await adminApi.get<{ page: CmsPage; revisions: CmsRevision[] }>(`/api/cms/pages/${id}`);
       setPage(res.page);
       setRevisions(res.revisions || []);
       setSelectedId(id);
-    } catch (err: any) {
-      setMsg(err.message || 'Failed to load page');
+    } catch (e: any) {
+      setErr(e.message || 'Failed to load page');
     }
   };
 
@@ -56,13 +61,14 @@ export const PageBuilder: React.FC = () => {
   const createPage = async () => {
     const title = prompt('Page title?', 'New page');
     if (!title) return;
+    setErr('');
     try {
       const res = await adminApi.post<{ page: CmsPage }>('/api/cms/pages', { title });
       await loadList();
       await loadPage(res.page.id);
-      setMsg('Draft created');
-    } catch (err: any) {
-      setMsg(err.message || 'Create failed');
+      setMsg('Draft created — click Save after edits');
+    } catch (e: any) {
+      setErr(e.message || 'Create failed');
     }
   };
 
@@ -70,6 +76,7 @@ export const PageBuilder: React.FC = () => {
     if (!page) return;
     setSaving(true);
     setMsg('');
+    setErr('');
     try {
       const res = await adminApi.put<{ page: CmsPage }>(`/api/cms/pages/${page.id}`, {
         title: page.title,
@@ -79,11 +86,11 @@ export const PageBuilder: React.FC = () => {
         note: 'Editor save',
       });
       setPage(res.page);
-      setMsg(`Saved ${new Date().toLocaleTimeString()}`);
+      setMsg(`Saved at ${new Date().toLocaleTimeString()} — durable on server`);
       await loadPage(page.id);
       await loadList();
-    } catch (err: any) {
-      setMsg(err.message || 'Save failed');
+    } catch (e: any) {
+      setErr(e.message || 'Save failed — check Supabase settings.data column');
     } finally {
       setSaving(false);
     }
@@ -91,19 +98,41 @@ export const PageBuilder: React.FC = () => {
 
   const publish = async () => {
     if (!page) return;
-    await save();
-    const res = await adminApi.post<{ page: CmsPage }>(`/api/cms/pages/${page.id}/publish`, {});
-    setPage(res.page);
-    setMsg('Published');
-    await loadList();
+    try {
+      await save();
+      const res = await adminApi.post<{ page: CmsPage }>(`/api/cms/pages/${page.id}/publish`, {});
+      setPage(res.page);
+      setMsg(`Published → /p/${res.page.slug}`);
+      await loadList();
+    } catch (e: any) {
+      setErr(e.message || 'Publish failed');
+    }
   };
 
   const unpublish = async () => {
     if (!page) return;
-    const res = await adminApi.post<{ page: CmsPage }>(`/api/cms/pages/${page.id}/unpublish`, {});
-    setPage(res.page);
-    setMsg('Unpublished → draft');
-    await loadList();
+    try {
+      const res = await adminApi.post<{ page: CmsPage }>(`/api/cms/pages/${page.id}/unpublish`, {});
+      setPage(res.page);
+      setMsg('Unpublished → draft');
+      await loadList();
+    } catch (e: any) {
+      setErr(e.message || 'Unpublish failed');
+    }
+  };
+
+  const deletePage = async () => {
+    if (!page) return;
+    if (!confirm(`Delete “${page.title}” permanently?`)) return;
+    try {
+      await adminApi.delete(`/api/cms/pages/${page.id}`);
+      setPage(null);
+      setSelectedId(null);
+      setMsg('Page deleted');
+      await loadList();
+    } catch (e: any) {
+      setErr(e.message || 'Delete failed');
+    }
   };
 
   const addBlock = (type: string) => {
@@ -136,10 +165,7 @@ export const PageBuilder: React.FC = () => {
     const tmp = sorted[i];
     sorted[i] = sorted[j];
     sorted[j] = tmp;
-    setPage({
-      ...page,
-      blocks: sorted.map((b, order) => ({ ...b, order })),
-    });
+    setPage({ ...page, blocks: sorted.map((b, order) => ({ ...b, order })) });
   };
 
   const removeBlock = (id: string) => {
@@ -151,27 +177,41 @@ export const PageBuilder: React.FC = () => {
   };
 
   const rollback = async (revisionId: string) => {
-    if (!page || !confirm('Restore this revision? Current content is snapshotted first on next save.')) return;
-    const res = await adminApi.post<{ page: CmsPage }>(`/api/cms/pages/${page.id}/rollback`, { revisionId });
-    setPage(res.page);
-    setMsg('Rolled back');
-    await loadPage(page.id);
+    if (!page || !confirm('Restore this revision?')) return;
+    try {
+      const res = await adminApi.post<{ page: CmsPage }>(`/api/cms/pages/${page.id}/rollback`, {
+        revisionId,
+      });
+      setPage(res.page);
+      setMsg('Rolled back');
+      await loadPage(page.id);
+    } catch (e: any) {
+      setErr(e.message || 'Rollback failed');
+    }
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-24">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#D4AF37]">CMS</p>
           <h2 className="text-xl font-black text-white">Page builder</h2>
-          <p className="text-sm text-[#8A857C]">Draft → save (revision) → publish. Blocks persist to the server.</p>
+          <p className="text-sm text-[#8A857C]">
+            Edit → <strong className="text-white">Save</strong> → Publish → live at /p/slug
+          </p>
         </div>
         <PrimaryButton type="button" onClick={() => void createPage()}>
           <Plus className="h-4 w-4" /> New page
         </PrimaryButton>
       </div>
 
-      {msg ? <p className="text-xs text-[#D4AF37]">{msg}</p> : null}
+      {err ? (
+        <div className="flex items-start gap-2 rounded-xl border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-200">
+          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+          {err}
+        </div>
+      ) : null}
+      {msg ? <p className="text-xs text-emerald-400">{msg}</p> : null}
 
       <div className="grid gap-6 lg:grid-cols-[240px_1fr]">
         <Card className="h-fit p-3">
@@ -179,7 +219,7 @@ export const PageBuilder: React.FC = () => {
           {loading ? (
             <Loader2 className="h-4 w-4 animate-spin text-[#D4AF37]" />
           ) : pages.length === 0 ? (
-            <p className="text-xs text-[#666]">No pages yet</p>
+            <p className="text-xs text-[#666]">No pages — create one</p>
           ) : (
             <ul className="space-y-1">
               {pages.map((p) => (
@@ -193,7 +233,7 @@ export const PageBuilder: React.FC = () => {
                   >
                     <span className="font-medium">{p.title}</span>
                     <span className="mt-0.5 block text-[10px] uppercase tracking-wider text-[#666]">
-                      {p.status} · /{p.slug}
+                      {p.status} · /p/{p.slug}
                     </span>
                   </button>
                 </li>
@@ -215,7 +255,7 @@ export const PageBuilder: React.FC = () => {
               <div className="flex flex-wrap gap-2">
                 <PrimaryButton type="button" onClick={() => void save()} disabled={saving}>
                   {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-                  Save draft
+                  Save
                 </PrimaryButton>
                 {page.status === 'published' ? (
                   <GhostButton type="button" onClick={() => void unpublish()}>
@@ -227,34 +267,41 @@ export const PageBuilder: React.FC = () => {
                   </GhostButton>
                 )}
                 <GhostButton type="button" onClick={() => setPreview((v) => !v)}>
-                  {preview ? 'Edit' : 'Preview'}
+                  {preview ? 'Edit blocks' : 'Live preview'}
                 </GhostButton>
+                {page.status === 'published' ? (
+                  <a
+                    href={`/p/${page.slug}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-1 rounded-full border border-white/15 px-3 py-2 text-xs text-[#B8B3AA]"
+                  >
+                    <ExternalLink className="h-3.5 w-3.5" /> Open live
+                  </a>
+                ) : null}
+                <button
+                  type="button"
+                  onClick={() => void deletePage()}
+                  className="inline-flex items-center gap-1 rounded-full border border-red-500/30 px-3 py-2 text-xs font-bold uppercase tracking-wider text-red-300"
+                >
+                  <Trash2 className="h-3.5 w-3.5" /> Delete page
+                </button>
               </div>
               <div className="grid gap-3 sm:grid-cols-2">
                 <label className="text-xs text-[#8A857C]">
                   Title
-                  <Input
-                    className="mt-1"
-                    value={page.title}
-                    onChange={(e) => setPage({ ...page, title: e.target.value })}
-                  />
+                  <Input className="mt-1" value={page.title} onChange={(e) => setPage({ ...page, title: e.target.value })} />
                 </label>
                 <label className="text-xs text-[#8A857C]">
-                 Slug
-                  <Input
-                    className="mt-1"
-                    value={page.slug}
-                    onChange={(e) => setPage({ ...page, slug: e.target.value })}
-                  />
+                  Slug
+                  <Input className="mt-1" value={page.slug} onChange={(e) => setPage({ ...page, slug: e.target.value })} />
                 </label>
                 <label className="text-xs text-[#8A857C] sm:col-span-2">
                   Meta description
                   <Textarea
                     className="mt-1 min-h-16"
                     value={page.seo?.metaDescription || ''}
-                    onChange={(e) =>
-                      setPage({ ...page, seo: { ...page.seo, metaDescription: e.target.value } })
-                    }
+                    onChange={(e) => setPage({ ...page, seo: { ...page.seo, metaDescription: e.target.value } })}
                   />
                 </label>
               </div>
@@ -262,6 +309,7 @@ export const PageBuilder: React.FC = () => {
 
             {preview ? (
               <Card className="p-6">
+                <p className="mb-4 text-[10px] font-bold uppercase tracking-wider text-[#D4AF37]">Preview</p>
                 <BlockRenderer blocks={page.blocks} />
               </Card>
             ) : (
@@ -278,16 +326,13 @@ export const PageBuilder: React.FC = () => {
                     </button>
                   ))}
                 </div>
-
                 <div className="space-y-3">
                   {[...page.blocks]
                     .sort((a, b) => a.order - b.order)
                     .map((b) => (
                       <Card key={b.id} className="p-4">
                         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-                          <span className="text-[10px] font-bold uppercase tracking-wider text-[#D4AF37]">
-                            {b.type}
-                          </span>
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-[#D4AF37]">{b.type}</span>
                           <div className="flex gap-1">
                             <button type="button" onClick={() => moveBlock(b.id, -1)} className="p-1 text-[#8A857C] hover:text-white">
                               <ArrowUp className="h-4 w-4" />
@@ -310,7 +355,7 @@ export const PageBuilder: React.FC = () => {
             <Card className="p-4">
               <p className="mb-2 text-[10px] font-bold uppercase tracking-wider text-[#8A857C]">Revisions</p>
               {revisions.length === 0 ? (
-                <p className="text-xs text-[#666]">Saves create snapshots for rollback</p>
+                <p className="text-xs text-[#666]">Saves create snapshots</p>
               ) : (
                 <ul className="max-h-48 space-y-2 overflow-y-auto">
                   {revisions.map((r) => (
@@ -318,11 +363,7 @@ export const PageBuilder: React.FC = () => {
                       <span>
                         {new Date(r.createdAt).toLocaleString()} · {r.note || 'Save'}
                       </span>
-                      <button
-                        type="button"
-                        onClick={() => void rollback(r.id)}
-                        className="inline-flex items-center gap-1 text-[#D4AF37]"
-                      >
+                      <button type="button" onClick={() => void rollback(r.id)} className="inline-flex items-center gap-1 text-[#D4AF37]">
                         <RotateCcw className="h-3 w-3" /> Restore
                       </button>
                     </li>
@@ -333,6 +374,17 @@ export const PageBuilder: React.FC = () => {
           </div>
         )}
       </div>
+
+      {/* Sticky save bar */}
+      {page ? (
+        <div className="fixed bottom-4 left-1/2 z-40 flex -translate-x-1/2 items-center gap-3 rounded-full border border-[#D4AF37]/30 bg-black/90 px-4 py-2 shadow-xl backdrop-blur lg:left-[calc(50%+8rem)]">
+          <span className="hidden text-[10px] text-[#8A857C] sm:inline">Unsaved edits need Save</span>
+          <PrimaryButton type="button" onClick={() => void save()} disabled={saving}>
+            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+            Save now
+          </PrimaryButton>
+        </div>
+      ) : null}
     </div>
   );
 };
@@ -350,38 +402,18 @@ function BlockEditor({
       return (
         <div className="grid gap-2 sm:grid-cols-[1fr_100px]">
           <Input value={String(c.text || '')} onChange={(e) => onChange({ text: e.target.value })} />
-          <Input
-            type="number"
-            min={1}
-            max={3}
-            value={Number(c.level) || 2}
-            onChange={(e) => onChange({ level: Number(e.target.value) })}
-          />
+          <Input type="number" min={1} max={3} value={Number(c.level) || 2} onChange={(e) => onChange({ level: Number(e.target.value) })} />
         </div>
       );
     case 'text':
-      return (
-        <Textarea
-          className="min-h-24"
-          value={String(c.html || '')}
-          onChange={(e) => onChange({ html: e.target.value })}
-        />
-      );
+      return <Textarea className="min-h-24" value={String(c.html || '')} onChange={(e) => onChange({ html: e.target.value })} />;
     case 'image':
     case 'video':
       return (
         <div className="grid gap-2">
-          <Input
-            placeholder="URL"
-            value={String(c.url || '')}
-            onChange={(e) => onChange({ url: e.target.value })}
-          />
+          <Input placeholder="URL" value={String(c.url || '')} onChange={(e) => onChange({ url: e.target.value })} />
           {block.type === 'image' ? (
-            <Input
-              placeholder="Alt text"
-              value={String(c.alt || '')}
-              onChange={(e) => onChange({ alt: e.target.value })}
-            />
+            <Input placeholder="Alt text" value={String(c.alt || '')} onChange={(e) => onChange({ alt: e.target.value })} />
           ) : null}
         </div>
       );
@@ -403,13 +435,7 @@ function BlockEditor({
         </div>
       );
     case 'spacer':
-      return (
-        <Input
-          type="number"
-          value={Number(c.height) || 48}
-          onChange={(e) => onChange({ height: Number(e.target.value) })}
-        />
-      );
+      return <Input type="number" value={Number(c.height) || 48} onChange={(e) => onChange({ height: Number(e.target.value) })} />;
     case 'pricing':
       return (
         <div className="space-y-2">
@@ -431,7 +457,7 @@ function BlockEditor({
             try {
               onChange(JSON.parse(e.target.value));
             } catch {
-              /* ignore while typing */
+              /* typing */
             }
           }}
         />

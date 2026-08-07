@@ -5,10 +5,45 @@ import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
 import { createServer as createViteServer } from 'vite';
 import { registerApiRoutes } from './routes';
+import { dbManager } from '../lib/db';
+import { loadSettingsBlob, saveSettingsBlob } from '../lib/settingsBlob';
+
+/** Make settings durable on Vercel (full JSON in Supabase settings.data). */
+function patchSettingsPersistence() {
+  const mgr = dbManager as any;
+  if (mgr.__settingsPatched) return;
+  mgr.__settingsPatched = true;
+
+  mgr.getSettings = async function getSettingsPatched() {
+    return loadSettingsBlob(this.db.settings || {}, {
+      useSupabase: this.useSupabase,
+      supabaseClient: this.supabaseClient,
+      guardFallback: (e: unknown) => this.guardFallback(e),
+      saveLocal: (s: Record<string, any>) => {
+        this.db.settings = s;
+        this.saveLocalDB(this.db);
+      },
+    });
+  };
+
+  mgr.updateSettings = async function updateSettingsPatched(updates: Record<string, any>) {
+    return saveSettingsBlob(updates, this.db.settings || {}, {
+      useSupabase: this.useSupabase,
+      supabaseClient: this.supabaseClient,
+      guardFallback: (e: unknown) => this.guardFallback(e),
+      saveLocal: (s: Record<string, any>) => {
+        this.db.settings = s;
+        this.saveLocalDB(this.db);
+      },
+      getSettings: () => this.getSettings(),
+    });
+  };
+}
 
 export async function createApp() {
+  patchSettingsPersistence();
+
   const app = express();
-  // Required behind Vercel so express-rate-limit can use X-Forwarded-For safely
   app.set('trust proxy', 1);
 
   app.use(
@@ -24,6 +59,7 @@ export async function createApp() {
             "'self'",
             'https://*.supabase.co',
             'https://generativelanguage.googleapis.com',
+            'https://integrate.api.nvidia.com',
           ],
           fontSrc: ["'self'", 'data:'],
         },
