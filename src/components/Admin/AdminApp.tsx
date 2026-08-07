@@ -10,8 +10,7 @@ import { Portfolio } from './views/Portfolio';
 import { Invoices } from './views/Invoices';
 import { Expenses } from './views/Expenses';
 import { GrowthCopilot } from './views/GrowthCopilot';
-import { Settings } from './views/Settings';
-import { RatesPanel } from './views/SettingsRatesSnippet';
+import { PricingSettingsPage } from './views/PricingSettingsPage';
 import { Media } from './views/Media';
 import { Outreach } from './views/Outreach';
 import { PageBuilder } from './views/PageBuilder';
@@ -41,7 +40,7 @@ const VIEW_META: Record<AdminView, { title: string; subtitle?: string }> = {
   autoclip: { title: 'AutoClip Studio', subtitle: 'AI long-form → vertical clips (external engine)' },
   review: { title: 'Frame Review', subtitle: 'Timecode comments and cut approval' },
   outreach: { title: 'Outreach', subtitle: 'CSV import for calls and follow-ups' },
-  settings: { title: 'Pricing & Settings', subtitle: 'Rates, maintenance, integrations' },
+  settings: { title: 'Pricing & Settings', subtitle: 'Rates, site config, integrations, live preview' },
 };
 
 export const AdminApp: React.FC = () => {
@@ -147,12 +146,7 @@ export const AdminApp: React.FC = () => {
         {view === 'autoclip' && <AutoClipStudio />}
         {view === 'review' && <FrameReview />}
         {view === 'outreach' && <Outreach />}
-        {view === 'settings' && (
-          <div className="space-y-8">
-            <RatesPanel />
-            <Settings />
-          </div>
-        )}
+        {view === 'settings' && <PricingSettingsPage />}
       </AdminLayout>
     </>
   );
