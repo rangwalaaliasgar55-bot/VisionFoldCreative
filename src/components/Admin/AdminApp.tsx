@@ -26,7 +26,7 @@ const VIEW_META: Record<AdminView, { title: string; subtitle?: string }> = {
   portfolio: { title: 'Portfolio', subtitle: 'Manage what prospects see on your site' },
   invoices: { title: 'Invoices', subtitle: 'Billing and payment status' },
   expenses: { title: 'Expenses', subtitle: 'Track studio costs' },
-  growth: { title: 'AI Growth Copilot', subtitle: 'AI-generated action items for the business' },
+  growth: { title: 'AI Growth Copilot', subtitle: 'Action items for the business' },
   media: { title: 'Media & CMS', subtitle: 'Library and live page editing' },
   outreach: { title: 'Outreach', subtitle: 'CSV import for calls and follow-ups' },
   settings: { title: 'Pricing & Settings', subtitle: 'Rates, maintenance, integrations' },
@@ -36,7 +36,8 @@ export const AdminApp: React.FC = () => {
   const { user, isLoading, logout, error, clearError, checkAuth } = useAuth();
   const [view, setView] = useState<AdminView>('overview');
 
-  const isAuthenticated = useMemo(() => user?.role === 'admin', [user?.role]);
+  const isAdmin = useMemo(() => user?.role === 'admin', [user?.role]);
+  const isClientBlocked = useMemo(() => Boolean(user && user.role !== 'admin'), [user]);
 
   const handleLogout = async () => {
     try {
@@ -54,7 +55,32 @@ export const AdminApp: React.FC = () => {
     );
   }
 
-  if (!isAuthenticated) {
+  // Logged-in client trying to open /admin — hard stop (API also rejects)
+  if (isClientBlocked) {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-[#0A0A0B] px-6 text-center text-[#EDEDED]">
+        <p className="text-[10px] font-black uppercase tracking-[0.25em] text-[#D4AF37]">Access denied</p>
+        <h1 className="text-2xl font-black">Admin only</h1>
+        <p className="max-w-md text-sm text-[#8A857C]">
+          Your account is a client portal login. Studio admin tools are not available on this account.
+        </p>
+        <div className="flex flex-wrap justify-center gap-3">
+          <a href="/portal" className="rounded-full bg-[#D4AF37] px-5 py-2.5 text-xs font-black uppercase tracking-wider text-black">
+            Open client portal
+          </a>
+          <button
+            type="button"
+            onClick={() => void handleLogout()}
+            className="rounded-full border border-white/15 px-5 py-2.5 text-xs font-bold uppercase tracking-wider text-[#B8B3AA]"
+          >
+            Sign out
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (!isAdmin) {
     return (
       <AdminLogin
         onSuccess={() => {
@@ -87,8 +113,8 @@ export const AdminApp: React.FC = () => {
       {view === 'expenses' && <Expenses />}
       {view === 'growth' && <GrowthCopilot />}
       {view === 'media' && <Media />}
-          {view === 'outreach' && <Outreach />}
-          {view === 'settings' && <Settings />}
+      {view === 'outreach' && <Outreach />}
+      {view === 'settings' && <Settings />}
     </AdminLayout>
   );
 };
