@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { AdminLayout, AdminView } from './AdminLayout';
 import { AdminLogin } from './AdminLogin';
 import { Overview } from './views/Overview';
@@ -17,6 +17,7 @@ import { Outreach } from './views/Outreach';
 import { LoadingState } from './ui';
 import { useAuth } from '../../context/AuthContext';
 import { ErrorHandler } from '../../lib/errors';
+import { CommandPalette } from './CommandPalette';
 
 const VIEW_META: Record<AdminView, { title: string; subtitle?: string }> = {
   overview: { title: 'Studio Overview', subtitle: 'Revenue, leads, and project health at a glance' },
@@ -36,9 +37,28 @@ const VIEW_META: Record<AdminView, { title: string; subtitle?: string }> = {
 export const AdminApp: React.FC = () => {
   const { user, isLoading, logout, error, clearError, checkAuth } = useAuth();
   const [view, setView] = useState<AdminView>('overview');
+  const [paletteOpen, setPaletteOpen] = useState(false);
 
   const isAdmin = useMemo(() => user?.role === 'admin', [user?.role]);
   const isClientBlocked = useMemo(() => Boolean(user && user.role !== 'admin'), [user]);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setPaletteOpen(true);
+      }
+    };
+    const onAuthExpired = () => {
+      void checkAuth();
+    };
+    window.addEventListener('keydown', onKey);
+    window.addEventListener('vf:auth-expired', onAuthExpired);
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      window.removeEventListener('vf:auth-expired', onAuthExpired);
+    };
+  }, [checkAuth]);
 
   const handleLogout = async () => {
     try {
@@ -97,33 +117,36 @@ export const AdminApp: React.FC = () => {
   const meta = VIEW_META[view];
 
   return (
-    <AdminLayout
-      activeView={view}
-      onNavigate={setView}
-      onLogout={handleLogout}
-      title={meta.title}
-      subtitle={meta.subtitle}
-      error={error}
-      onClearError={clearError}
-    >
-      {view === 'overview' && <Overview onNavigate={(v) => setView(v as AdminView)} />}
-      {view === 'leads' && <Leads />}
-      {view === 'clients' && <Clients />}
-      {view === 'automations' && <Automations />}
-      {view === 'projects' && <Projects />}
-      {view === 'portfolio' && <Portfolio />}
-      {view === 'invoices' && <Invoices />}
-      {view === 'expenses' && <Expenses />}
-      {view === 'growth' && <GrowthCopilot />}
-      {view === 'media' && <Media />}
-      {view === 'outreach' && <Outreach />}
-      {view === 'settings' && (
-        <div className="space-y-8">
-          <RatesPanel />
-          <Settings />
-        </div>
-      )}
-    </AdminLayout>
+    <>
+      <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} onNavigate={setView} />
+      <AdminLayout
+        activeView={view}
+        onNavigate={setView}
+        onLogout={handleLogout}
+        title={meta.title}
+        subtitle={meta.subtitle}
+        error={error}
+        onClearError={clearError}
+      >
+        {view === 'overview' && <Overview onNavigate={(v) => setView(v as AdminView)} />}
+        {view === 'leads' && <Leads />}
+        {view === 'clients' && <Clients />}
+        {view === 'automations' && <Automations />}
+        {view === 'projects' && <Projects />}
+        {view === 'portfolio' && <Portfolio />}
+        {view === 'invoices' && <Invoices />}
+        {view === 'expenses' && <Expenses />}
+        {view === 'growth' && <GrowthCopilot />}
+        {view === 'media' && <Media />}
+        {view === 'outreach' && <Outreach />}
+        {view === 'settings' && (
+          <div className="space-y-8">
+            <RatesPanel />
+            <Settings />
+          </div>
+        )}
+      </AdminLayout>
+    </>
   );
 };
 
