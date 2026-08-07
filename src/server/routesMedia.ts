@@ -12,7 +12,8 @@ const ALLOWED_MIME = new Set([
   'video/webm',
 ]);
 
-const MAX_BYTES = 15 * 1024 * 1024;
+/** JSON+base64 expands ~33%; keep under typical serverless body limits. */
+const MAX_BYTES = 4 * 1024 * 1024;
 
 interface MediaAssetRecord {
   id: string;
@@ -24,6 +25,17 @@ interface MediaAssetRecord {
   folder: string;
   createdAt: string;
   createdBy?: string;
+}
+
+function mimeFromName(name: string, fallback = ''): string {
+  const n = name.toLowerCase();
+  if (n.endsWith('.jpg') || n.endsWith('.jpeg')) return 'image/jpeg';
+  if (n.endsWith('.png')) return 'image/png';
+  if (n.endsWith('.webp')) return 'image/webp';
+  if (n.endsWith('.gif')) return 'image/gif';
+  if (n.endsWith('.mp4')) return 'video/mp4';
+  if (n.endsWith('.webm')) return 'video/webm';
+  return fallback;
 }
 
 async function readRegistry(): Promise<MediaAssetRecord[]> {
@@ -48,6 +60,9 @@ export function registerMediaRoutes(app: Application) {
       bucket: 'visionfold-uploads',
       maxBytes: MAX_BYTES,
       allowedMime: [...ALLOWED_MIME],
+      hint: isCloudStorageConfigured()
+        ? 'Cloud storage ready'
+        : 'Set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY on Vercel — local /tmp uploads do not survive on serverless.',
     });
   });
 
@@ -61,7 +76,6 @@ export function registerMediaRoutes(app: Application) {
         console.warn('[MEDIA] storage list failed', err?.message);
       }
 
-      // Merge: prefer registry metadata, include storage-only objects
       const byKey = new Map<string, any>();
       for (const s of storageList) {
         byKey.set(s.key, {
@@ -69,7 +83,7 @@ export function registerMediaRoutes(app: Application) {
           key: s.key,
           url: s.url,
           fileName: s.key.split('/').pop(),
-          mimeType: s.mimeType || '',
+          mimeType: s.mimeType || mimeFromName(s.key),
           size: s.size || 0,
           folder: s.key.includes('/') ? s.key.split('/')[0] : 'media',
           createdAt: s.updatedAt || null,
@@ -88,6 +102,7 @@ export function registerMediaRoutes(app: Application) {
         assets,
         cloud: isCloudStorageConfigured(),
         count: assets.length,
+        maxBytes: MAX_BYTES,
       });
     } catch (err: any) {
       res.status(500).json({ error: err.message || 'Failed to list media' });
@@ -101,18 +116,49 @@ export function registerMediaRoutes(app: Application) {
         return res.status(400).json({ error: 'fileData and fileName are required' });
       }
 
-      const detected = String(mimeType || 'application/octet-stream');
+      let detected = String(mimeType || '').toLowerCase().trim();
+      if (!ALLOWED_MIME.has(detected)) {
+        detected = mimeFromName(String(fileName), detected);
+      }
       if (!ALLOWED_MIME.has(detected)) {
         return res.status(400).json({
-          error: `Invalid file type. Allowed: ${[...ALLOWED_MIME].join(', ')}`,
+          error: `Invalid file type (${detected || 'unknown'}). Use JPEG, PNG, WebP, GIF, MP4, or WebM.`,
+          code: 'INVALID_MIME',
         });
       }
 
-      const base64 = String(fileData).replace(/^data:[^;]+;base64,/, '');
-      const buffer = Buffer.from(base64, 'base64');
+      const raw = String(fileData);
+      if (raw.length > MAX_BYTES * 1.5) {
+        return res.status(400).json({
+          error: `File payload too large for serverless (max ~4MB). Compress the image or use a shorter video.`,
+          code: 'PAYLOAD_TOO_LARGE',
+          maxBytes: MAX_BYTES,
+        });
+      }
+
+      const base64 = raw.replace(/^data:[^;]+;base64,/, '');
+      let buffer: Buffer;
+      try {
+        buffer = Buffer.from(base64, 'base64');
+      } catch {
+        return res.status(400).json({ error: 'Invalid base64 file data', code: 'BAD_BASE64' });
+      }
       if (!buffer.length) return res.status(400).json({ error: 'Empty file' });
       if (buffer.length > MAX_BYTES) {
-        return res.status(400).json({ error: 'File too large (max 15MB)' });
+        return res.status(400).json({
+          error: `File too large (${Math.round(buffer.length / 1024)}KB). Max ${MAX_BYTES / 1024 / 1024}MB for uploads.`,
+          code: 'FILE_TOO_LARGE',
+          maxBytes: MAX_BYTES,
+        });
+      }
+
+      if (!isCloudStorageConfigured()) {
+        return res.status(503).json({
+          error:
+            'Durable media storage is not configured. Add SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY in Vercel env, then redeploy.',
+          code: 'STORAGE_NOT_CONFIGURED',
+          hint: 'Create a public bucket named visionfold-uploads in Supabase Storage (or let the API create it on first upload).',
+        });
       }
 
       const targetFolder = String(folder || 'media').slice(0, 40);
@@ -143,13 +189,15 @@ export function registerMediaRoutes(app: Application) {
         key,
         url,
         asset: record,
-        cloud: isCloudStorageConfigured(),
+        cloud: true,
       });
     } catch (err: any) {
+      console.error('[MEDIA] upload', err);
       res.status(500).json({
         error: err.message || 'Upload failed',
+        code: 'UPLOAD_FAILED',
         hint: isCloudStorageConfigured()
-          ? 'Check that bucket visionfold-uploads exists and is public (Phase B migration).'
+          ? 'Check bucket visionfold-uploads is Public and the service role key has storage access.'
           : 'Set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY for durable uploads on Vercel.',
       });
     }
