@@ -4,11 +4,14 @@ Premium video editing studio site + client portal + admin CMS.
 
 **Stack:** React 19 · TypeScript · Tailwind · Express API · Vercel · optional Supabase · Gemini AI
 
+**Deploy marker:** 2026-08-07 — Excel outreach import, Pricing & Settings live preview, Automations strategy.
+
 ## Features
 
 - Public marketing site (home, work, services, contact, policies)
 - Client portal (`/portal`) — projects, progress, messages, ratings, settings
 - Admin CMS (`/admin`) — leads, clients, projects, portfolio, media, invoices, expenses, automations, growth tools, settings
+- **Outreach:** CSV + Excel (`.xlsx`) lead import
 - Live page editing (admin → public site → **Edit page content**)
 - Maintenance mode with countdown (admin settings)
 - Public ratings API fed by client portal ratings
