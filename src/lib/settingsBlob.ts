@@ -1,7 +1,7 @@
 /**
  * Durable settings persistence for Vercel.
  * Writes the FULL settings object to Supabase settings.data (jsonb).
- * Without this, CMS pages, theme, media registry, and AI history vanish between invocations.
+ * Always sets updated_at (column is NOT NULL on many existing projects).
  */
 
 export type SettingsDeps = {
@@ -72,10 +72,11 @@ export async function saveSettingsBlob(
     }
   }
 
+  const now = new Date().toISOString();
   const merged: Record<string, any> = {
     ...base,
     ...updates,
-    updatedAt: new Date().toISOString(),
+    updatedAt: now,
   };
 
   if (updates.cmsStore && base.cmsStore) {
@@ -94,13 +95,14 @@ export async function saveSettingsBlob(
   }
 
   try {
+    // Include updated_at every time — DB has NOT NULL on this column
     const row = {
       id: 'default',
       data: merged,
       baseline_rate: merged?.rates?.baselineRate ?? 700,
       addon_rates: merged?.rates?.addonRates ?? {},
       metrics: merged?.metrics ?? {},
-      updated_at: new Date().toISOString(),
+      updated_at: now,
     };
     const { error } = await deps.supabaseClient.from('settings').upsert(row, { onConflict: 'id' });
     if (error) throw error;
@@ -108,7 +110,10 @@ export async function saveSettingsBlob(
     return merged;
   } catch (err) {
     deps.guardFallback(err);
-    console.warn('[SETTINGS] write failed; local only (WILL NOT persist on Vercel)', (err as any)?.message || err);
+    console.warn(
+      '[SETTINGS] write failed; local only (WILL NOT persist on Vercel)',
+      (err as any)?.message || err
+    );
     deps.saveLocal(merged);
     return merged;
   }
