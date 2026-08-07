@@ -33,9 +33,7 @@ async function request<T>(url: string, options: RequestInit = {}): Promise<T> {
     'Content-Type': 'application/json',
     ...(options.headers as Record<string, string> | undefined),
   };
-  if (token) {
-    headers.Authorization = `Bearer ${token}`;
-  }
+  if (token) headers.Authorization = `Bearer ${token}`;
 
   const response = await fetch(url, {
     credentials: 'include',
@@ -47,6 +45,11 @@ async function request<T>(url: string, options: RequestInit = {}): Promise<T> {
   const payload = isJson ? await response.json().catch(() => ({})) : null;
 
   if (!response.ok) {
+    if (response.status === 401 && typeof window !== 'undefined') {
+      setStoredToken(null);
+      // Soft signal for UI; avoid hard redirect loops on public pages
+      window.dispatchEvent(new CustomEvent('vf:auth-expired'));
+    }
     const msg =
       payload?.error ||
       (response.status === 401
