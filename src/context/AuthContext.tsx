@@ -9,13 +9,42 @@ interface AuthContextType {
   token: string | null;
   isLoading: boolean;
   error: AppError | null;
-  login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
+  login: (email: string, password: string) => Promise<{ success: boolean; error?: string; user?: User }>;
   logout: () => Promise<void>;
   checkAuth: () => Promise<void>;
   clearError: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+function coerceUser(raw: any): User | null {
+  if (!raw || typeof raw !== 'object') return null;
+  try {
+    return UserSchema.parse({
+      id: String(raw.id || ''),
+      email: String(raw.email || ''),
+      name: String(raw.name || raw.email || 'Client'),
+      role: raw.role === 'admin' ? 'admin' : 'client',
+      company: raw.company ?? '',
+      phone: raw.phone ?? '',
+      createdAt: raw.createdAt || new Date().toISOString(),
+    });
+  } catch {
+    // Last-resort map so portal never soft-locks after a successful login
+    if (raw.id && raw.email) {
+      return {
+        id: String(raw.id),
+        email: String(raw.email),
+        name: String(raw.name || raw.email),
+        role: raw.role === 'admin' ? 'admin' : 'client',
+        company: raw.company || '',
+        phone: raw.phone || '',
+        createdAt: raw.createdAt || new Date().toISOString(),
+      };
+    }
+    return null;
+  }
+}
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
@@ -33,18 +62,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const checkAuth = useCallback(async () => {
     try {
       setIsLoading(true);
-      const response = await fetch('/api/auth/me', {
-        credentials: 'include',
-      });
-
+      const response = await fetch('/api/auth/me', { credentials: 'include' });
       const responseText = await response.text();
-      const data = responseText ? (() => {
-        try {
-          return JSON.parse(responseText);
-        } catch {
-          return { error: responseText };
-        }
-      })() : {};
+      const data = responseText
+        ? (() => {
+            try {
+              return JSON.parse(responseText);
+            } catch {
+              return {};
+            }
+          })()
+        : {};
 
       if (!response.ok) {
         setUser(null);
@@ -52,8 +80,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
-      // Validate response structure
-      const validatedUser = UserSchema.parse(data.user);
+      const validatedUser = coerceUser(data.user);
+      if (!validatedUser) {
+        setUser(null);
+        setToken(null);
+        return;
+      }
       setUser(validatedUser);
       setToken(data.token || null);
       setError(null);
@@ -61,23 +93,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       ErrorHandler.log(err, 'checkAuth');
       setUser(null);
       setToken(null);
-      if (err instanceof AppError) {
-        setError(err);
-      }
+      if (err instanceof AppError) setError(err);
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [setToken]);
 
   useEffect(() => {
-    checkAuth();
+    void checkAuth();
   }, [checkAuth]);
 
   const login = async (email: string, password: string) => {
     try {
       clearError();
-
-      // Validate input
       const validated = LoginSchema.parse({ email, password });
 
       const response = await fetch('/api/auth/login', {
@@ -88,28 +116,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       });
 
       const responseText = await response.text();
-      const data = responseText ? (() => {
-        try {
-          return JSON.parse(responseText);
-        } catch {
-          return { error: responseText };
-        }
-      })() : {};
+      const data = responseText
+        ? (() => {
+            try {
+              return JSON.parse(responseText);
+            } catch {
+              return { error: responseText };
+            }
+          })()
+        : {};
 
       if (!response.ok) {
-        const errorMessage = data.error || 'Login failed';
+        const errorMessage = data.error || 'Invalid email or password';
         setError(new AppError(errorMessage, ErrorCode.UNAUTHORIZED, 401));
         return { success: false, error: errorMessage };
       }
 
-      const validatedUser = UserSchema.parse(data.user);
+      const validatedUser = coerceUser(data.user);
+      if (!validatedUser) {
+        return { success: false, error: 'Login succeeded but profile could not be loaded. Try again.' };
+      }
+
       setUser(validatedUser);
-      // Update both token state and API token
       setTokenState(data.token || null);
       setApiToken(data.token || null);
       setError(null);
-
-      return { success: true };
+      return { success: true, user: validatedUser };
     } catch (err: any) {
       let message = 'Network error';
       if (err?.name === 'ZodError' && Array.isArray(err.issues)) {
@@ -126,10 +158,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const logout = async () => {
     try {
-      await fetch('/api/auth/logout', {
-        method: 'POST',
-        credentials: 'include',
-      });
+      await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
     } catch (err) {
       ErrorHandler.log(err, 'logout');
     } finally {

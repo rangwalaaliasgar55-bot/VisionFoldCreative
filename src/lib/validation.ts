@@ -1,15 +1,15 @@
 import { z } from 'zod';
 
-// User Validation
+// User Validation — createdAt must accept common DB formats (ISO, date-only, missing tz)
 export const UserRoleSchema = z.enum(['admin', 'client']);
 export const UserSchema = z.object({
   id: z.string().min(1),
-  email: z.string().email(),
+  email: z.string().min(1),
   name: z.string().min(1),
   role: UserRoleSchema,
-  company: z.string().optional(),
-  phone: z.string().optional(),
-  createdAt: z.string().datetime(),
+  company: z.string().optional().nullable(),
+  phone: z.string().optional().nullable(),
+  createdAt: z.string().optional().nullable(),
 });
 
 export const CreateUserSchema = z.object({
@@ -25,16 +25,13 @@ export const UpdateUserSchema = CreateUserSchema.partial().omit({ password: true
   password: z.string().min(8).optional(),
 });
 
-// Shared flexible date schema for various date formats
 const FlexibleDateSchema = z.string().refine(
   (val) => !isNaN(Date.parse(val)),
   'Must be a valid date string (ISO 8601 or YYYY-MM-DD)'
 );
 
-// Content Block Validation
 export const ContentBlockTypeSchema = z.enum(['text', 'richtext', 'image', 'list', 'price']);
 
-// List items can be strings, objects with title/description/icon, or headline/bullets structure
 export const ListItemSchema = z.union([
   z.string(),
   z.object({
@@ -50,34 +47,31 @@ export const ContentBlockSchema = z.object({
   section_key: z.string().min(1),
   type: ContentBlockTypeSchema,
   value: z.union([
-    z.string(), // text, richtext, image, price
-    z.array(ListItemSchema), // list items as array of strings or objects
+    z.string(),
+    z.array(ListItemSchema),
     z.object({
       headline: z.string().optional(),
       bullets: z.array(z.string()).optional(),
-    }).passthrough(), // list items as object with headline/bullets
+    }).passthrough(),
   ]),
   order: z.number().int().nonnegative(),
   visible: z.boolean(),
-  updatedAt: z.string().datetime(),
+  updatedAt: z.string().optional(),
 });
 
 export const CreateContentBlockSchema = ContentBlockSchema.omit({ id: true, updatedAt: true });
 export const UpdateContentBlockSchema = CreateContentBlockSchema.partial();
 
-// Portfolio Item Validation
 export const PortfolioItemSchema = z.object({
   id: z.string().min(1),
   title: z.string().min(1),
   clientName: z.string().optional(),
   hideClientName: z.boolean().optional(),
   category: z.enum(['Short Form', 'Brand Content', 'Long Form', 'Social Media', 'Documentary']),
-  // Allow both URLs and empty strings for flexibility with CDN uploads
   thumbnailUrl: z.string().url().or(z.literal('')).optional(),
   videoUrl: z.string().url().or(z.literal('')).optional(),
   teaser: z.string().min(10),
   fullDescription: z.string().min(20),
-  // Allow both ISO datetime and date-only strings (YYYY-MM-DD)
   dateCreated: z.string().refine(
     (val) => !isNaN(Date.parse(val)),
     'Must be a valid date string (ISO 8601 or YYYY-MM-DD)'
@@ -91,7 +85,6 @@ export const PortfolioItemSchema = z.object({
 export const CreatePortfolioItemSchema = PortfolioItemSchema.omit({ id: true, dateCreated: true });
 export const UpdatePortfolioItemSchema = CreatePortfolioItemSchema.partial();
 
-// Message Validation
 export const MessageSchema = z.object({
   id: z.string().min(1),
   name: z.string().min(1),
@@ -100,11 +93,10 @@ export const MessageSchema = z.object({
   company: z.string().optional(),
   projectType: z.string().min(1),
   budgetRange: z.string().min(1),
-  // Allow flexible date formats for deadline
   deadline: FlexibleDateSchema.optional(),
   message: z.string().min(10),
   status: z.enum(['new', 'contacted', 'closed']),
-  createdAt: z.string().datetime(),
+  createdAt: z.string().optional(),
 });
 
 export const CreateMessageSchema = MessageSchema.omit({ id: true, status: true, createdAt: true }).extend({
@@ -115,7 +107,6 @@ export const UpdateMessageStatusSchema = z.object({
   status: z.enum(['new', 'contacted', 'closed']),
 });
 
-// Project Validation
 export const ProjectStatusSchema = z.enum(['in_progress', 'in_review', 'delivered']);
 
 export const ProjectSchema = z.object({
@@ -123,11 +114,10 @@ export const ProjectSchema = z.object({
   title: z.string().min(1),
   clientId: z.string().min(1),
   clientName: z.string().min(1),
-  clientEmail: z.string().email(),
+  clientEmail: z.string().optional(),
   category: z.string().min(1),
   status: ProjectStatusSchema,
-  description: z.string().min(1),
-  // Allow empty URLs for flexibility
+  description: z.string().optional(),
   deliveredFiles: z
     .array(
       z.object({
@@ -137,16 +127,15 @@ export const ProjectSchema = z.object({
     )
     .optional(),
   resultsImpact: z.string().optional(),
-  startDate: FlexibleDateSchema,
+  startDate: FlexibleDateSchema.optional(),
   deliveryDate: FlexibleDateSchema.optional(),
-  amountINR: z.number().positive(),
-  createdAt: z.string().datetime(),
+  amountINR: z.number().nonnegative().optional(),
+  createdAt: z.string().optional(),
 });
 
 export const CreateProjectSchema = ProjectSchema.omit({ id: true, createdAt: true });
 export const UpdateProjectSchema = CreateProjectSchema.partial();
 
-// Revision Validation
 export const RevisionSchema = z.object({
   id: z.string().min(1),
   projectId: z.string().min(1),
@@ -154,8 +143,8 @@ export const RevisionSchema = z.object({
   clientName: z.string().min(1),
   comment: z.string().min(1),
   status: z.enum(['pending', 'in_progress', 'resolved']),
-  createdAt: z.string().datetime(),
-  updatedAt: z.string().datetime(),
+  createdAt: z.string().optional(),
+  updatedAt: z.string().optional(),
 });
 
 export const CreateRevisionSchema = RevisionSchema.omit({ id: true, createdAt: true, updatedAt: true });
@@ -164,25 +153,23 @@ export const UpdateRevisionSchema = z.object({
   status: z.enum(['pending', 'in_progress', 'resolved']).optional(),
 });
 
-// Invoice Validation
 export const InvoiceSchema = z.object({
   id: z.string().min(1),
   invoiceNumber: z.string().min(1),
   projectId: z.string().optional(),
   clientId: z.string().min(1),
   clientName: z.string().min(1),
-  amountINR: z.number().positive(),
+  amountINR: z.number().nonnegative(),
   dueDate: FlexibleDateSchema,
   status: z.enum(['paid', 'unpaid', 'overdue']),
   description: z.string().min(1),
-  paidAt: z.string().datetime().optional(),
-  createdAt: z.string().datetime(),
+  paidAt: z.string().optional(),
+  createdAt: z.string().optional(),
 });
 
 export const CreateInvoiceSchema = InvoiceSchema.omit({ id: true, createdAt: true });
 export const UpdateInvoiceSchema = CreateInvoiceSchema.partial();
 
-// Expense Validation
 export const ExpenseSchema = z.object({
   id: z.string().min(1),
   title: z.string().min(1),
@@ -190,15 +177,14 @@ export const ExpenseSchema = z.object({
   amountINR: z.number().positive(),
   date: FlexibleDateSchema,
   description: z.string().optional(),
-  createdAt: z.string().datetime(),
+  createdAt: z.string().optional(),
 });
 
 export const CreateExpenseSchema = ExpenseSchema.omit({ id: true, createdAt: true });
 export const UpdateExpenseSchema = CreateExpenseSchema.partial();
 
-// Auth Validation
 export const LoginSchema = z.object({
-  email: z.string().email('Invalid email address'),
+  email: z.string().min(1, 'Email is required').transform((s) => s.trim().toLowerCase()),
   password: z.string().min(1, 'Password is required'),
 });
 
@@ -207,7 +193,6 @@ export const AuthStateSchema = z.object({
   token: z.string().nullable(),
 });
 
-// Type Exports
 export type User = z.infer<typeof UserSchema>;
 export type UserRole = z.infer<typeof UserRoleSchema>;
 export type ContentBlock = z.infer<typeof ContentBlockSchema>;
