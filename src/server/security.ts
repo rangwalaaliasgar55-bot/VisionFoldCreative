@@ -7,7 +7,7 @@ import { User } from '../types';
 
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 10,
+  max: 30,
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Too many authentication attempts, please try again after 15 minutes.' },
@@ -15,7 +15,7 @@ const authLimiter = rateLimit({
 
 const messageLimiter = rateLimit({
   windowMs: 60 * 60 * 1000,
-  max: 5,
+  max: 15,
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Too many messages sent, please try again later.' },
@@ -23,7 +23,7 @@ const messageLimiter = rateLimit({
 
 const aiLimiter = rateLimit({
   windowMs: 60 * 1000,
-  max: 20,
+  max: 30,
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Too many AI requests, please slow down.' },
@@ -32,7 +32,7 @@ const aiLimiter = rateLimit({
 const REQUIRED_JWT_SECRET = process.env.JWT_SECRET;
 
 if (!REQUIRED_JWT_SECRET) {
-  console.error(
+  console.warn(
     'WARNING: JWT_SECRET is not set. Using a temporary fallback. ' +
       'Set JWT_SECRET in Vercel Project Settings → Environment Variables for production security.'
   );
@@ -45,146 +45,65 @@ export interface AuthenticatedRequest extends Request {
   authToken?: string;
 }
 
-/** Public-safe user (never includes passwordHash). */
-export function toSafeUser(user: any): User {
-  if (!user) throw new Error('User required');
+function toSafeUser(user: User & { passwordHash?: string }): User {
+  const { passwordHash: _ph, ...safe } = user as any;
   return {
-    id: String(user.id),
-    email: String(user.email),
-    name: String(user.name || user.email),
-    role: user.role === 'admin' ? 'admin' : user.role === 'editor' ? 'client' : 'client',
-    company: user.company ?? '',
-    phone: user.phone ?? '',
-    createdAt: user.createdAt || user.created_at || new Date().toISOString(),
+    id: safe.id,
+    email: safe.email,
+    name: safe.name,
+    role: safe.role,
+    company: safe.company || '',
+    phone: safe.phone || '',
+    createdAt: safe.createdAt || new Date().toISOString(),
   };
 }
 
-const messageSchema = z.object({
-  name: z.string().trim().min(1),
-  email: z.string().trim().min(1),
-  phone: z.string().trim().min(1),
-  company: z.string().trim().optional().default(''),
-  projectType: z.string().trim().optional().default('Short Form'),
-  budgetRange: z.string().trim().optional().default('Flexible / Custom Quote'),
-  deadline: z.string().trim().optional().default(''),
-  message: z.string().trim().min(1),
-});
-
-const portfolioCategorySchema = z.enum([
-  'Short Form',
-  'Brand Content',
-  'Long Form',
-  'Social Media',
-  'Documentary',
-]);
-
-const portfolioSchema = z.object({
-  title: z.string().trim().min(1),
-  clientName: z.string().trim().optional().or(z.literal('')),
-  hideClientName: z.boolean().optional(),
-  category: portfolioCategorySchema,
-  thumbnailUrl: z.string().trim().url().optional().or(z.literal('')).default(''),
-  videoUrl: z.string().trim().url().optional().or(z.literal('')).default(''),
-  teaser: z.string().trim().optional().default(''),
-  fullDescription: z.string().trim().optional().default(''),
-  dateCreated: z.string().trim().optional().default(''),
-  toolsUsed: z.array(z.string()).optional().default([]),
-  resultsImpact: z.string().trim().optional().default(''),
-  order: z.number().int().optional().default(0),
-  featured: z.boolean().optional().default(false),
-});
-
-const portfolioUpdateSchema = portfolioSchema.partial();
-
-const clientSchema = z.object({
-  email: z.string().trim().optional().default(''),
-  name: z.string().trim().min(1),
-  company: z.string().trim().optional().default(''),
-  phone: z.string().trim().optional().default(''),
-  password: z.string().trim().optional().default(''),
-});
-
-const invoiceSchema = z.object({
-  invoiceNumber: z.string().trim().min(1),
-  clientId: z.string().trim().min(1),
-  clientName: z.string().trim().min(1),
-  amountINR: z.number().min(0),
-  dueDate: z.string().trim().min(1),
-  status: z.enum(['paid', 'unpaid', 'overdue']).optional().default('unpaid'),
-  description: z.string().trim().min(1),
-  projectId: z.string().trim().optional(),
-});
-
-const invoiceUpdateSchema = invoiceSchema.partial();
-
-async function sendInquiryEmail(payload: {
-  name: string;
-  email: string;
-  message: string;
-  phone: string;
-  company?: string;
-  projectType?: string;
-  budgetRange?: string;
-  deadline?: string;
-}) {
-  const apiKey = process.env.RESEND_API_KEY;
-  if (!apiKey) {
-    console.log(`[EMAIL] RESEND_API_KEY not configured; skipping notification for ${payload.email}`);
-    return;
-  }
-  const from = process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev';
-  const to = process.env.NOTIFICATION_EMAIL || 'visionfoldcreative@gmail.com';
-  const html = `<h2>New inquiry from VisionFold Creative</h2>
-    <p><strong>Name:</strong> ${payload.name}</p>
-    <p><strong>Email:</strong> ${payload.email}</p>
-    <p><strong>Phone:</strong> ${payload.phone}</p>
-    <p><strong>Company:</strong> ${payload.company || '—'}</p>
-    <p><strong>Project Type:</strong> ${payload.projectType || '—'}</p>
-    <p><strong>Budget Range:</strong> ${payload.budgetRange || '—'}</p>
-    <p><strong>Deadline:</strong> ${payload.deadline || '—'}</p>
-    <p><strong>Message:</strong><br/>${payload.message.replace(/\n/g, '<br/>')}</p>`;
-  const response = await fetch('https://api.resend.com/emails', {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ from, to, subject: `New inquiry from ${payload.name}`, html }),
-  });
-  if (!response.ok) {
-    const body = await response.text().catch(() => '');
-    throw new Error(`Resend request failed (${response.status}): ${body}`);
-  }
-}
-
 /**
- * Authenticate via httpOnly cookie or Authorization Bearer.
+ * Authenticate via Authorization Bearer (preferred) or httpOnly cookie.
  * Role is always taken from the database user record — never trusted from JWT alone.
  */
 async function authenticateToken(req: AuthenticatedRequest, res: Response, next: NextFunction) {
   const header = req.headers.authorization;
   const bearer = header?.startsWith('Bearer ') ? header.slice(7).trim() : undefined;
-  const token = req.cookies?.vf_token || bearer;
+  // Prefer Bearer so browser localStorage token wins over a stale cookie
+  const token = bearer || req.cookies?.vf_token;
 
   if (!token) {
-    return res.status(401).json({ error: 'Authentication required', code: 'UNAUTHENTICATED' });
+    return res.status(401).json({
+      error: 'Authentication required — sign in again',
+      code: 'UNAUTHENTICATED',
+    });
   }
 
   try {
     const decoded = jwt.verify(token, JWT_SECRET) as { id?: string; email?: string; role?: string };
     if (!decoded?.id) {
-      return res.status(403).json({ error: 'Invalid token payload', code: 'INVALID_TOKEN' });
+      return res.status(401).json({ error: 'Invalid token payload', code: 'INVALID_TOKEN' });
     }
 
-    const userWithHash = await dbManager.findUserById(decoded.id);
+    let userWithHash = await dbManager.findUserById(decoded.id);
+    if (!userWithHash && decoded.email) {
+      userWithHash = await dbManager.findUserByEmail(decoded.email);
+    }
     if (!userWithHash) {
-      return res.status(401).json({ error: 'User not found', code: 'USER_NOT_FOUND' });
+      return res.status(401).json({
+        error: 'User not found — sign out and sign in again',
+        code: 'USER_NOT_FOUND',
+      });
     }
 
-    // DB is source of truth for role (prevents privilege escalation via forged JWT claims)
     const safe = toSafeUser(userWithHash);
     req.user = safe;
     req.authToken = token;
     next();
-  } catch {
-    return res.status(403).json({ error: 'Invalid or expired token', code: 'INVALID_TOKEN' });
+  } catch (err: any) {
+    const expired = err?.name === 'TokenExpiredError';
+    return res.status(401).json({
+      error: expired
+        ? 'Session expired — sign in again'
+        : 'Invalid token — sign out and sign in again (check JWT_SECRET is set on Vercel)',
+      code: expired ? 'TOKEN_EXPIRED' : 'INVALID_TOKEN',
+    });
   }
 }
 
@@ -208,15 +127,100 @@ function requireAdmin(req: AuthenticatedRequest, res: Response, next: NextFuncti
   return requireRole('admin')(req, res, next);
 }
 
-function requireClient(req: AuthenticatedRequest, res: Response, next: NextFunction) {
-  return requireRole('client')(req, res, next);
-}
-
-/** Ensure resource clientId matches the authenticated client (admins pass). */
-function assertClientOwns(req: AuthenticatedRequest, clientId: string | undefined | null): boolean {
+function assertClientOwns(req: AuthenticatedRequest, clientId?: string): boolean {
   if (!req.user) return false;
   if (req.user.role === 'admin') return true;
   return Boolean(clientId && clientId === req.user.id);
+}
+
+const messageSchema = z.object({
+  name: z.string().min(2),
+  email: z.string().email(),
+  phone: z.string().min(10),
+  company: z.string().optional(),
+  projectType: z.string().min(1),
+  budgetRange: z.string().min(1),
+  deadline: z.string().optional(),
+  message: z.string().min(10),
+});
+
+const clientSchema = z.object({
+  name: z.string().min(2),
+  email: z.string().email().optional().or(z.literal('')),
+  company: z.string().optional(),
+  phone: z.string().optional(),
+  password: z.string().optional(),
+});
+
+const invoiceSchema = z.object({
+  clientId: z.string().min(1),
+  clientName: z.string().min(1),
+  amountINR: z.number().positive(),
+  description: z.string().min(1),
+  dueDate: z.string().min(1),
+  status: z.enum(['draft', 'sent', 'paid', 'overdue']).optional(),
+});
+
+const invoiceUpdateSchema = z.object({
+  status: z.enum(['draft', 'sent', 'paid', 'overdue']).optional(),
+  amountINR: z.number().positive().optional(),
+  description: z.string().optional(),
+  dueDate: z.string().optional(),
+});
+
+const portfolioSchema = z.object({
+  title: z.string().min(1),
+  clientName: z.string().optional(),
+  category: z.string().min(1),
+  thumbnailUrl: z.string().optional(),
+  videoUrl: z.string().optional(),
+  teaser: z.string().optional(),
+  fullDescription: z.string().optional(),
+  resultsImpact: z.string().optional(),
+  toolsUsed: z.array(z.string()).optional(),
+  order: z.number().optional(),
+  featured: z.boolean().optional(),
+  dateCreated: z.string().optional(),
+});
+
+const portfolioUpdateSchema = portfolioSchema.partial();
+
+async function sendInquiryEmail(data: {
+  name: string;
+  email: string;
+  phone?: string;
+  company?: string;
+  projectType?: string;
+  budgetRange?: string;
+  message?: string;
+}) {
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) return;
+  const from = process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev';
+  const to = process.env.NOTIFICATION_EMAIL || 'visionfoldcreative@gmail.com';
+  try {
+    await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        from,
+        to: [to],
+        subject: `New inquiry: ${data.name} — ${data.projectType || 'Project'}`,
+        text: [
+          `Name: ${data.name}`,
+          `Email: ${data.email}`,
+          `Phone: ${data.phone || '—'}`,
+          `Company: ${data.company || '—'}`,
+          `Type: ${data.projectType || '—'}`,
+          `Budget: ${data.budgetRange || '—'}`,
+          '',
+          data.message || '',
+        ].join('\n'),
+      }),
+    });
+  } catch (err) {
+    console.error('[EMAIL]', err);
+  }
 }
 
 export {
@@ -225,16 +229,15 @@ export {
   messageLimiter,
   aiLimiter,
   authenticateToken,
-  requireAdmin,
-  requireClient,
   requireRole,
+  requireAdmin,
   assertClientOwns,
+  toSafeUser,
   messageSchema,
-  portfolioSchema,
-  portfolioUpdateSchema,
   clientSchema,
   invoiceSchema,
   invoiceUpdateSchema,
+  portfolioSchema,
+  portfolioUpdateSchema,
   sendInquiryEmail,
 };
-export type { AuthenticatedRequest };
