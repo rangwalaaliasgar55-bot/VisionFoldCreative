@@ -16,6 +16,7 @@ import {
   type AuthenticatedRequest,
 } from './security';
 import { registerAiRoutes } from './routesAI';
+import { scoreAndPersistMessage } from './routesGrowth';
 
 export function registerBusinessRoutes(app: Application) {
   app.post('/api/messages', messageLimiter, async (req, res) => {
@@ -28,11 +29,36 @@ export function registerBusinessRoutes(app: Application) {
     } catch (error: any) {
       console.error('[EMAIL ERROR]', error.message);
     }
-    res.json({ success: true, message: newMsg });
+
+    // Lead scoring pipeline (Phase H) — non-blocking failure
+    let leadScore = null;
+    try {
+      leadScore = await scoreAndPersistMessage(newMsg as any);
+    } catch (err: any) {
+      console.warn('[LEAD_SCORE]', err?.message);
+    }
+
+    res.json({ success: true, message: newMsg, leadScore });
   });
 
   app.get('/api/messages', authenticateToken, requireAdmin, async (_req, res) => {
-    res.json(await dbManager.getMessages());
+    const messages = await dbManager.getMessages();
+    let leadScores: Record<string, any> = {};
+    try {
+      const settings = await dbManager.getSettings();
+      leadScores = (settings as any).leadScores || {};
+    } catch {
+      /* ignore */
+    }
+    res.json(
+      messages.map((m: any) => ({
+        ...m,
+        leadScore: leadScores[m.id]?.score ?? m.leadScore ?? null,
+        leadTier: leadScores[m.id]?.tier ?? m.leadTier ?? null,
+        leadReason: leadScores[m.id]?.reason ?? m.leadReason ?? null,
+        leadSource: leadScores[m.id]?.source ?? null,
+      }))
+    );
   });
 
   app.patch('/api/messages/:id/status', authenticateToken, requireAdmin, async (req, res) => {
@@ -147,6 +173,23 @@ export function registerBusinessRoutes(app: Application) {
     res.json(updated);
   });
 
+  app.delete('/api/projects/:id', authenticateToken, requireAdmin, async (req, res) => {
+    try {
+      const projects = await dbManager.getProjects();
+      const exists = projects.find((p) => p.id === req.params.id);
+      if (!exists) return res.status(404).json({ error: 'Project not found' });
+      // Soft-delete via status if no deleteProject helper
+      if (typeof (dbManager as any).deleteProject === 'function') {
+        await (dbManager as any).deleteProject(req.params.id);
+      } else {
+        await dbManager.updateProject(req.params.id, { status: 'delivered', description: (exists.description || '') + ' [archived]' } as any);
+      }
+      res.json({ success: true });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message || 'Delete failed' });
+    }
+  });
+
   app.get('/api/revisions', authenticateToken, async (req: AuthenticatedRequest, res) => {
     const projectId = req.query.projectId as string;
     if (req.user?.role === 'admin') {
@@ -216,8 +259,6 @@ export function registerBusinessRoutes(app: Application) {
     }
     res.json({ success: true });
   });
-
-  // Upload moved to routesMedia.ts (Phase E)
 
   registerAiRoutes(app);
 }
