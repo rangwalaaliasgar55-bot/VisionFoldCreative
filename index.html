@@ -17,6 +17,7 @@
     <meta property="og:description" content="Retention-first short-form and custom long-form edits. Client portal and studio workflow by Aliasgar." />
     <meta property="og:image" content="https://visionfoldcreative.vercel.app/og-image.jpg" />
     <meta property="og:site_name" content="VisionFold Creative" />
+    <meta property="og:locale" content="en_IN" />
 
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:url" content="https://visionfoldcreative.vercel.app/" />
@@ -37,14 +38,37 @@
     <script type="application/ld+json">
       {
         "@context": "https://schema.org",
-        "@type": "ProfessionalService",
-        "name": "VisionFold Creative",
-        "description": "Premium video editing studio for short-form, brand content, and long-form by Aliasgar.",
-        "url": "https://visionfoldcreative.vercel.app/",
-        "email": "visionfoldcreative@gmail.com",
-        "priceRange": "₹700+",
-        "areaServed": "IN",
-        "sameAs": []
+        "@graph": [
+          {
+            "@type": "Organization",
+            "@id": "https://visionfoldcreative.vercel.app/#organization",
+            "name": "VisionFold Creative",
+            "url": "https://visionfoldcreative.vercel.app/",
+            "logo": "https://visionfoldcreative.vercel.app/favicon.svg",
+            "email": "visionfoldcreative@gmail.com",
+            "telephone": "+91-7725004639",
+            "founder": { "@type": "Person", "name": "Aliasgar" },
+            "sameAs": []
+          },
+          {
+            "@type": "WebSite",
+            "@id": "https://visionfoldcreative.vercel.app/#website",
+            "url": "https://visionfoldcreative.vercel.app/",
+            "name": "VisionFold Creative",
+            "publisher": { "@id": "https://visionfoldcreative.vercel.app/#organization" },
+            "inLanguage": "en-IN"
+          },
+          {
+            "@type": "ProfessionalService",
+            "@id": "https://visionfoldcreative.vercel.app/#service",
+            "name": "VisionFold Creative",
+            "description": "Premium short-form and long-form video editing for brands and creators.",
+            "url": "https://visionfoldcreative.vercel.app/",
+            "priceRange": "₹₹",
+            "areaServed": "IN",
+            "provider": { "@id": "https://visionfoldcreative.vercel.app/#organization" }
+          }
+        ]
       }
     </script>
   </head>

@@ -1,11 +1,8 @@
-# https://www.robotstxt.org/robotstxt.html
 User-agent: *
 Allow: /
 
-# Disallow admin and portal routes
 Disallow: /admin
 Disallow: /portal
 Disallow: /api/
 
-# Sitemap location
-Sitemap: https://vision-fold-creative.vercel.app/sitemap.xml
+Sitemap: https://visionfoldcreative.vercel.app/sitemap.xml
