@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Mail, Phone, Flame, Thermometer, Snowflake, Sparkles, Loader2, FileText } from 'lucide-react';
 import { adminApi } from '../../../lib/adminApi';
-import { Card, StatusBadge, EmptyState, Select, formatDate, PrimaryButton, GhostButton } from '../ui';
+import { Card, EmptyState, Select, formatDate, PrimaryButton, GhostButton } from '../ui';
 import { Skeleton } from '../../ui/Skeleton';
 
 interface LeadMessage {
@@ -14,12 +14,11 @@ interface LeadMessage {
   budgetRange: string;
   deadline?: string;
   message: string;
-  status: 'new' | 'contacted' | 'closed' | 'qualified';
+  status: 'new' | 'contacted' | 'qualified' | 'proposal' | 'won' | 'lost' | 'closed';
   createdAt: string;
   leadScore?: number | null;
   leadTier?: 'hot' | 'warm' | 'cold' | null;
   leadReason?: string | null;
-  leadSource?: string | null;
 }
 
 function TierBadge({ tier, score }: { tier?: string | null; score?: number | null }) {
@@ -47,15 +46,15 @@ export const Leads: React.FC = () => {
   const [expanded, setExpanded] = useState<string | null>(null);
   const [scoringId, setScoringId] = useState<string | null>(null);
   const [propLoading, setPropLoading] = useState<string | null>(null);
+  const [convertLoading, setConvertLoading] = useState<string | null>(null);
+  const [convertMsg, setConvertMsg] = useState('');
   const [proposalText, setProposalText] = useState('');
 
   const load = async () => {
     setLoading(true);
     try {
       const data = await adminApi.get<LeadMessage[]>('/api/messages');
-      setMessages(
-        [...data].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-      );
+      setMessages([...data].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
     } finally {
       setLoading(false);
     }
@@ -65,6 +64,27 @@ export const Leads: React.FC = () => {
     void load();
   }, []);
 
+  const convertToProject = async (id: string) => {
+    setConvertLoading(id);
+    setConvertMsg('');
+    try {
+      const res = await adminApi.post<{ project: { id: string; title: string }; tempPassword?: string | null }>(
+        `/api/messages/${id}/convert-project`,
+        {}
+      );
+      setConvertMsg(
+        res.tempPassword
+          ? `Project created. New client login password: ${res.tempPassword}`
+          : `Project created: ${res.project?.title || 'ok'}`
+      );
+      await load();
+    } catch (err: any) {
+      setConvertMsg(err?.message || 'Convert failed');
+    } finally {
+      setConvertLoading(null);
+    }
+  };
+
   const updateStatus = async (id: string, status: LeadMessage['status']) => {
     const updated = await adminApi.patch<LeadMessage>(`/api/messages/${id}/status`, { status });
     setMessages((prev) => prev.map((m) => (m.id === id ? { ...m, ...updated } : m)));
@@ -73,22 +93,18 @@ export const Leads: React.FC = () => {
   const rescore = async (id: string) => {
     setScoringId(id);
     try {
-      const result = await adminApi.post<any>('/api/ai/score-lead', { messageId: id });
+      const result = await adminApi.post<{ score: number; tier: string; reason?: string }>('/api/ai/score-lead', {
+        messageId: id,
+      });
       setMessages((prev) =>
         prev.map((m) =>
           m.id === id
-            ? {
-                ...m,
-                leadScore: result.score,
-                leadTier: result.tier,
-                leadReason: result.reason,
-                leadSource: result.source,
-              }
+            ? { ...m, leadScore: result.score, leadTier: result.tier as any, leadReason: result.reason }
             : m
         )
       );
     } catch (err: any) {
-      alert(err.message || 'Rescore failed');
+      setConvertMsg(err?.message || 'Score failed');
     } finally {
       setScoringId(null);
     }
@@ -96,7 +112,6 @@ export const Leads: React.FC = () => {
 
   const makeProposal = async (id: string) => {
     setPropLoading(id);
-    setProposalText('');
     try {
       const result = await adminApi.post<any>('/api/ai/proposal', { messageId: id });
       const p = result.proposal || {};
@@ -106,66 +121,64 @@ export const Leads: React.FC = () => {
         p.executiveSummary,
         '',
         'Scope:',
-        ...(p.scope || []).map((s: string) => `• ${s}`),
+        ...(p.scope || []).map((s: string) => `- ${s}`),
         '',
         'Timeline:',
-        ...(p.timeline || []).map((s: string) => `• ${s}`),
+        ...(p.timeline || []).map((s: string) => `- ${s}`),
         '',
         `Investment: ${p.investment || ''}`,
         '',
         'Next steps:',
-        ...(p.nextSteps || []).map((s: string) => `• ${s}`),
+        ...(p.nextSteps || []).map((s: string) => `- ${s}`),
       ].join('\n');
       setProposalText(text);
-      await navigator.clipboard.writeText(text).catch(() => undefined);
+      try {
+        await navigator.clipboard.writeText(text);
+      } catch {
+        /* ignore */
+      }
     } catch (err: any) {
-      alert(err.message || 'Proposal failed');
+      setConvertMsg(err?.message || 'Proposal failed');
     } finally {
       setPropLoading(null);
     }
   };
 
-  if (loading) {
-    return (
-      <div className="space-y-3">
-        {[1, 2, 3, 4].map((i) => (
-          <Skeleton key={i} className="h-24 w-full" />
-        ))}
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-4">
+      {convertMsg ? (
+        <p className="rounded-lg border border-[#D4AF37]/30 bg-[#D4AF37]/10 px-3 py-2 text-sm text-[#EDEDED]">{convertMsg}</p>
+      ) : null}
       {proposalText ? (
         <Card className="p-4">
-          <div className="mb-2 flex items-center justify-between">
-            <h3 className="text-sm font-bold text-white">Latest proposal (copied if clipboard allowed)</h3>
-            <GhostButton type="button" onClick={() => setProposalText('')}>
-              Dismiss
-            </GhostButton>
-          </div>
-          <pre className="max-h-64 overflow-auto whitespace-pre-wrap rounded-lg border border-white/10 bg-black/40 p-4 text-xs text-[#EDEDED]">
-            {proposalText}
-          </pre>
+          <h3 className="text-sm font-bold text-white">Latest proposal</h3>
+          <pre className="mt-2 max-h-48 overflow-auto whitespace-pre-wrap text-xs text-[#B8B3AA]">{proposalText}</pre>
         </Card>
       ) : null}
-
-      <Card>
-        {messages.length === 0 ? (
-          <EmptyState message="No inquiries yet — contact form leads appear here with auto lead scores." />
+      <Card padding="none">
+        <div className="border-b border-white/10 px-5 py-4">
+          <h2 className="text-lg font-black text-white">Leads & inquiries</h2>
+          <p className="text-xs text-[#8A857C]">Pipeline · score · proposal · convert to project</p>
+        </div>
+        {loading ? (
+          <div className="space-y-3 p-5">
+            {[1, 2, 3].map((i) => (
+              <Skeleton key={i} className="h-20" />
+            ))}
+          </div>
+        ) : messages.length === 0 ? (
+          <EmptyState message="No leads yet — contact form submissions appear here." />
         ) : (
-          <div className="divide-y divide-[#222226]">
+          <div className="divide-y divide-white/5">
             {messages.map((m) => (
               <div key={m.id} className="p-5">
                 <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div className="min-w-0">
+                  <div>
                     <div className="flex flex-wrap items-center gap-2">
-                      <h4 className="font-bold text-[#EDEDED]">{m.name}</h4>
-                      <StatusBadge status={m.status} />
+                      <h3 className="font-bold text-white">{m.name}</h3>
                       <TierBadge tier={m.leadTier} score={m.leadScore} />
                     </div>
-                    <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-[#888891]">
+                    <div className="mt-1 flex flex-wrap gap-3 text-xs text-[#8A857C]">
                       <span className="flex items-center gap-1">
                         <Mail className="h-3 w-3" /> {m.email}
                       </span>
@@ -174,9 +187,7 @@ export const Leads: React.FC = () => {
                       </span>
                       <span>{formatDate(m.createdAt)}</span>
                     </div>
-                    {m.leadReason ? (
-                      <p className="mt-1 text-[11px] text-[#666]">{m.leadReason}</p>
-                    ) : null}
+                    {m.leadReason ? <p className="mt-1 text-[11px] text-[#666]">{m.leadReason}</p> : null}
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
                     <Select
@@ -187,43 +198,40 @@ export const Leads: React.FC = () => {
                       <option value="new">New</option>
                       <option value="contacted">Contacted</option>
                       <option value="qualified">Qualified</option>
+                      <option value="proposal">Proposal</option>
+                      <option value="won">Won</option>
+                      <option value="lost">Lost</option>
                       <option value="closed">Closed</option>
                     </Select>
                     <GhostButton type="button" onClick={() => void rescore(m.id)} disabled={scoringId === m.id}>
-                      {scoringId === m.id ? (
-                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                      ) : (
-                        <Sparkles className="h-3.5 w-3.5" />
-                      )}
+                      {scoringId === m.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
                       Score
                     </GhostButton>
                     <PrimaryButton type="button" onClick={() => void makeProposal(m.id)} disabled={propLoading === m.id}>
-                      {propLoading === m.id ? (
-                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                      ) : (
-                        <FileText className="h-3.5 w-3.5" />
-                      )}
+                      {propLoading === m.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <FileText className="h-3.5 w-3.5" />}
                       Proposal
                     </PrimaryButton>
+                    <GhostButton type="button" onClick={() => void convertToProject(m.id)} disabled={convertLoading === m.id}>
+                      {convertLoading === m.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
+                      → Project
+                    </GhostButton>
                   </div>
                 </div>
-
                 <button
                   type="button"
                   onClick={() => setExpanded(expanded === m.id ? null : m.id)}
-                  className="mt-3 text-xs font-semibold uppercase tracking-wider text-[#D4AF37] hover:text-white"
+                  className="mt-3 text-xs font-semibold uppercase tracking-wider text-[#D4AF37]"
                 >
                   {expanded === m.id ? 'Hide details' : 'View details'}
                 </button>
-
                 {expanded === m.id ? (
-                  <div className="mt-3 grid grid-cols-1 gap-3 rounded-lg bg-[#0A0A0B] p-4 text-sm sm:grid-cols-2">
+                  <div className="mt-3 grid gap-2 rounded-lg bg-[#0A0A0B] p-4 text-sm sm:grid-cols-2">
                     <div>
                       <span className="text-[#888891]">Company: </span>
                       {m.company || '—'}
                     </div>
                     <div>
-                      <span className="text-[#888891]">Project Type: </span>
+                      <span className="text-[#888891]">Type: </span>
                       {m.projectType}
                     </div>
                     <div>
