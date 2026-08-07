@@ -17,6 +17,10 @@ import {
   type AuthenticatedRequest,
 } from './security';
 
+/** Vercel serverless body limit is ~4.5MB — keep under that. */
+const MAX_CSV_CHARS = 2_000_000; // ~2MB text
+const MAX_ROWS = 20000;
+
 async function persistLeadScore(messageId: string, result: Awaited<ReturnType<typeof scoreLead>>) {
   try {
     const settings = await dbManager.getSettings();
@@ -45,7 +49,6 @@ export async function scoreAndPersistMessage(msg: {
 }
 
 export function registerGrowthRoutes(app: Application) {
-  /** Admin: rescore a lead */
   app.post(
     '/api/ai/score-lead',
     aiLimiter,
@@ -69,7 +72,6 @@ export function registerGrowthRoutes(app: Application) {
     }
   );
 
-  /** Spreadsheet analyst — CSV/TSV text body */
   app.post(
     '/api/ai/spreadsheet-analyst',
     aiLimiter,
@@ -82,27 +84,39 @@ export function registerGrowthRoutes(app: Application) {
         if (!text.trim()) {
           return res.status(400).json({ error: 'Provide CSV/TSV text in body.text' });
         }
+        if (text.length > MAX_CSV_CHARS) {
+          return res.status(400).json({
+            error: `File too large for serverless upload (max ~2MB / ${MAX_CSV_CHARS.toLocaleString()} characters). Split the CSV or upload a sample. 500MB files cannot run on Vercel functions.`,
+            code: 'FILE_TOO_LARGE',
+            maxChars: MAX_CSV_CHARS,
+          });
+        }
         if (isLikelyBinaryXlsx(text) || /\.xlsx$/i.test(fileName)) {
           return res.status(400).json({
             error:
-              'Binary .xlsx is not parsed on the server. Export as CSV (File → Save As → CSV) and upload again.',
+              'Binary .xlsx is not supported. In Excel/Sheets: File → Download → Comma-separated values (.csv), then upload.',
             code: 'XLSX_NOT_SUPPORTED',
           });
         }
 
         const { headers, rows } = parseDelimited(text);
         if (!headers.length || !rows.length) {
-          return res.status(400).json({ error: 'No rows found in file' });
+          return res.status(400).json({ error: 'No rows found — check the file is CSV with a header row' });
         }
 
-        const analysis = analyzeSheet(headers, rows);
+        const limitedRows = rows.slice(0, MAX_ROWS);
+        const analysis = analyzeSheet(headers, limitedRows);
+        if (rows.length > MAX_ROWS) {
+          analysis.warnings.push(`Analyzed first ${MAX_ROWS.toLocaleString()} of ${rows.length.toLocaleString()} rows`);
+        }
+
         let narrative: string | null = null;
-        let source: 'rules' | string = 'rules';
+        let source: string = 'rules';
 
         if (isAiConfigured()) {
           try {
-            const brief = await generateFromPrompt(
-              `Analyze this spreadsheet summary for a video studio founder. Give: 1) what the data is 2) top 3 insights 3) one recommended action.\n${JSON.stringify({
+            narrative = await generateFromPrompt(
+              `Analyze this spreadsheet for a video studio founder. Give: 1) what the data is 2) top 3 insights 3) one action.\n${JSON.stringify({
                 fileName,
                 rowCount: analysis.rowCount,
                 columns: analysis.columns.slice(0, 20),
@@ -110,10 +124,9 @@ export function registerGrowthRoutes(app: Application) {
                 topValues: analysis.topValues.slice(0, 5),
                 sampleRows: analysis.sampleRows,
               }).slice(0, 6000)}`,
-              'You are a sharp business analyst. Be concrete with numbers. Plain text, short paragraphs.',
+              'Sharp business analyst. Concrete numbers. Short paragraphs.',
               { temperature: 0.4, maxTokens: 700 }
             );
-            narrative = brief;
             source = getActiveProvider();
           } catch (err) {
             console.warn('[SPREADSHEET] AI narrative failed', err);
@@ -128,7 +141,6 @@ export function registerGrowthRoutes(app: Application) {
           narrative = `Rules summary for ${fileName}: ${analysis.rowCount} rows × ${analysis.columnCount} columns.${nums ? ' Numeric — ' + nums + '.' : ''} ${analysis.warnings.join(' ')}`.trim();
         }
 
-        // Persist last report for admin
         try {
           const settings = await dbManager.getSettings();
           const reports = Array.isArray((settings as any).spreadsheetReports)
@@ -169,7 +181,6 @@ export function registerGrowthRoutes(app: Application) {
     }
   );
 
-  /** Proposal generator */
   app.post(
     '/api/ai/proposal',
     aiLimiter,
@@ -226,16 +237,11 @@ export function registerGrowthRoutes(app: Application) {
         };
 
         if (isAiConfigured()) {
-          try {
-            proposal = await generateJson(
-              `Write a short client proposal for VisionFold Creative. Studio baseline ~₹${(rates as any).baselineRate || 700}/min short-form. Context: ${JSON.stringify(context).slice(0, 3000)}`,
-              'Return JSON: title, executiveSummary, scope (string[]), timeline (string[]), investment (string INR), nextSteps (string[]). Professional, concise.',
-              { temperature: 0.5, maxTokens: 900 }
-            );
-          } catch (err) {
-            if (err instanceof AiProviderError) throw err;
-            throw err;
-          }
+          proposal = await generateJson(
+            `Write a short client proposal for VisionFold Creative. Studio baseline ~₹${(rates as any).baselineRate || 700}/min short-form. Context: ${JSON.stringify(context).slice(0, 3000)}`,
+            'Return JSON: title, executiveSummary, scope (string[]), timeline (string[]), investment (string INR), nextSteps (string[]).',
+            { temperature: 0.5, maxTokens: 900 }
+          );
         } else {
           proposal = {
             title: `Proposal — ${context.clientName || 'Client'} / ${context.projectType || 'Video edit'}`,
@@ -248,7 +254,7 @@ export function registerGrowthRoutes(app: Application) {
               'Export in required aspect ratios',
             ],
             timeline: ['Kickoff within 24–48h', 'First cut in 3–5 working days', 'Final within 7–10 days'],
-            investment: `Custom quote based on runtime — baseline from ₹${(rates as any).baselineRate || 700}/min short-form. ${context.budget || ''}`.trim(),
+            investment: `Custom quote — baseline from ₹${(rates as any).baselineRate || 700}/min short-form. ${context.budget || ''}`.trim(),
             nextSteps: ['Confirm scope and deadline', 'Share footage + refs', 'Invoice / kickoff'],
           };
         }
