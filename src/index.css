@@ -121,3 +121,25 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
   from { transform: translateX(0); }
   to { transform: translateX(-50%); }
 }
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  .tilt-3d,
+  .tilt-3d:hover,
+  .fold-card,
+  .fold-card:hover {
+    transition: none !important;
+    transform: none !important;
+  }
+  .review-track {
+    animation: none !important;
+    flex-wrap: wrap;
+    width: 100%;
+    justify-content: center;
+  }
+  .animate-pulse,
+  .animate-spin,
+  [class*="animate-"] {
+    animation: none !important;
+  }
+}
