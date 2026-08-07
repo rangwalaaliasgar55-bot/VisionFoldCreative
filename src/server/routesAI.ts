@@ -3,7 +3,10 @@ import { dbManager } from '../lib/db';
 import {
   generateText,
   generateFromPrompt,
+  generateJson,
   isAiConfigured,
+  getAiUsageSnapshot,
+  getDefaultModel,
   AiProviderError,
 } from '../lib/aiProvider';
 import {
@@ -21,17 +24,35 @@ function aiErrorPayload(err: unknown) {
         error: err.message,
         code: err.code,
         configured: isAiConfigured(),
+        usage: getAiUsageSnapshot(),
       },
     };
   }
   const message = err instanceof Error ? err.message : 'AI request failed';
   return {
     status: 500,
-    body: { error: message, code: 'PROVIDER_ERROR', configured: isAiConfigured() },
+    body: {
+      error: message,
+      code: 'PROVIDER_ERROR',
+      configured: isAiConfigured(),
+      usage: getAiUsageSnapshot(),
+    },
   };
 }
 
 export function registerAiRoutes(app: Application) {
+  app.get('/api/ai/status', (_req, res) => {
+    const usage = getAiUsageSnapshot();
+    res.json({
+      configured: isAiConfigured(),
+      provider: isAiConfigured() ? 'gemini' : 'none',
+      model: getDefaultModel(),
+      openRouterRemoved: true,
+      phase: 'D',
+      usage,
+    });
+  });
+
   app.post(
     '/api/ai/generate',
     aiLimiter,
@@ -45,16 +66,16 @@ export function registerAiRoutes(app: Application) {
         }
         if (!isAiConfigured()) {
           return res.status(503).json({
-            error:
-              'AI is not configured yet. Add GEMINI_API_KEY after Phase D. OpenRouter was removed in Phase A.',
+            error: 'AI is not configured. Set GEMINI_API_KEY in Vercel.',
             code: 'NOT_CONFIGURED',
             configured: false,
+            usage: getAiUsageSnapshot(),
           });
         }
         const text = messages
           ? await generateText(messages, { temperature, maxTokens, model })
           : await generateFromPrompt(prompt, systemPrompt, { temperature, maxTokens, model });
-        res.json({ text, configured: true });
+        res.json({ text, configured: true, source: 'gemini', usage: getAiUsageSnapshot() });
       } catch (err: unknown) {
         const { status, body } = aiErrorPayload(err);
         res.status(status).json(body);
@@ -75,17 +96,22 @@ export function registerAiRoutes(app: Application) {
         }
         if (!isAiConfigured()) {
           return res.status(503).json({
-            error: 'AI chat is unavailable until GEMINI_API_KEY is configured (Phase D).',
+            error: 'AI chat needs GEMINI_API_KEY.',
             code: 'NOT_CONFIGURED',
             configured: false,
           });
         }
         const conversationMessages = [
-          { role: 'system' as const, content: context || 'You are VisionFold Creative studio assistant.' },
+          {
+            role: 'system' as const,
+            content:
+              context ||
+              'You are VisionFold Creative studio assistant — premium short-form and long-form video editing. Be concise and practical.',
+          },
           ...messages.slice(-10),
         ];
-        const text = await generateText(conversationMessages, { temperature: 0.7, maxTokens: 500 });
-        res.json({ text, configured: true });
+        const text = await generateText(conversationMessages, { temperature: 0.7, maxTokens: 600 });
+        res.json({ text, configured: true, source: 'gemini', usage: getAiUsageSnapshot() });
       } catch (err: unknown) {
         const { status, body } = aiErrorPayload(err);
         res.status(status).json(body);
@@ -98,7 +124,6 @@ export function registerAiRoutes(app: Application) {
       const message = String(req.body?.message || '').trim();
       if (!message) return res.status(400).json({ error: 'Provide a project message' });
 
-      // Deterministic fallback — never silent, never fake LLM output as AI
       if (!isAiConfigured()) {
         return res.json({
           questions: [
@@ -112,20 +137,42 @@ export function registerAiRoutes(app: Application) {
         });
       }
 
-      const prompt = `Turn this brief into 4 concise clarifying questions as JSON {"questions":["..."]}: ${message}`;
-      const responseText = await generateFromPrompt(prompt, 'Return valid JSON only.', {
-        temperature: 0.7,
-        maxTokens: 500,
+      const data = await generateJson<{ questions?: string[] }>(
+        `Turn this brief into 4 concise clarifying questions for a video editor: ${message.slice(0, 3000)}`,
+        'You help a premium video studio qualify leads. Return JSON: {"questions":["..."]}',
+        { temperature: 0.6, maxTokens: 400 }
+      );
+      const questions = Array.isArray(data.questions)
+        ? data.questions.filter((q) => typeof q === 'string' && q.trim()).slice(0, 4)
+        : [];
+      res.json({
+        questions:
+          questions.length > 0
+            ? questions
+            : [
+                'Which platforms and aspect ratios do you need?',
+                'Who is the target audience and desired action?',
+                'How much raw footage and target runtime?',
+                'Deadline, revisions, and brand references?',
+              ],
+        configured: true,
+        source: questions.length ? 'gemini' : 'template',
+        usage: getAiUsageSnapshot(),
       });
-      let questions: string[] = [];
-      try {
-        const parsed = JSON.parse(responseText);
-        questions = Array.isArray(parsed.questions) ? parsed.questions.filter(Boolean) : [];
-      } catch {
-        questions = [];
-      }
-      res.json({ questions: questions.slice(0, 4), configured: true, source: 'ai' });
     } catch (err: unknown) {
+      // Soft-fail to template so the contact form never dies
+      if (err instanceof AiProviderError && err.code === 'NOT_CONFIGURED') {
+        return res.json({
+          questions: [
+            'Which platforms and aspect ratios do you need?',
+            'Who is the target audience and desired action?',
+            'How much raw footage and target runtime?',
+            'Deadline, revisions, and brand references?',
+          ],
+          configured: false,
+          source: 'template',
+        });
+      }
       const { status, body } = aiErrorPayload(err);
       res.status(status).json(body);
     }
@@ -150,9 +197,8 @@ export function registerAiRoutes(app: Application) {
         const openLeads = messages.filter((m: any) => m.status === 'new' || !m.status).length;
 
         if (!isAiConfigured()) {
-          // Structured non-AI summary from real data — not a hallucinated brief
           return res.json({
-            summary: `Studio snapshot (rules-based, AI offline): ${projects.length} projects, ₹${revenue.toLocaleString('en-IN')} paid revenue, ${openLeads} open leads. Configure GEMINI_API_KEY in Phase D for AI narrative insights.`,
+            summary: `Studio snapshot (rules-based, AI offline): ${projects.length} projects, ₹${revenue.toLocaleString('en-IN')} paid revenue, ${openLeads} open leads. Set GEMINI_API_KEY for AI narrative insights.`,
             opportunities: openLeads
               ? [`Follow up ${openLeads} open lead(s) from the contact form.`]
               : ['No open leads — push WhatsApp CTA on the homepage.'],
@@ -163,32 +209,46 @@ export function registerAiRoutes(app: Application) {
             appreciation: [],
             configured: false,
             source: 'rules',
+            usage: getAiUsageSnapshot(),
           });
         }
 
-        const prompt = `Return JSON with keys summary, opportunities, followUps, appreciation for snapshot: ${JSON.stringify({
-          revenue,
-          leads: messages.slice(0, 5),
-          projects: projects.slice(0, 4),
-        })}`;
-        const responseText = await generateFromPrompt(
-          prompt,
-          'Growth strategist for a premium video studio. JSON only.',
-          { temperature: 0.8, maxTokens: 900 }
+        const snapshot = {
+          revenueINR: revenue,
+          openLeads,
+          projectCount: projects.length,
+          leads: messages.slice(0, 8).map((m: any) => ({
+            name: m.name,
+            status: m.status,
+            projectType: m.projectType,
+          })),
+          projects: projects.slice(0, 8).map((p: any) => ({
+            title: p.title,
+            status: p.status,
+            clientName: p.clientName,
+            amountINR: p.amountINR,
+          })),
+        };
+
+        const payload = await generateJson<{
+          summary?: string;
+          opportunities?: string[];
+          followUps?: string[];
+          appreciation?: string[];
+        }>(
+          `Studio data snapshot: ${JSON.stringify(snapshot)}`,
+          'You are growth strategist for VisionFold Creative (premium video editing studio in India). Return JSON with keys: summary (string), opportunities (string[]), followUps (string[]), appreciation (string[]). Be specific and actionable. Currency INR.',
+          { temperature: 0.7, maxTokens: 900 }
         );
-        let payload: any = {};
-        try {
-          payload = JSON.parse(responseText);
-        } catch {
-          payload = { summary: responseText };
-        }
+
         res.json({
           summary: payload.summary || 'AI insight ready.',
           opportunities: Array.isArray(payload.opportunities) ? payload.opportunities : [],
           followUps: Array.isArray(payload.followUps) ? payload.followUps : [],
           appreciation: Array.isArray(payload.appreciation) ? payload.appreciation : [],
           configured: true,
-          source: 'ai',
+          source: 'gemini',
+          usage: getAiUsageSnapshot(),
         });
       } catch (err: unknown) {
         const { status, body } = aiErrorPayload(err);
@@ -208,7 +268,7 @@ export function registerAiRoutes(app: Application) {
 
         if (!isAiConfigured()) {
           return res.json({
-            text: 'The AI assistant is not configured yet. Message the studio from Messages in your portal, or WhatsApp the team — they will reply shortly.',
+            text: 'The AI assistant is offline. Use Messages in your portal or WhatsApp the studio — they will reply shortly.',
             configured: false,
             source: 'fallback',
           });
@@ -216,26 +276,18 @@ export function registerAiRoutes(app: Application) {
 
         const isAdmin = req.user?.role === 'admin';
         const system = isAdmin
-          ? 'You are VisionFold Creative internal assistant.'
-          : `You are VisionFold Creative client assistant for ${req.user?.name || 'the client'}. Help with projects, revisions, and creative questions. Be concise. Never invent invoices or deadlines.`;
+          ? 'You are VisionFold Creative internal assistant for the studio founder. Be direct and operational.'
+          : `You are VisionFold Creative client assistant for ${req.user?.name || 'the client'}. Help with projects, revisions, and creative questions. Be concise. Never invent invoices, prices, or deadlines that were not provided.`;
+
         const text = await generateFromPrompt(message.slice(0, 4000), system, {
           temperature: 0.7,
           maxTokens: 600,
         });
-        res.json({ text, configured: true, source: 'ai' });
+        res.json({ text, configured: true, source: 'gemini', usage: getAiUsageSnapshot() });
       } catch (err: unknown) {
         const { status, body } = aiErrorPayload(err);
         res.status(status).json(body);
       }
     }
   );
-
-  app.get('/api/ai/status', (_req, res) => {
-    res.json({
-      configured: isAiConfigured(),
-      provider: isAiConfigured() ? 'gemini-pending' : 'none',
-      openRouterRemoved: true,
-      phase: 'A',
-    });
-  });
 }
