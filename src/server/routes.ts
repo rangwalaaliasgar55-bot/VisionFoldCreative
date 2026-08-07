@@ -9,6 +9,8 @@ import { registerSpreadsheetProfileRoute } from './routesGrowthProfile';
 import { registerCmsRoutes } from './routesCms';
 import { registerClientPortalRoutes } from './routesClientPortal';
 import { registerAiCoreRoutes } from './routesAiCore';
+import { registerReviewRoutes } from './routesReview';
+import { registerAutoclipRoutes } from './routesAutoclip';
 
 export function registerApiRoutes(app: Application) {
   registerPlatformRoutes(app);
@@ -16,6 +18,8 @@ export function registerApiRoutes(app: Application) {
   registerAiCoreRoutes(app);
   registerCmsRoutes(app);
   registerClientPortalRoutes(app);
+  registerReviewRoutes(app);
+  registerAutoclipRoutes(app);
   registerMediaRoutes(app);
   registerGrowthRoutes(app);
   registerSpreadsheetProfileRoute(app);
