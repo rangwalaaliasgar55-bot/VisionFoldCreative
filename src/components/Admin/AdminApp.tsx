@@ -14,6 +14,7 @@ import { Settings } from './views/Settings';
 import { RatesPanel } from './views/SettingsRatesSnippet';
 import { Media } from './views/Media';
 import { Outreach } from './views/Outreach';
+import { PageBuilder } from './views/PageBuilder';
 import { LoadingState } from './ui';
 import { useAuth } from '../../context/AuthContext';
 import { ErrorHandler } from '../../lib/errors';
@@ -30,6 +31,7 @@ const VIEW_META: Record<AdminView, { title: string; subtitle?: string }> = {
   expenses: { title: 'Expenses', subtitle: 'Track studio costs' },
   growth: { title: 'AI Growth Copilot', subtitle: 'Action items for the business' },
   media: { title: 'Media & CMS', subtitle: 'Library and live page editing' },
+  pages: { title: 'Page Builder', subtitle: 'Blocks, drafts, publish, revisions' },
   outreach: { title: 'Outreach', subtitle: 'CSV import for calls and follow-ups' },
   settings: { title: 'Pricing & Settings', subtitle: 'Rates, maintenance, integrations' },
 };
@@ -138,6 +140,7 @@ export const AdminApp: React.FC = () => {
         {view === 'expenses' && <Expenses />}
         {view === 'growth' && <GrowthCopilot />}
         {view === 'media' && <Media />}
+        {view === 'pages' && <PageBuilder />}
         {view === 'outreach' && <Outreach />}
         {view === 'settings' && (
           <div className="space-y-8">
