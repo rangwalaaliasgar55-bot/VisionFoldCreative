@@ -181,7 +181,7 @@ export const PricingSettingsPage: React.FC = () => {
       setForm(confirmed);
       setSaved(JSON.parse(JSON.stringify(confirmed)));
       const rate = result?.rates?.baselineRate ?? form.baselineRate;
-      showToast('ok', `Saved · baseline ${money(rate, form.currency)}/min`);
+      showToast('ok', `Saved · baseline ${money(Number(rate) || form.baselineRate, form.currency)}/min`);
     } catch (e: any) {
       showToast('err', e?.message || 'Save failed. Check admin session + Supabase settings.data SQL.');
     } finally {
@@ -206,9 +206,9 @@ export const PricingSettingsPage: React.FC = () => {
   }
 
   return (
-    <div className="relative mx-auto max-w-5xl space-y-6 pb-28">
+    <div className="relative mx-auto max-w-6xl space-y-6 pb-28">
       <div className="rounded-xl border border-[#D4AF37]/25 bg-[#D4AF37]/10 px-4 py-2.5 text-xs text-[#D4AF37]">
-        Pricing & Settings v2 — rates, site identity, accent. Save writes to durable settings.
+        Pricing & Settings · live preview · durable save
       </div>
 
       {loadError ? (
@@ -226,7 +226,7 @@ export const PricingSettingsPage: React.FC = () => {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="text-xl font-black text-white">Pricing & Settings</h2>
-          <p className="text-xs text-[#8A857C]">Service rates and public site basics</p>
+          <p className="text-xs text-[#8A857C]">Rates, identity, colors — preview updates as you type</p>
         </div>
         <div className="flex gap-2">
           {dirty ? (
@@ -241,7 +241,7 @@ export const PricingSettingsPage: React.FC = () => {
         </div>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-[1fr_280px]">
+      <div className="grid gap-6 lg:grid-cols-[1fr_300px]">
         <div className="space-y-6">
           <Card className="space-y-5 p-6">
             <div className="flex flex-wrap items-center justify-between gap-3">
@@ -301,7 +301,7 @@ export const PricingSettingsPage: React.FC = () => {
               </div>
             </div>
 
-            <div className="rounded-xl border border-white/10 bg-black/30 p-4">
+            <div className="rounded-xl border border-[#D4AF37]/20 bg-[#D4AF37]/5 p-4">
               <p className="mb-3 text-xs font-bold uppercase tracking-wider text-[#D4AF37]">
                 Quote calculator
               </p>
@@ -408,13 +408,18 @@ export const PricingSettingsPage: React.FC = () => {
           </Card>
         </div>
 
-        <aside className="space-y-4 lg:sticky lg:top-6 lg:self-start">
+        <aside className="order-first space-y-4 lg:order-none lg:sticky lg:top-6 lg:self-start">
           <div
-            className="overflow-hidden rounded-2xl border border-white/10"
+            className="overflow-hidden rounded-2xl border border-white/10 shadow-xl"
             style={{ background: form.background, color: '#EDEDED' }}
           >
-            <div className="border-b border-white/10 px-3 py-2 text-[10px] uppercase tracking-wider text-[#888]">
-              Live preview
+            <div className="flex items-center justify-between border-b border-white/10 px-3 py-2">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-[#888]">Live preview</span>
+              {dirty ? (
+                <span className="text-[10px] text-amber-300">unsaved</span>
+              ) : (
+                <span className="text-[10px] text-emerald-400">synced</span>
+              )}
             </div>
             <div className="p-4">
               <div className="mb-3 flex items-center gap-2 border-b border-white/10 pb-3">
@@ -424,12 +429,12 @@ export const PricingSettingsPage: React.FC = () => {
                 >
                   VF
                 </div>
-                <div>
-                  <p className="text-sm font-bold">{form.siteName || 'Site name'}</p>
-                  <p className="text-[10px] opacity-60">{form.tagline || 'Tagline'}</p>
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-bold">{form.siteName || 'Site name'}</p>
+                  <p className="truncate text-[10px] opacity-60">{form.tagline || 'Tagline'}</p>
                 </div>
               </div>
-              <p className="text-xs opacity-70">{form.metaDescription || 'Meta…'}</p>
+              <p className="line-clamp-3 text-xs opacity-70">{form.metaDescription || 'Meta…'}</p>
               <div className="mt-4 rounded-xl p-4" style={{ border: `1px solid ${form.accent}55` }}>
                 <p className="text-[10px] uppercase tracking-wider" style={{ color: form.accent }}>
                   Services
@@ -444,11 +449,10 @@ export const PricingSettingsPage: React.FC = () => {
                   Get a quote
                 </div>
               </div>
+              <p className="mt-3 text-[10px] text-[#666]">Calc total: {money(calcTotal, form.currency)}</p>
             </div>
           </div>
-          <p className="text-[10px] text-[#666]">
-            Preview updates as you type. Click Save to persist.
-          </p>
+          <p className="text-[10px] text-[#666]">Preview updates as you type. Click Save to persist.</p>
         </aside>
       </div>
 
