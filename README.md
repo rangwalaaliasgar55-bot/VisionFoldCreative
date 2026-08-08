@@ -65,6 +65,7 @@ Without `GEMINI_API_KEY`, admin insights and inquiry-assist use **rules/template
 2. Optionally set `GEMINI_API_KEY` for live AI
 3. Redeploy
 4. Open `/admin` and sign in
+5. This is not for public for only repo owner and team members
 
 ## Scripts
 
