@@ -1,21 +1,37 @@
-name: Auto Format
+name: Auto Code Format
 
 on:
   push:
-    branches: [main]
+    branches: [main, develop]
   pull_request:
-    branches: [main]
+    types: [opened, synchronize]
+  workflow_dispatch:
 
 jobs:
   format:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
         with:
           node-version: '22'
+
       - name: Install dependencies
         run: npm install
-      - name: Format check
+
+      - name: Run Prettier
+        run: npx prettier --write . || echo "Prettier not configured"
+
+      - name: Commit formatting changes
         run: |
-          npx prettier --check . || echo "Prettier not configured"
+          git config user.name "OpenHands Bot"
+          git config user.email "openhands@all-hands.dev"
+          if git diff --quiet; then
+            echo "No formatting changes needed"
+          else
+            git add -A
+            git commit -m "style: auto-format code with Prettier" || true
+            git push || true
+          fi
