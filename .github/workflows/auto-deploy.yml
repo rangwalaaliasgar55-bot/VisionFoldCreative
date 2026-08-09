@@ -21,7 +21,7 @@ jobs:
           node-version: '22'
 
       - name: Install dependencies
-        run: npm install
+        run: npm ci
 
       - name: Run tests
         run: npm run test:run || echo "No tests configured"
@@ -49,18 +49,6 @@ jobs:
             github.rest.issues.create({
               owner: 'rangwalaaliasgar55-bot',
               repo: 'VisionFoldCreative',
-              title: '🚀 Production Deploy Complete',
-              body: `Deployment completed successfully!\n\nCommit: ${context.sha}\nBranch: ${context.ref}`,
-              labels: ['deploy', 'automated']
-            })
-
-  deploy-preview:
-    if: github.event_name == 'pull_request'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Deploy Preview
-        env:
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-        run: |
-          npx vercel --token=$VERCEL_TOKEN --yes || echo "Preview deploy skipped"
+              title: '🚀 Production Deploy Triggered',
+              body: `Auto-deploy from ${context.sha} on main.`
+            }).catch(() => {});

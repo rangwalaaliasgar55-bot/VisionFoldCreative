@@ -3,7 +3,11 @@ import path from "path";
 import { fileURLToPath } from "url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const DB_PATH = path.join(__dirname, "../../data/db.json");
+const isVercel = Boolean(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME);
+const DATA_DIR = isVercel
+  ? path.join("/tmp", "visionfold-data")
+  : path.join(__dirname, "../../data");
+const DB_PATH = path.join(DATA_DIR, "db.json");
 
 export interface DBSchema {
   users: any[];
@@ -52,22 +56,39 @@ const defaultDB: DBSchema = {
 };
 
 function ensureDir() {
-  const dir = path.dirname(DB_PATH);
-  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+  try {
+    const dir = path.dirname(DB_PATH);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+  } catch (err) {
+    console.warn("[DB] Could not create DATA_DIR (read-only FS?):", err);
+  }
 }
 
 export function readDB(): DBSchema {
   ensureDir();
-  if (!fs.existsSync(DB_PATH)) {
-    fs.writeFileSync(DB_PATH, JSON.stringify(defaultDB, null, 2));
+  try {
+    if (!fs.existsSync(DB_PATH)) {
+      try {
+        fs.writeFileSync(DB_PATH, JSON.stringify(defaultDB, null, 2));
+      } catch {
+        /* non-fatal on Vercel */
+      }
+      return JSON.parse(JSON.stringify(defaultDB));
+    }
+    return JSON.parse(fs.readFileSync(DB_PATH, "utf-8"));
+  } catch (err) {
+    console.warn("[DB] read failed; using defaults:", err);
     return JSON.parse(JSON.stringify(defaultDB));
   }
-  return JSON.parse(fs.readFileSync(DB_PATH, "utf-8"));
 }
 
 export function writeDB(db: DBSchema) {
-  ensureDir();
-  fs.writeFileSync(DB_PATH, JSON.stringify(db, null, 2));
+  try {
+    ensureDir();
+    fs.writeFileSync(DB_PATH, JSON.stringify(db, null, 2));
+  } catch (err) {
+    console.warn("[DB] Failed to persist (non-fatal):", err);
+  }
 }
 
 export function getCollection<T extends keyof DBSchema>(name: T): DBSchema[T] {
@@ -78,31 +99,4 @@ export function setCollection<T extends keyof DBSchema>(name: T, data: DBSchema[
   const db = readDB();
   db[name] = data;
   writeDB(db);
-}
-
-export function addToCollection<T extends keyof DBSchema>(name: T, item: any) {
-  const db = readDB();
-  (db[name] as any[]).push(item);
-  writeDB(db);
-  return item;
-}
-
-export function updateInCollection<T extends keyof DBSchema>(name: T, id: string, updates: any, idField = "id") {
-  const db = readDB();
-  const col = db[name] as any[];
-  const idx = col.findIndex((x) => x[idField] === id);
-  if (idx === -1) return null;
-  col[idx] = { ...col[idx], ...updates, updatedAt: new Date().toISOString() };
-  writeDB(db);
-  return col[idx];
-}
-
-export function deleteFromCollection<T extends keyof DBSchema>(name: T, id: string, idField = "id") {
-  const db = readDB();
-  const col = db[name] as any[];
-  const idx = col.findIndex((x) => x[idField] === id);
-  if (idx === -1) return false;
-  col.splice(idx, 1);
-  writeDB(db);
-  return true;
 }
