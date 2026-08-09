@@ -1,6 +1,7 @@
 node_modules/
 build/
 dist/
+.vercel-server/
 coverage/
 .DS_Store
 *.log

@@ -1,11 +1,20 @@
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
 let appPromise;
 
 async function getApp() {
   if (!appPromise) {
-    appPromise = import('../dist/server.cjs').then((serverBundle) => {
+    const bundlePath = path.resolve(__dirname, '..', '.vercel-server', 'server.cjs');
+    appPromise = import(bundlePath).then((serverBundle) => {
       const createApp = serverBundle.createApp || serverBundle.default?.createApp;
       if (typeof createApp !== 'function') {
-        throw new Error('Server bundle did not export createApp(). Run npm run build before deploying.');
+        throw new Error(
+          `Server bundle did not export createApp(). Checked path: ${bundlePath}. Run "npm run build" before deploying.`
+        );
       }
       return createApp();
     });
@@ -27,9 +36,11 @@ export default async function handler(req, res) {
     console.error('[API FATAL]', error);
     res.statusCode = 500;
     res.setHeader('Content-Type', 'application/json');
-    return res.end(JSON.stringify({
-      error: error?.message || 'Server error',
-      hint: 'API boot failed. Confirm the server bundle is included in the deployment and required env vars are set.',
-    }));
+    return res.end(
+      JSON.stringify({
+        error: error?.message || 'Server error',
+        hint: `API boot failed: ${error?.message}. Confirm the server bundle is included and required env vars are set.`,
+      })
+    );
   }
 }
