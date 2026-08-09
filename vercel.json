@@ -21,7 +21,7 @@
   "crons": [
     {
       "path": "/api/cms/run-scheduled",
-      "schedule": "*/15 * * * *"
+      "schedule": "0 6 * * *"
     }
   ]
 }
