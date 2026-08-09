@@ -38,11 +38,15 @@ const MainContent: React.FC = () => {
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-[#0A0A0B] text-[#EDEDED] flex flex-col font-sans selection:bg-[#D4AF37] selection:text-[#0A0A0B]">
-      <div className="pointer-events-none fixed inset-0 z-0 opacity-40">
+      <div className="pointer-events-none fixed inset-0 z-0 opacity-40" aria-hidden>
         <AudioMeshBackground />
       </div>
-      <div className="pointer-events-none fixed inset-0 z-0 bg-[radial-gradient(circle_at_top_left,rgba(212,175,55,0.10),transparent_32%),radial-gradient(circle_at_bottom_right,rgba(255,255,255,0.06),transparent_28%)]" />
-      <div className="relative z-10 flex min-h-screen flex-col">
+      <div
+        className="pointer-events-none fixed inset-0 z-0 bg-[radial-gradient(circle_at_top_left,rgba(212,175,55,0.10),transparent_32%),radial-gradient(circle_at_bottom_right,rgba(255,255,255,0.06),transparent_28%)]"
+        aria-hidden
+      />
+      {/* Interactive shell must explicitly accept pointer events */}
+      <div className="relative z-10 flex min-h-screen flex-col pointer-events-auto">
         {isAdmin ? (
           <div className="fixed right-4 top-20 z-50 flex gap-2">
             <button
@@ -93,7 +97,11 @@ const AppRoutes: React.FC = () => {
   const location = useLocation();
 
   if (location.pathname.startsWith('/admin')) {
-    return <AdminApp />;
+    return (
+      <div className="pointer-events-auto relative z-20 min-h-screen">
+        <AdminApp />
+      </div>
+    );
   }
 
   return (
