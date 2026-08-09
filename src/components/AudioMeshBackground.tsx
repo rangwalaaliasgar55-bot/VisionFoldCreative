@@ -6,16 +6,16 @@ export const AudioMeshBackground: React.FC = () => {
 
   useEffect(() => {
     if (!containerRef.current) return;
-    
+
     const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(45, containerRef.current.clientWidth / containerRef.current.clientHeight, 0.1, 100);
-    camera.position.z = 15;
-    camera.position.y = 5;
-    camera.lookAt(0, 0, 0);
+    const camera = new THREE.PerspectiveCamera(75, containerRef.current.clientWidth / containerRef.current.clientHeight, 0.1, 1000);
+    camera.position.z = 5;
+    camera.position.y = 2;
     
     const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
     renderer.setSize(containerRef.current.clientWidth, containerRef.current.clientHeight);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.domElement.style.pointerEvents = 'none';
     containerRef.current.appendChild(renderer.domElement);
 
     // Create wireframe plane
@@ -27,31 +27,34 @@ export const AudioMeshBackground: React.FC = () => {
       color: 0xD4AF37, // Champagne Gold
       wireframe: true,
       transparent: true,
-      opacity: 0.1,
+      opacity: 0.15
     });
-    
+
     const mesh = new THREE.Mesh(geometry, material);
+    mesh.position.y = -2;
     scene.add(mesh);
 
-    // Animation loop
+    // Animate vertices like audio waves
+    const positions = geometry.attributes.position;
+    const originalY: number[] = [];
+    for (let i = 0; i < positions.count; i++) {
+      originalY.push(positions.getY(i));
+    }
+
+    let frame = 0;
     const animate = () => {
       requestAnimationFrame(animate);
+      frame += 0.02;
 
-      const time = Date.now() * 0.001;
-      const positions = geometry.attributes.position.array;
-      
-      // Animate vertices like a waveform
-      for (let i = 0; i < positions.length; i += 3) {
-        const x = positions[i];
-        const z = positions[i + 2];
-        // Create wave pattern
-        positions[i + 1] = Math.sin(x * 0.5 + time) * Math.cos(z * 0.5 + time) * 1.5;
+      for (let i = 0; i < positions.count; i++) {
+        const x = positions.getX(i);
+        const z = positions.getZ(i);
+        const wave = Math.sin(x * 0.5 + frame) * Math.cos(z * 0.5 + frame) * 0.3;
+        positions.setY(i, originalY[i] + wave);
       }
-      geometry.attributes.position.needsUpdate = true;
+      positions.needsUpdate = true;
 
-      // Slow rotation
-      mesh.rotation.y = Math.sin(time * 0.1) * 0.1;
-
+      mesh.rotation.z = Math.sin(frame * 0.1) * 0.05;
       renderer.render(scene, camera);
     };
     animate();
