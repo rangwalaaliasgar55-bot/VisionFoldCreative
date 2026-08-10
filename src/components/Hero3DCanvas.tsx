@@ -1,6 +1,71 @@
 import React, { useRef, useEffect } from 'react';
 import * as THREE from 'three';
 
+/** Adaptive DPR: start at a device-aware max, then scale from measured rAF frame time. */
+function createAdaptiveDprController(opts: {
+  isMobile: boolean;
+  lowPower: boolean;
+  onChange: (dpr: number) => void;
+}) {
+  const deviceMax = Math.min(
+    typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1,
+    opts.isMobile ? 1.25 : opts.lowPower ? 1.5 : 2
+  );
+  const minDpr = 0.75;
+  let current = deviceMax;
+  let emaMs = 16.7;
+  let samples = 0;
+  let lastTs = 0;
+  let cooldown = 0;
+
+  const TARGET_MS = 18;
+  const RECOVER_MS = 14;
+  const SAMPLE_EVERY = 12;
+  const STEP = 0.15;
+
+  return {
+    get dpr() {
+      return current;
+    },
+    sample(now: number) {
+      if (lastTs > 0) {
+        const dt = now - lastTs;
+        if (dt > 0 && dt < 100) {
+          emaMs = emaMs * 0.9 + dt * 0.1;
+          samples += 1;
+        }
+      }
+      lastTs = now;
+
+      if (cooldown > 0) {
+        cooldown -= 1;
+        return current;
+      }
+      if (samples < SAMPLE_EVERY) return current;
+      samples = 0;
+
+      let next = current;
+      if (emaMs > TARGET_MS && current > minDpr) {
+        next = Math.max(minDpr, current - STEP);
+      } else if (emaMs < RECOVER_MS && current < deviceMax) {
+        next = Math.min(deviceMax, current + STEP);
+      }
+
+      if (Math.abs(next - current) > 0.01) {
+        current = Math.round(next * 100) / 100;
+        cooldown = 30;
+        opts.onChange(current);
+      }
+      return current;
+    },
+    reset() {
+      lastTs = 0;
+      samples = 0;
+      emaMs = 16.7;
+    },
+  };
+}
+
 export const Hero3DCanvas: React.FC = () => {
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -40,7 +105,23 @@ export const Hero3DCanvas: React.FC = () => {
       stencil: false,
     });
     renderer.setSize(container.clientWidth, container.clientHeight);
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, isMobile ? 1.25 : lowPower ? 1.5 : 2));
+
+    const applyDpr = (dpr: number) => {
+      renderer.setPixelRatio(dpr);
+      if (containerRef.current) {
+        const w = containerRef.current.clientWidth;
+        const h = Math.max(containerRef.current.clientHeight, 1);
+        renderer.setSize(w, h, false);
+      }
+    };
+
+    const dprCtrl = createAdaptiveDprController({
+      isMobile,
+      lowPower,
+      onChange: applyDpr,
+    });
+    applyDpr(dprCtrl.dpr);
+
     renderer.domElement.style.pointerEvents = 'none';
     container.appendChild(renderer.domElement);
 
@@ -108,9 +189,14 @@ export const Hero3DCanvas: React.FC = () => {
       document.addEventListener('mousemove', onDocumentMouseMove, { passive: true });
     }
 
-    const animate = () => {
+    const animate = (now: number) => {
       raf = requestAnimationFrame(animate);
-      if (!visible) return;
+      if (!visible) {
+        dprCtrl.reset();
+        return;
+      }
+
+      dprCtrl.sample(now);
 
       if (finePointer && !isMobile) {
         targetX = mouseX * 0.001;
@@ -121,10 +207,10 @@ export const Hero3DCanvas: React.FC = () => {
         mesh.rotation.y += 0.004;
       }
 
-      mesh.position.y = Math.sin(Date.now() * 0.001) * 0.1;
+      mesh.position.y = Math.sin(now * 0.001) * 0.1;
       renderer.render(scene, camera);
     };
-    animate();
+    raf = requestAnimationFrame(animate);
 
     const handleResize = () => {
       if (!containerRef.current) return;
@@ -132,7 +218,8 @@ export const Hero3DCanvas: React.FC = () => {
       const h = Math.max(containerRef.current.clientHeight, 1);
       camera.aspect = w / h;
       camera.updateProjectionMatrix();
-      renderer.setSize(w, h);
+      renderer.setSize(w, h, false);
+      renderer.setPixelRatio(dprCtrl.dpr);
     };
     window.addEventListener('resize', handleResize, { passive: true });
 
@@ -141,6 +228,7 @@ export const Hero3DCanvas: React.FC = () => {
       io = new IntersectionObserver(
         ([entry]) => {
           visible = entry.isIntersecting;
+          if (visible) dprCtrl.reset();
         },
         { rootMargin: '80px', threshold: 0.05 }
       );
