@@ -1,5 +1,6 @@
 import React, { useRef, useEffect } from 'react';
 import * as THREE from 'three';
+import { createFrameBudget } from '../lib/frameBudget';
 
 /** Adaptive DPR: start at a device-aware max, then scale from measured rAF frame time. */
 function createAdaptiveDprController(opts: {
@@ -122,6 +123,8 @@ export const Hero3DCanvas: React.FC = () => {
     });
     applyDpr(dprCtrl.dpr);
 
+    const budget = createFrameBudget(isMobile || lowPower ? 10 : 12);
+
     renderer.domElement.style.pointerEvents = 'none';
     container.appendChild(renderer.domElement);
 
@@ -193,9 +196,12 @@ export const Hero3DCanvas: React.FC = () => {
       raf = requestAnimationFrame(animate);
       if (!visible) {
         dprCtrl.reset();
+        budget.reset();
         return;
       }
 
+      budget.begin(now);
+      budget.sampleInterval(now);
       dprCtrl.sample(now);
 
       if (finePointer && !isMobile) {
@@ -207,7 +213,12 @@ export const Hero3DCanvas: React.FC = () => {
         mesh.rotation.y += 0.004;
       }
 
-      mesh.position.y = Math.sin(now * 0.001) * 0.1;
+      budget.maybe(() => {
+        if (budget.allowOptional(0)) {
+          mesh.position.y = Math.sin(now * 0.001) * 0.1;
+        }
+      }, 0.2);
+
       renderer.render(scene, camera);
     };
     raf = requestAnimationFrame(animate);
@@ -228,7 +239,10 @@ export const Hero3DCanvas: React.FC = () => {
       io = new IntersectionObserver(
         ([entry]) => {
           visible = entry.isIntersecting;
-          if (visible) dprCtrl.reset();
+          if (visible) {
+            dprCtrl.reset();
+            budget.reset();
+          }
         },
         { rootMargin: '80px', threshold: 0.05 }
       );
