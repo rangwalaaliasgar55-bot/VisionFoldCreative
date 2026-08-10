@@ -1,15 +1,15 @@
 import { Router } from "express";
-import { readDB } from "../db.js";
+import { readDB, writeDB } from "../db.js";
 import { authMiddleware, AuthRequest, requireRole } from "../middleware/auth.js";
 
 const router = Router();
 
 router.get("/dashboard", authMiddleware, requireRole(["admin", "editor"]), (req: AuthRequest, res) => {
   const db = readDB();
-  const projects = db.projects;
-  const invoices = db.invoices;
-  const clients = db.clients;
-  const messages = db.messages;
+  const projects = db.projects || [];
+  const invoices = db.invoices || [];
+  const clients = db.clients || [];
+  const messages = db.messages || [];
 
   const totalRevenue = invoices.filter((i: any) => i.status === "paid").reduce((s: number, i: any) => s + (i.amount || 0), 0);
   const monthlyRevenue = Array.from({ length: 6 }, (_, i) => {
@@ -30,7 +30,7 @@ router.get("/dashboard", authMiddleware, requireRole(["admin", "editor"]), (req:
   };
 
   const categoryBreakdown = projects.reduce((acc: any, p: any) => {
-    acc[p.category] = (acc[p.category] || 0) + 1;
+    acc[p.category || "Other"] = (acc[p.category || "Other"] || 0) + 1;
     return acc;
   }, {});
 
@@ -51,13 +51,20 @@ router.get("/dashboard", authMiddleware, requireRole(["admin", "editor"]), (req:
 });
 
 router.post("/track", (req, res) => {
-  const { page, event, metadata } = req.body;
-  const db = readDB();
-  if (!db.analytics) db.analytics = { pageViews: [], events: [] };
-  db.analytics.pageViews.push({ page, timestamp: new Date().toISOString(), metadata });
-  if (db.analytics.pageViews.length > 10000) db.analytics.pageViews = db.analytics.pageViews.slice(-5000);
-  db.analytics.events.push({ event, timestamp: new Date().toISOString(), metadata });
-  res.json({ ok: true });
+  try {
+    const { page, event, metadata } = req.body || {};
+    const db = readDB();
+    if (!db.analytics) db.analytics = { pageViews: [], events: [], visitors: [] };
+    if (!db.analytics.pageViews) db.analytics.pageViews = [];
+    if (!db.analytics.events) db.analytics.events = [];
+    db.analytics.pageViews.push({ page, timestamp: new Date().toISOString(), metadata });
+    if (db.analytics.pageViews.length > 10000) db.analytics.pageViews = db.analytics.pageViews.slice(-5000);
+    if (event) db.analytics.events.push({ event, timestamp: new Date().toISOString(), metadata });
+    writeDB(db);
+    res.json({ ok: true });
+  } catch {
+    res.json({ ok: true });
+  }
 });
 
 export default router;
