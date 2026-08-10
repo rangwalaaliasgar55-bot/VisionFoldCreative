@@ -4,7 +4,7 @@ Premium video editing studio site + client portal + admin CMS.
 
 **Stack:** React 19 · TypeScript · Tailwind · Express API · Vercel · optional Supabase · Gemini AI
 
-**Deploy marker:** 2026-08-07 — Excel outreach import, Pricing & Settings live preview, Automations strategy.
+**Deploy marker:** 2026-08-10 — Studio login fixed, Vercel `/tmp` DB + daily cron, pointer-events clickable UI, redesign client (Admin, FilmReel 3D, Contact, globals), CI Node 22 + npm ci.
 
 ## Features
 
@@ -16,11 +16,25 @@ Premium video editing studio site + client portal + admin CMS.
 - Maintenance mode with countdown (admin settings)
 - Public ratings API fed by client portal ratings
 - AI layer (Phase D): Google Gemini for insights, inquiry assist, client assist — degrades cleanly without a key
+- Redesign stack under `client/` + `server/` (glass UI, 3D FilmReel, Admin dashboard analytics)
+
+## Live site
+
+- Production: https://visionfoldcreative.vercel.app
+- Admin: https://visionfoldcreative.vercel.app/admin
+- Login: set `ADMIN_EMAIL` / `ADMIN_PASSWORD` (defaults: `visionfoldcreative@gmail.com` / `aliasgar134`)
 
 ## Local development
 
 ```bash
 npm install
+npm run dev
+```
+
+Redesign monorepo (optional):
+
+```bash
+cd client && npm install && cd ../server && npm install && cd ..
 npm run dev
 ```
 
@@ -65,7 +79,7 @@ Without `GEMINI_API_KEY`, admin insights and inquiry-assist use **rules/template
 2. Optionally set `GEMINI_API_KEY` for live AI
 3. Redeploy
 4. Open `/admin` and sign in
-5. This is not for public for only repo owner and team members
+5. This is not for public — only repo owner and team members
 
 ## Scripts
 
