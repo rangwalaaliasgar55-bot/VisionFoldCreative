@@ -24,7 +24,7 @@ router.post("/", authMiddleware, requireRole(["admin", "editor"]), (req: AuthReq
 
 router.post("/import", authMiddleware, requireRole(["admin"]), (req: AuthRequest, res) => {
   const { leads } = req.body;
-  const imported = leads.map((l: any) => ({
+  const imported = (leads || []).map((l: any) => ({
     id: uuidv4(),
     ...l,
     status: "imported",

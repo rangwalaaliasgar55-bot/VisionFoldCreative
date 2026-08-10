@@ -7,14 +7,21 @@ const router = Router();
 
 router.get("/", (req, res) => {
   const db = readDB();
-  res.json(db.ratings || []);
+  res.json(db.ratings);
+});
+
+router.get("/public", (req, res) => {
+  const db = readDB();
+  res.json(db.ratings.filter((r: any) => r.approved));
 });
 
 router.post("/", authMiddleware, (req: AuthRequest, res) => {
   const rating = {
     id: uuidv4(),
-    userId: req.user.id,
+    clientId: req.user.id,
+    clientName: req.user.name,
     ...req.body,
+    approved: false,
     createdAt: new Date().toISOString(),
   };
   addToCollection("ratings", rating);
