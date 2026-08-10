@@ -3,6 +3,10 @@ import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { Float, Environment, ContactShadows, MeshTransmissionMaterial } from "@react-three/drei";
 import * as THREE from "three";
 import { createFrameBudget, type FrameBudget } from "../lib/frameBudget";
+import {
+  createWebGpuRenderer,
+  resolveWebGpuPath,
+} from "../lib/createWebGpuRenderer";
 
 /** Detect mobile / low-power / reduced-motion once on the client. */
 function usePerfProfile() {
@@ -357,7 +361,18 @@ function AdaptiveDpr({
 export default function FilmReelScene() {
   const perf = usePerfProfile();
   const [visible, setVisible] = useState(true);
+  const [useWebGpu, setUseWebGpu] = useState(false);
   const hostRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    resolveWebGpuPath().then((ok) => {
+      if (!cancelled) setUseWebGpu(ok);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     const el = hostRef.current;
@@ -396,16 +411,31 @@ export default function FilmReelScene() {
         camera={{ position: [0, 0, 6], fov: 50 }}
         dpr={dprMax}
         frameloop={visible ? "always" : "never"}
-        gl={{
-          antialias: !perf.isMobile,
-          alpha: true,
-          powerPreference: perf.isMobile || perf.lowPower ? "low-power" : "high-performance",
-          stencil: false,
-          depth: true,
-        }}
+        gl={
+          useWebGpu
+            ? async (props) => {
+                const renderer = await createWebGpuRenderer({
+                  ...props,
+                  antialias: !perf.isMobile,
+                  alpha: true,
+                  powerPreference:
+                    perf.isMobile || perf.lowPower ? "low-power" : "high-performance",
+                });
+                return renderer;
+              }
+            : {
+                antialias: !perf.isMobile,
+                alpha: true,
+                powerPreference:
+                  perf.isMobile || perf.lowPower ? "low-power" : "high-performance",
+                stencil: false,
+                depth: true,
+              }
+        }
         style={{ background: "transparent", pointerEvents: "none" }}
         onCreated={({ gl }) => {
-          gl.setClearColor(0x000000, 0);
+          const anyGl = gl as { setClearColor?: (c: number, a: number) => void };
+          anyGl.setClearColor?.(0x000000, 0);
         }}
       >
         <FrameBudgetGate budgetMs={perf.isMobile || perf.lowPower ? 10 : 12} />
