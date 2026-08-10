@@ -2,6 +2,7 @@ import { useRef, useMemo, useState, useEffect } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { Float, Environment, ContactShadows, MeshTransmissionMaterial } from "@react-three/drei";
 import * as THREE from "three";
+import { createFrameBudget, type FrameBudget } from "../lib/frameBudget";
 
 /** Detect mobile / low-power / reduced-motion once on the client. */
 function usePerfProfile() {
@@ -45,6 +46,28 @@ function usePerfProfile() {
 
 type PerfFlags = { isMobile: boolean; reduceMotion: boolean; lowPower: boolean };
 
+/** Shared frame budget for this Canvas — updated once per frame by FrameBudgetGate. */
+const frameBudgetRef: { current: FrameBudget | null } = { current: null };
+
+function FrameBudgetGate({ budgetMs }: { budgetMs: number }) {
+  const budget = useMemo(() => createFrameBudget(budgetMs), [budgetMs]);
+
+  useEffect(() => {
+    frameBudgetRef.current = budget;
+    return () => {
+      if (frameBudgetRef.current === budget) frameBudgetRef.current = null;
+    };
+  }, [budget]);
+
+  useFrame(() => {
+    const t = typeof performance !== "undefined" ? performance.now() : 0;
+    budget.begin(t);
+    budget.sampleInterval(t);
+  }, -1);
+
+  return null;
+}
+
 function FilmStrip({
   position,
   rotation,
@@ -72,6 +95,8 @@ function FilmStrip({
 
   useFrame((state) => {
     if (!groupRef.current || perf.reduceMotion) return;
+    const b = frameBudgetRef.current;
+    if (b && (b.exhausted() || !b.allowOptional(0))) return;
     const t = state.clock.elapsedTime;
     groupRef.current.rotation.y = Math.sin(t * 0.2) * 0.1;
     groupRef.current.rotation.x = Math.cos(t * 0.15) * 0.05;
@@ -135,10 +160,14 @@ function FloatingOrb({
 
   useFrame((state) => {
     if (!meshRef.current || perf.reduceMotion) return;
+    const b = frameBudgetRef.current;
+    if (b && b.exhausted()) return;
     const t = state.clock.elapsedTime;
-    meshRef.current.position.y = position[1] + Math.sin(t * 0.5 + position[0]) * 0.3;
     meshRef.current.rotation.x = t * 0.1;
     meshRef.current.rotation.y = t * 0.15;
+    if (!b || b.allowOptional(0)) {
+      meshRef.current.position.y = position[1] + Math.sin(t * 0.5 + position[0]) * 0.3;
+    }
   });
 
   const mesh = (
@@ -202,6 +231,8 @@ function ParticleField({ perf }: { perf: PerfFlags }) {
 
   useFrame((state) => {
     if (!pointsRef.current || perf.reduceMotion) return;
+    const b = frameBudgetRef.current;
+    if (b && (b.exhausted() || !b.allowOptional(1))) return;
     const t = state.clock.elapsedTime;
     pointsRef.current.rotation.y = t * 0.02;
     pointsRef.current.rotation.x = Math.sin(t * 0.01) * 0.1;
@@ -262,7 +293,6 @@ function Scene({ perf }: { perf: PerfFlags }) {
   );
 }
 
-/** Samples rAF frame time and adjusts gl pixel ratio at runtime. */
 function AdaptiveDpr({
   maxDpr,
   minDpr = 0.75,
@@ -378,6 +408,7 @@ export default function FilmReelScene() {
           gl.setClearColor(0x000000, 0);
         }}
       >
+        <FrameBudgetGate budgetMs={perf.isMobile || perf.lowPower ? 10 : 12} />
         <AdaptiveDpr maxDpr={dprMax} minDpr={0.75} />
         <Scene perf={perf} />
       </Canvas>
