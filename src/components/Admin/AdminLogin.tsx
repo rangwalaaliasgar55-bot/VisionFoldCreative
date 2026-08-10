@@ -78,6 +78,9 @@ export const AdminLogin: React.FC<{ onSuccess: () => void }> = ({ onSuccess }) =
           <h1 className="mt-4 text-lg font-bold uppercase tracking-[0.2em] text-[#EDEDED]">
             Studio Dashboard
           </h1>
+          <p className="mt-2 text-[11px] text-[#8A857C]">
+            Secure admin access · VisionFold Creative
+          </p>
           <p className="mt-1 text-xs uppercase tracking-[0.2em] text-[#888891]">Admin sign in</p>
         </div>
 
