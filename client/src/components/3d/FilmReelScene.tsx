@@ -1,5 +1,5 @@
 import { useRef, useMemo, useState, useEffect } from "react";
-import { Canvas, useFrame } from "@react-three/fiber";
+import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { Float, Environment, ContactShadows, MeshTransmissionMaterial } from "@react-three/drei";
 import * as THREE from "three";
 
@@ -262,6 +262,68 @@ function Scene({ perf }: { perf: PerfFlags }) {
   );
 }
 
+/** Samples rAF frame time and adjusts gl pixel ratio at runtime. */
+function AdaptiveDpr({
+  maxDpr,
+  minDpr = 0.75,
+}: {
+  maxDpr: number;
+  minDpr?: number;
+}) {
+  const gl = useThree((s) => s.gl);
+  const size = useThree((s) => s.size);
+  const current = useRef(maxDpr);
+  const emaMs = useRef(16.7);
+  const samples = useRef(0);
+  const cooldown = useRef(0);
+  const last = useRef(0);
+
+  useEffect(() => {
+    gl.setPixelRatio(current.current);
+    gl.setSize(size.width, size.height, false);
+  }, [gl, size.width, size.height]);
+
+  useFrame(() => {
+    const t = typeof performance !== "undefined" ? performance.now() : 0;
+
+    if (last.current > 0) {
+      const dt = t - last.current;
+      if (dt > 0 && dt < 100) {
+        emaMs.current = emaMs.current * 0.9 + dt * 0.1;
+        samples.current += 1;
+      }
+    }
+    last.current = t;
+
+    if (cooldown.current > 0) {
+      cooldown.current -= 1;
+      return;
+    }
+    if (samples.current < 12) return;
+    samples.current = 0;
+
+    const TARGET_MS = 18;
+    const RECOVER_MS = 14;
+    const STEP = 0.15;
+    let next = current.current;
+
+    if (emaMs.current > TARGET_MS && current.current > minDpr) {
+      next = Math.max(minDpr, current.current - STEP);
+    } else if (emaMs.current < RECOVER_MS && current.current < maxDpr) {
+      next = Math.min(maxDpr, current.current + STEP);
+    }
+
+    if (Math.abs(next - current.current) > 0.01) {
+      current.current = Math.round(next * 100) / 100;
+      cooldown.current = 30;
+      gl.setPixelRatio(current.current);
+      gl.setSize(size.width, size.height, false);
+    }
+  });
+
+  return null;
+}
+
 export default function FilmReelScene() {
   const perf = usePerfProfile();
   const [visible, setVisible] = useState(true);
@@ -302,7 +364,7 @@ export default function FilmReelScene() {
     <div ref={hostRef} className="pointer-events-none absolute inset-0 z-0" aria-hidden>
       <Canvas
         camera={{ position: [0, 0, 6], fov: 50 }}
-        dpr={[1, dprMax]}
+        dpr={dprMax}
         frameloop={visible ? "always" : "never"}
         gl={{
           antialias: !perf.isMobile,
@@ -316,6 +378,7 @@ export default function FilmReelScene() {
           gl.setClearColor(0x000000, 0);
         }}
       >
+        <AdaptiveDpr maxDpr={dprMax} minDpr={0.75} />
         <Scene perf={perf} />
       </Canvas>
     </div>
