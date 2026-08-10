@@ -17,25 +17,34 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '22'
+          
 
       - name: Install dependencies
-        run: npm install
+        run: npm ci
 
       - name: Run npm audit
         run: |
           echo "## Dependency Audit Report" >> $GITHUB_STEP_SUMMARY
           echo "**Generated:** $(date)" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
+          
           npm audit --json > audit-report.json || true
-          critical=$(cat audit-report.json | jq '.metadata.vulnerabilities.critical // 0' 2>/dev/null || echo 0)
-          high=$(cat audit-report.json | jq '.metadata.vulnerabilities.high // 0' 2>/dev/null || echo 0)
-          medium=$(cat audit-report.json | jq '.metadata.vulnerabilities.medium // 0' 2>/dev/null || echo 0)
-          low=$(cat audit-report.json | jq '.metadata.vulnerabilities.low // 0' 2>/dev/null || echo 0)
+          
+          critical=$(cat audit-report.json | jq '.metadata.vulnerabilities.critical // 0')
+          high=$(cat audit-report.json | jq '.metadata.vulnerabilities.high // 0')
+          medium=$(cat audit-report.json | jq '.metadata.vulnerabilities.medium // 0')
+          low=$(cat audit-report.json | jq '.metadata.vulnerabilities.low // 0')
+          
           echo "### Vulnerability Summary" >> $GITHUB_STEP_SUMMARY
           echo "| Severity | Count |" >> $GITHUB_STEP_SUMMARY
-          echo "| --- | --- |" >> $GITHUB_STEP_SUMMARY
+          echo "|----------|-------|" >> $GITHUB_STEP_SUMMARY
           echo "| Critical | $critical |" >> $GITHUB_STEP_SUMMARY
           echo "| High | $high |" >> $GITHUB_STEP_SUMMARY
           echo "| Medium | $medium |" >> $GITHUB_STEP_SUMMARY
           echo "| Low | $low |" >> $GITHUB_STEP_SUMMARY
-          npm audit || true
+
+      - name: Upload audit report
+        uses: actions/upload-artifact@v4
+        with:
+          name: dependency-audit
+          path: audit-report.json

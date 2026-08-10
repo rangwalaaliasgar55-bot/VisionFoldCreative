@@ -19,22 +19,35 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '22'
+          
 
       - name: Install dependencies
-        run: npm install
+        run: npm ci
 
       - name: Build preview
         run: npm run build || echo "Build not configured"
-        env:
-          JWT_SECRET: ci-test-jwt-secret-not-for-production
-          NODE_ENV: production
 
       - name: Deploy preview
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
         run: |
+          PR_NUM=${{ github.event.inputs.pr_number || github.event.pull_request.number }}
+          
           if [ -n "$VERCEL_TOKEN" ]; then
-            npx vercel deploy --token=$VERCEL_TOKEN --yes || echo "Preview deploy skipped"
+            npx vercel deploy --token=$VERCEL_TOKEN --preview --yes
           else
             echo "Preview deploy requires VERCEL_TOKEN secret"
           fi
+
+      - name: Comment preview URL
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const prNum = context.payload.pull_request?.number || process.env.PR_NUM;
+            
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: prNum,
+              body: `## Preview Environment\n\nPreview deployment is ready!\n\n**Preview URL:** (configure Vercel deployment)\n\n---\n*This is an automated preview environment*`
+            });
