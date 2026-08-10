@@ -1,4 +1,5 @@
 import { Outlet, Link, useLocation, Navigate } from "react-router-dom";
+import { motion } from "framer-motion";
 import {
   LayoutDashboard, FolderOpen, Users, FileText, Image, MessageSquare,
   Sparkles, Settings, Mail, BarChart3, LogOut, Film, Menu, X
@@ -29,6 +30,7 @@ export default function AdminLayout() {
 
   return (
     <div className="min-h-screen flex">
+      {/* Mobile overlay */}
       {sidebarOpen && (
         <div className="fixed inset-0 bg-black/50 z-40 lg:hidden" onClick={() => setSidebarOpen(false)} />
       )}
