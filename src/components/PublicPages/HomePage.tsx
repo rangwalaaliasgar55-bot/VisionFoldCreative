@@ -8,6 +8,8 @@ import { useAdmin } from '../../context/AdminContext';
 import { useContent } from '../../context/ContentContext';
 import { EditableText } from '../EditableText';
 import { VisionFoldLogo } from '../VisionFoldLogo';
+import { ShowreelSection } from '../ShowreelSection';
+import { ClientsGlobeSection } from '../ClientsGlobeSection';
 import { ThreeHero } from '../ThreeHero';
 import { useScrollReveal } from '../../hooks/useScrollReveal';
 
@@ -86,6 +88,10 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
       <section className="relative z-10 min-h-screen px-6 pb-24 pt-32">
         <div className="mx-auto grid max-w-7xl items-center gap-14 lg:grid-cols-[1.1fr_0.9fr]">
           <RevealSection>
+            <div className="mb-6">
+              <img src="/brand/visionfold-mark.svg" alt="VisionFold" className="h-14 w-14 object-contain opacity-95 text-white" />
+              <p className="mt-3 text-[10px] font-bold uppercase tracking-[0.35em] text-white/40">Edit · Create · Inspire</p>
+            </div>
             <div className="mb-7 inline-flex items-center gap-2 rounded-full border border-[#D4AF37]/35 bg-black/40 px-4 py-2 backdrop-blur-xl">
               <Sparkles className="h-4 w-4 text-[#D4AF37] animate-pulse" />
               <EditableText page="home" sectionKey="home_hero_kicker" fallback="Premium consumer video studio" className="text-[10px] font-black uppercase tracking-[0.25em] text-[#D4AF37]" tagName="span" />
@@ -98,12 +104,12 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
               <a href={`https://wa.me/${whatsappNumber}?text=${encodeURIComponent(whatsappMessage)}`} target="_blank" rel="noopener noreferrer" onMouseEnter={playHover} onClick={playClick} className="group inline-flex items-center justify-center gap-3 rounded-full bg-[#D4AF37] px-8 py-4 text-xs font-black uppercase tracking-[0.18em] text-black transition-all hover:scale-105 hover:bg-white">
                 Start on WhatsApp <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
               </a>
-              <button type="button" onMouseEnter={playHover} onClick={() => { playClick(); document.getElementById('pricing')?.scrollIntoView({ behavior: 'smooth' }); }} className="rounded-full border border-white/15 bg-white/5 px-8 py-4 text-xs font-black uppercase tracking-[0.18em] text-white backdrop-blur-xl transition-all hover:border-[#D4AF37] hover:text-[#D4AF37]">
-                View pricing
+              <button type="button" onMouseEnter={playHover} onClick={() => { playClick(); document.getElementById('showreel')?.scrollIntoView({ behavior: 'smooth' }); }} className="rounded-full border border-white/15 bg-white/5 px-8 py-4 text-xs font-black uppercase tracking-[0.18em] text-white backdrop-blur-xl transition-all hover:border-[#D4AF37] hover:text-[#D4AF37]">
+                Watch showreel
               </button>
             </div>
             <div className="mt-12 grid max-w-2xl grid-cols-3 gap-3 text-center">
-              {['Shorts ₹700', 'Long-form custom', metrics?.retentionSplit || 'Retention-first'].map((item) => (
+              {['Shorts ₹700', '15 cities', metrics?.retentionSplit || 'Retention-first'].map((item) => (
                 <div key={item} className="rounded-2xl border border-white/10 bg-black/40 p-4 text-[10px] font-bold uppercase tracking-[0.18em] text-[#B8B3AA] backdrop-blur-xl">{item}</div>
               ))}
             </div>
@@ -145,6 +151,9 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
         </RevealSection>
       </section>
 
+      <ShowreelSection />
+      <ClientsGlobeSection />
+
       <section className="relative z-10 px-6 py-24">
         <RevealSection className="mx-auto max-w-7xl">
           <div className="mb-12 flex items-end justify-between">
@@ -184,11 +193,6 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
                 </div>
               </div>
             ))}
-          </div>
-          <div className="mt-10 text-center">
-            <a href="/work" className="inline-flex items-center gap-2 text-xs font-black uppercase tracking-[0.2em] text-[#D4AF37] hover:text-white">
-              View full portfolio <ArrowRight className="h-4 w-4" />
-            </a>
           </div>
         </RevealSection>
       </section>
