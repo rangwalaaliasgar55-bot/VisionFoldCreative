@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Menu, X, Film, Sparkles, User } from "lucide-react";
+import { Menu, X, Sparkles, User } from "lucide-react";
 import { useStore } from "../store/useStore";
 
 const navLinks = [
@@ -37,13 +37,14 @@ export default function Navigation() {
         }`}
       >
         <div className="max-w-7xl mx-auto px-6 flex items-center justify-between">
-          <Link to="/" className="flex items-center gap-2 group">
-            <div className="relative w-10 h-10 flex items-center justify-center">
-              <div className="absolute inset-0 bg-accent/20 rounded-xl rotate-45 group-hover:rotate-90 transition-transform duration-500" />
-              <Film className="w-5 h-5 text-accent relative z-10" />
-            </div>
+          <Link to="/" className="flex items-center gap-2.5 group">
+            <img
+              src="/brand/visionfold-mark.svg"
+              alt=""
+              className="w-9 h-9 object-contain opacity-95 group-hover:opacity-100 transition-opacity text-white"
+            />
             <span className="font-display font-bold text-xl tracking-tight">
-              Vision<span className="text-accent">Fold</span>
+              Vision<span className="text-amber">Fold</span>
             </span>
           </Link>
 
