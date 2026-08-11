@@ -79,33 +79,56 @@ export const ClientsGlobeSection: React.FC = () => {
       display: 'block',
       cursor: 'grab',
       touchAction: 'none',
+      userSelect: 'none',
     });
 
+    // Atmosphere
     scene.add(
       new THREE.Mesh(
         new THREE.SphereGeometry(1.08, 48, 48),
         new THREE.MeshBasicMaterial({
-          color: 0x6c4dff,
+          color: 0x4a9fff,
           transparent: true,
-          opacity: 0.09,
+          opacity: 0.12,
           side: THREE.BackSide,
         })
       )
     );
 
-    const earthGeo = new THREE.SphereGeometry(1, 64, 64);
-    const earthMat = new THREE.MeshStandardMaterial({
-      color: 0x0a0e18,
-      metalness: 0.4,
-      roughness: 0.65,
-      emissive: 0x0a1020,
-      emissiveIntensity: 0.45,
+    const earthGeo = new THREE.SphereGeometry(1, isMobile ? 48 : 72, isMobile ? 48 : 72);
+    const loader = new THREE.TextureLoader();
+    const earthDay = loader.load(
+      'https://unpkg.com/three-globe@2.31.1/example/img/earth-blue-marble.jpg',
+      () => {
+        renderer.render(scene, camera);
+      }
+    );
+    earthDay.colorSpace = THREE.SRGBColorSpace;
+    const earthNight = loader.load(
+      'https://unpkg.com/three-globe@2.31.1/example/img/earth-night.jpg'
+    );
+    earthNight.colorSpace = THREE.SRGBColorSpace;
+    const earthWater = loader.load(
+      'https://unpkg.com/three-globe@2.31.1/example/img/earth-water.png'
+    );
+
+    const earthMat = new THREE.MeshPhongMaterial({
+      map: earthDay,
+      bumpMap: earthDay,
+      bumpScale: 0.012,
+      specularMap: earthWater,
+      specular: new THREE.Color(0x333355),
+      shininess: 18,
+      emissiveMap: earthNight,
+      emissive: new THREE.Color(0x4466aa),
+      emissiveIntensity: 0.35,
     });
     const earth = new THREE.Mesh(earthGeo, earthMat);
     scene.add(earth);
 
+    // Soft night city glow
     {
-      const n = isMobile ? 120 : 220;
+      const n = isMobile ? 80 : 140;
       const pos = new Float32Array(n * 3);
       for (let i = 0; i < n; i++) {
         const lat = (Math.random() - 0.5) * 140;
@@ -121,16 +144,17 @@ export const ClientsGlobeSection: React.FC = () => {
         new THREE.Points(
           g,
           new THREE.PointsMaterial({
-            color: 0xf2a93b,
-            size: 0.012,
+            color: 0xffcc66,
+            size: 0.008,
             transparent: true,
-            opacity: 0.35,
+            opacity: 0.15,
             sizeAttenuation: true,
           })
         )
       );
     }
 
+    // Stars
     {
       const n = isMobile ? 180 : 380;
       const pos = new Float32Array(n * 3);
@@ -152,11 +176,11 @@ export const ClientsGlobeSection: React.FC = () => {
       );
     }
 
-    scene.add(new THREE.AmbientLight(0xffffff, 0.5));
-    const key = new THREE.DirectionalLight(0xf2a93b, 0.7);
-    key.position.set(2.5, 1.8, 2);
+    scene.add(new THREE.AmbientLight(0xffffff, 0.55));
+    const key = new THREE.DirectionalLight(0xfff5e6, 1.15);
+    key.position.set(4, 2, 3);
     scene.add(key);
-    const fill = new THREE.DirectionalLight(0x6c4dff, 0.45);
+    const fill = new THREE.DirectionalLight(0x6c4dff, 0.35);
     fill.position.set(-2, -0.5, -2);
     scene.add(fill);
 
@@ -235,8 +259,8 @@ export const ClientsGlobeSection: React.FC = () => {
       const dy = e.clientY - drag.ly;
       drag.lx = e.clientX;
       drag.ly = e.clientY;
-      drag.vx = dx * 0.005;
-      drag.vy = dy * 0.003;
+      drag.vx = dx * 0.008;
+      drag.vy = dy * 0.005;
       drag.rotY += drag.vx;
       drag.rotX = Math.max(-0.6, Math.min(0.6, drag.rotX + drag.vy));
     };
@@ -269,7 +293,7 @@ export const ClientsGlobeSection: React.FC = () => {
       const t = clock.getElapsedTime();
 
       if (!reduced && !drag.active) {
-        drag.rotY += 0.003 + drag.vx;
+        drag.rotY += 0.012 + drag.vx;
         drag.vx *= 0.95;
         drag.vy *= 0.95;
       } else if (!drag.active) {
@@ -289,7 +313,7 @@ export const ClientsGlobeSection: React.FC = () => {
           mat.opacity = isActive ? 0.95 : 0.28 + Math.sin(t * 2 + obj.userData.id) * 0.06;
         } else if (obj instanceof THREE.Mesh && obj.userData.curve) {
           const curve = obj.userData.curve as THREE.QuadraticBezierCurve3;
-          obj.userData.t = (obj.userData.t + 0.006) % 1;
+          obj.userData.t = (obj.userData.t + 0.008) % 1;
           obj.position.copy(curve.getPoint(obj.userData.t));
           obj.visible = obj.userData.id === activeRef.current || Math.sin(t + obj.userData.id) > 0.2;
         }
@@ -319,6 +343,9 @@ export const ClientsGlobeSection: React.FC = () => {
       renderer.dispose();
       earthGeo.dispose();
       earthMat.dispose();
+      earthDay.dispose();
+      earthNight.dispose();
+      earthWater.dispose();
       if (renderer.domElement.parentElement === el) el.removeChild(renderer.domElement);
     };
   }, []);
@@ -340,7 +367,7 @@ export const ClientsGlobeSection: React.FC = () => {
             </span>
           </h2>
           <p className="mx-auto mt-4 max-w-xl text-sm text-[#B8B3AA]">
-            Indore HQ connected to clients across every continent — routes that travel with every delivery.
+            Indore HQ connected to clients across every continent — drag the satellite globe to explore.
           </p>
         </div>
 
@@ -362,13 +389,13 @@ export const ClientsGlobeSection: React.FC = () => {
 
         <div className="grid items-center gap-10 lg:grid-cols-[1.4fr_1fr]">
           <div className="relative aspect-square overflow-hidden rounded-[2rem] border border-white/10 bg-gradient-to-b from-[#0a0a12] to-black sm:aspect-[16/12]">
-            <div ref={mountRef} className="absolute inset-0" />
+            <div ref={mountRef} className="absolute inset-0 z-10" />
             {!ready && (
-              <div className="absolute inset-0 flex items-center justify-center text-xs uppercase tracking-[0.2em] text-white/30">
-                Loading globe…
+              <div className="absolute inset-0 z-20 flex items-center justify-center text-xs uppercase tracking-[0.2em] text-white/30">
+                Loading satellite map…
               </div>
             )}
-            <div className="pointer-events-none absolute bottom-4 left-4 right-4 rounded-2xl border border-white/10 bg-black/75 p-4 backdrop-blur-xl sm:left-auto sm:right-4 sm:w-56">
+            <div className="pointer-events-none absolute bottom-4 left-4 right-4 z-20 rounded-2xl border border-white/10 bg-black/75 p-4 backdrop-blur-xl sm:left-auto sm:right-4 sm:w-56">
               <div className="flex gap-2">
                 <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-[#F2A93B]" />
                 <div>
@@ -378,7 +405,7 @@ export const ClientsGlobeSection: React.FC = () => {
                 </div>
               </div>
             </div>
-            <p className="pointer-events-none absolute left-4 top-4 text-[10px] uppercase tracking-[0.2em] text-white/25">
+            <p className="pointer-events-none absolute left-4 top-4 z-20 text-[10px] uppercase tracking-[0.2em] text-white/25">
               Drag to explore
             </p>
           </div>
