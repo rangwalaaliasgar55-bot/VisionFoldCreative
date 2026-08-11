@@ -38,19 +38,19 @@ const features = [
 ];
 
 const processSteps = [
-  { step: '01', title: 'Brief', text: 'Share product, platform, audience, and deadline.' },
-  { step: '02', title: 'Craft', text: 'Hook, story, captions, grade, and sound design.' },
-  { step: '03', title: 'Review', text: 'Structured revisions through the client portal.' },
-  { step: '04', title: 'Deliver', text: 'Final masters ready for organic or paid use.' },
+  { step: '01', title: 'Discover', text: 'Brief, goals, audience, and platform constraints.' },
+  { step: '02', title: 'Script / Design', text: 'Hook, storyboard, captions, and visual system.' },
+  { step: '03', title: 'Create', text: 'Edit, grade, motion, and sound design.' },
+  { step: '04', title: 'Deliver', text: 'Revisions via portal, final masters, and handoff.' },
 ];
 
 const seededReviews = [
   { name: 'Kabir Joshi', place: 'Mumbai', role: 'D2C Brand Owner', quote: 'Aliasgar does not just cut footage — he understands the brand. We sent him rough clips and got back reels that looked like a full production house did them.' },
-  { name: 'Meera Nair', place: 'Bangalore', role: 'Creator & Coach', quote: 'I have given Aliasgar a lot of work this year. Every single delivery was on time, retention-focused, and better than what bigger agencies quoted me three times the price for.' },
-  { name: 'Omar Farid', place: 'Dubai', role: 'Ecommerce Lead', quote: 'VisionFold under Aliasgar turned our product videos into paid-ad ready creatives. CTR went up after the first batch. Highly recommend working with him directly.' },
-  { name: 'Ananya Desai', place: 'Pune', role: 'Cafe Founder', quote: 'Aliasgar made our menu and ambience films look expensive without the expensive process. Clear communication, fast revisions, zero drama.' },
-  { name: 'Ryan Brooks', place: 'London', role: 'Consultant', quote: 'Working with Aliasgar feels like having an in-house editor who actually cares. Hooks, pacing, captions — all handled. We keep coming back.' },
-  { name: 'Sana Qureshi', place: 'Hyderabad', role: 'Fashion Creator', quote: 'Simple phone footage in, premium international-looking reels out. Aliasgar is great at this. Trust him with your content calendar.' },
+  { name: 'Meera Nair', place: 'Bangalore', role: 'Creator & Coach', quote: 'Every delivery was on time, retention-focused, and better than what bigger agencies quoted three times the price for.' },
+  { name: 'Omar Farid', place: 'Dubai', role: 'Ecommerce Lead', quote: 'VisionFold turned our product videos into paid-ad ready creatives. CTR went up after the first batch.' },
+  { name: 'Ananya Desai', place: 'Pune', role: 'Cafe Founder', quote: 'Our menu and ambience films looked expensive without the expensive process. Clear communication, fast revisions.' },
+  { name: 'Ryan Brooks', place: 'London', role: 'Consultant', quote: 'Hooks, pacing, captions — all handled. Feels like an in-house editor who actually cares.' },
+  { name: 'Sana Qureshi', place: 'Hyderabad', role: 'Fashion Creator', quote: 'Simple phone footage in, premium international-looking reels out. Trust him with your content calendar.' },
 ];
 
 export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
@@ -78,10 +78,10 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
   const whatsappMessage = `Hi Aliasgar, I want to start a project with VisionFold Creative.${brief ? ` Brief: ${brief}` : ''}`;
 
   return (
-    <div className="relative flex flex-col overflow-hidden bg-[#050507] text-[#F4F1EA]">
+    <div className="relative flex flex-col overflow-hidden bg-[#0A0A0F] text-[#F4F1EA]">
       <div className="pointer-events-none fixed inset-0 z-0">
         <ThreeHero />
-        <div className="absolute inset-0 bg-gradient-to-b from-[#050507]/40 via-transparent to-[#050507]" />
+        <div className="absolute inset-0 bg-gradient-to-b from-[#0A0A0F]/50 via-transparent to-[#0A0A0F]" />
         <div className="absolute inset-0 noise-overlay opacity-40" />
       </div>
 
@@ -92,31 +92,31 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
               <img src="/brand/visionfold-mark.svg" alt="VisionFold" className="h-14 w-14 object-contain opacity-95 text-white" />
               <p className="mt-3 text-[10px] font-bold uppercase tracking-[0.35em] text-white/40">Edit · Create · Inspire</p>
             </div>
-            <div className="mb-7 inline-flex items-center gap-2 rounded-full border border-[#D4AF37]/35 bg-black/40 px-4 py-2 backdrop-blur-xl">
-              <Sparkles className="h-4 w-4 text-[#D4AF37] animate-pulse" />
-              <EditableText page="home" sectionKey="home_hero_kicker" fallback="Premium consumer video studio" className="text-[10px] font-black uppercase tracking-[0.25em] text-[#D4AF37]" tagName="span" />
+            <div className="mb-7 inline-flex items-center gap-2 rounded-full border border-[#6C4DFF]/40 bg-black/40 px-4 py-2 backdrop-blur-xl">
+              <Sparkles className="h-4 w-4 text-[#F2A93B] animate-pulse" />
+              <EditableText page="home" sectionKey="home_hero_kicker" fallback="Indore · Video · Marketing · Design" className="text-[10px] font-black uppercase tracking-[0.25em] text-[#F2A93B]" tagName="span" />
             </div>
             <h1 className="max-w-5xl text-5xl font-black uppercase leading-[0.88] tracking-[-0.06em] md:text-7xl xl:text-8xl">
-              <EditableText page="home" sectionKey="home_hero_headline" fallback="Make every scroll stop, watch, and buy." className="block gold-gradient-text" tagName="span" />
+              <EditableText page="home" sectionKey="home_hero_headline" fallback="We Edit. We Create. We Inspire." className="block gold-gradient-text" tagName="span" />
             </h1>
-            <EditableText page="home" sectionKey="home_hero_subline" fallback="High-retention short-form, launch creatives, and custom long-form for brands that refuse to look average." className="mt-8 max-w-2xl text-lg font-light leading-8 text-[#B8B3AA]" tagName="p" />
+            <EditableText page="home" sectionKey="home_hero_subline" fallback="Video editing, digital marketing & web/UI-UX design from Indore — for clients worldwide." className="mt-8 max-w-2xl text-lg font-light leading-8 text-[#B8B3AA]" tagName="p" />
             <div className="mt-10 flex flex-col gap-4 sm:flex-row">
-              <a href={`https://wa.me/${whatsappNumber}?text=${encodeURIComponent(whatsappMessage)}`} target="_blank" rel="noopener noreferrer" onMouseEnter={playHover} onClick={playClick} className="group inline-flex items-center justify-center gap-3 rounded-full bg-[#D4AF37] px-8 py-4 text-xs font-black uppercase tracking-[0.18em] text-black transition-all hover:scale-105 hover:bg-white">
-                Start on WhatsApp <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+              <a href={`https://wa.me/${whatsappNumber}?text=${encodeURIComponent(whatsappMessage)}`} target="_blank" rel="noopener noreferrer" onMouseEnter={playHover} onClick={playClick} className="group inline-flex items-center justify-center gap-3 rounded-full bg-gradient-to-r from-[#6C4DFF] to-[#C724B1] px-8 py-4 text-xs font-black uppercase tracking-[0.18em] text-white transition-all hover:scale-105">
+                Book a Call <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
               </a>
-              <button type="button" onMouseEnter={playHover} onClick={() => { playClick(); document.getElementById('showreel')?.scrollIntoView({ behavior: 'smooth' }); }} className="rounded-full border border-white/15 bg-white/5 px-8 py-4 text-xs font-black uppercase tracking-[0.18em] text-white backdrop-blur-xl transition-all hover:border-[#D4AF37] hover:text-[#D4AF37]">
-                Watch showreel
+              <button type="button" onMouseEnter={playHover} onClick={() => { playClick(); document.getElementById('showreel')?.scrollIntoView({ behavior: 'smooth' }); }} className="rounded-full border border-white/15 bg-white/5 px-8 py-4 text-xs font-black uppercase tracking-[0.18em] text-white backdrop-blur-xl transition-all hover:border-[#6C4DFF] hover:text-[#C724B1]">
+                See Our Work
               </button>
             </div>
             <div className="mt-12 grid max-w-2xl grid-cols-3 gap-3 text-center">
-              {['Shorts ₹700', '15 cities', metrics?.retentionSplit || 'Retention-first'].map((item) => (
+              {['Shorts ₹700', '15 cities', metrics?.retentionSplit || 'Indore HQ'].map((item) => (
                 <div key={item} className="rounded-2xl border border-white/10 bg-black/40 p-4 text-[10px] font-bold uppercase tracking-[0.18em] text-[#B8B3AA] backdrop-blur-xl">{item}</div>
               ))}
             </div>
           </RevealSection>
 
           <RevealSection className="relative perspective-hero">
-            <div className="absolute -inset-10 rounded-full bg-[#D4AF37]/15 blur-3xl animate-[glow-pulse_3.5s_ease-in-out_infinite]" />
+            <div className="absolute -inset-10 rounded-full bg-[#6C4DFF]/20 blur-3xl animate-[glow-pulse_3.5s_ease-in-out_infinite]" />
             <div className="tilt-3d relative overflow-hidden rounded-[2.5rem] border border-white/10 bg-[#F4F1EA] p-8 shadow-2xl shadow-black/60">
               <VisionFoldLogo variant="full" color="dark" size="xl" />
               <div className="mt-8 grid grid-cols-3 gap-3">
@@ -125,8 +125,8 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
                 ))}
               </div>
               <div className="mt-6 flex items-center gap-3 rounded-2xl border border-black/10 bg-black/5 p-4">
-                <Layers3 className="h-5 w-5 text-[#D4AF37]" />
-                <p className="text-xs font-bold uppercase tracking-[0.15em] text-black/70">3D studio systems · live workflow</p>
+                <Layers3 className="h-5 w-5 text-[#6C4DFF]" />
+                <p className="text-xs font-bold uppercase tracking-[0.15em] text-black/70">Indore · Creative Studio</p>
               </div>
             </div>
           </RevealSection>
@@ -136,13 +136,13 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
       <section className="relative z-10 border-y border-white/10 bg-black/50 px-6 py-24 backdrop-blur-xl">
         <RevealSection className="mx-auto max-w-7xl">
           <div className="mb-12">
-            <p className="mb-3 text-xs font-black uppercase tracking-[0.3em] text-[#D4AF37]">Why VisionFold</p>
+            <p className="mb-3 text-xs font-black uppercase tracking-[0.3em] text-[#C724B1]">Services</p>
             <h2 className="text-4xl font-black uppercase tracking-[-0.04em] md:text-6xl">Creative systems that convert</h2>
           </div>
           <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-4">
             {features.map((feature) => (
               <div key={feature.title} className="group fold-card rounded-3xl p-7">
-                <feature.icon className="mb-8 h-8 w-8 text-[#D4AF37] transition-transform group-hover:scale-110" />
+                <feature.icon className="mb-8 h-8 w-8 text-[#6C4DFF] transition-transform group-hover:scale-110" />
                 <h3 className="mb-3 text-lg font-black uppercase tracking-[0.08em]">{feature.title}</h3>
                 <p className="text-sm leading-7 text-[#B8B3AA]">{feature.text}</p>
               </div>
@@ -158,15 +158,15 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
         <RevealSection className="mx-auto max-w-7xl">
           <div className="mb-12 flex items-end justify-between">
             <div>
-              <p className="mb-3 text-xs font-black uppercase tracking-[0.3em] text-[#D4AF37]">Workflow</p>
-              <h2 className="text-4xl font-black uppercase tracking-[-0.04em] md:text-5xl">From brief to final cut</h2>
+              <p className="mb-3 text-xs font-black uppercase tracking-[0.3em] text-[#F2A93B]">Process</p>
+              <h2 className="text-4xl font-black uppercase tracking-[-0.04em] md:text-5xl">Discover → Deliver</h2>
             </div>
-            <Clapperboard className="hidden h-12 w-12 text-[#D4AF37] md:block" />
+            <Clapperboard className="hidden h-12 w-12 text-[#6C4DFF] md:block" />
           </div>
           <div className="grid gap-4 md:grid-cols-4">
             {processSteps.map((s) => (
-              <div key={s.step} className="rounded-3xl border border-white/10 bg-white/[0.03] p-6 backdrop-blur-xl transition hover:-translate-y-1 hover:border-[#D4AF37]/50">
-                <p className="text-3xl font-black text-[#D4AF37]/80">{s.step}</p>
+              <div key={s.step} className="rounded-3xl border border-white/10 bg-white/[0.03] p-6 backdrop-blur-xl transition hover:-translate-y-1 hover:border-[#6C4DFF]/50">
+                <p className="text-3xl font-black text-[#6C4DFF]/80">{s.step}</p>
                 <h3 className="mt-4 text-lg font-black uppercase">{s.title}</h3>
                 <p className="mt-2 text-sm leading-6 text-[#B8B3AA]">{s.text}</p>
               </div>
@@ -180,14 +180,14 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
           <h2 className="mb-12 text-4xl font-black uppercase tracking-[-0.04em] md:text-6xl">Selected work</h2>
           <div className="grid gap-6 lg:grid-cols-3">
             {workCards.map((card) => (
-              <div key={card.title} className="group overflow-hidden rounded-[2rem] border border-white/10 bg-white/[0.04] transition-all hover:-translate-y-2 hover:border-[#D4AF37]/60">
+              <div key={card.title} className="group overflow-hidden rounded-[2rem] border border-white/10 bg-white/[0.04] transition-all hover:-translate-y-2 hover:border-[#6C4DFF]/60">
                 <div className="relative aspect-[4/5] overflow-hidden">
                   <img src={card.image} alt={card.title} className="h-full w-full object-cover opacity-75 transition duration-700 group-hover:scale-110 group-hover:opacity-100" loading="lazy" />
                   <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent" />
-                  <Play className="absolute left-6 top-6 h-10 w-10 rounded-full bg-[#D4AF37] p-3 text-black" />
+                  <Play className="absolute left-6 top-6 h-10 w-10 rounded-full bg-gradient-to-r from-[#6C4DFF] to-[#C724B1] p-3 text-white" />
                 </div>
                 <div className="p-6">
-                  <p className="mb-2 text-[10px] font-black uppercase tracking-[0.25em] text-[#D4AF37]">{card.type}</p>
+                  <p className="mb-2 text-[10px] font-black uppercase tracking-[0.25em] text-[#C724B1]">{card.type}</p>
                   <h3 className="text-2xl font-black">{card.title}</h3>
                   <p className="mt-4 text-sm font-bold text-[#B8B3AA]">{card.metric}</p>
                 </div>
@@ -199,18 +199,18 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
 
       <section id="pricing" className="relative z-10 px-6 py-28">
         <RevealSection className="mx-auto grid max-w-7xl gap-6 lg:grid-cols-2">
-          <div className="rounded-[2rem] border border-[#D4AF37]/40 bg-[#D4AF37] p-8 text-black shadow-[0_0_80px_rgba(212,175,55,0.25)]">
+          <div className="rounded-[2rem] border border-[#6C4DFF]/40 bg-gradient-to-br from-[#6C4DFF] to-[#C724B1] p-8 text-white shadow-[0_0_80px_rgba(108,77,255,0.25)]">
             <Scissors className="mb-10 h-10 w-10" />
             <h2 className="text-5xl font-black uppercase tracking-[-0.05em]">Short-form</h2>
             <div className="mt-8 text-7xl font-black inr-price">₹700</div>
             <p className="mt-4 text-sm font-bold uppercase tracking-[0.18em]">Per short-form edit</p>
           </div>
           <div className="rounded-[2rem] border border-white/10 bg-white/[0.04] p-8 backdrop-blur-xl">
-            <Film className="mb-10 h-10 w-10 text-[#D4AF37]" />
+            <Film className="mb-10 h-10 w-10 text-[#F2A93B]" />
             <h2 className="text-5xl font-black uppercase tracking-[-0.05em]">Long-form</h2>
             <div className="mt-8 text-5xl font-black">Custom quote</div>
             <p className="mt-5 leading-7 text-[#B8B3AA]">YouTube, documentaries, podcasts, brand films — priced by complexity.</p>
-            <a href={`https://wa.me/${whatsappNumber}?text=${encodeURIComponent('Hi Aliasgar, I need a custom long-form quote.')}`} target="_blank" rel="noopener noreferrer" className="mt-8 inline-flex rounded-full border border-[#D4AF37]/50 px-6 py-3 text-xs font-black uppercase tracking-[0.18em] text-[#D4AF37] transition hover:bg-[#D4AF37] hover:text-black">DM for long-form</a>
+            <a href={`https://wa.me/${whatsappNumber}?text=${encodeURIComponent('Hi Aliasgar, I need a custom long-form quote.')}`} target="_blank" rel="noopener noreferrer" className="mt-8 inline-flex rounded-full border border-[#6C4DFF]/50 px-6 py-3 text-xs font-black uppercase tracking-[0.18em] text-[#C724B1] transition hover:bg-[#6C4DFF] hover:text-white">DM for long-form</a>
           </div>
         </RevealSection>
       </section>
@@ -218,17 +218,17 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
       <section className="relative z-10 border-y border-white/10 bg-black/50 px-6 py-20 backdrop-blur-xl">
         <RevealSection className="mx-auto grid max-w-7xl gap-6 lg:grid-cols-[0.9fr_1.1fr] lg:items-center">
           <div>
-            <LockKeyhole className="mb-6 h-10 w-10 text-[#D4AF37]" />
+            <LockKeyhole className="mb-6 h-10 w-10 text-[#6C4DFF]" />
             <h2 className="text-4xl font-black uppercase tracking-[-0.04em] md:text-5xl">Client portal</h2>
             <p className="mt-5 max-w-xl text-sm leading-7 text-[#B8B3AA]">Track projects, invoices, deliveries, and revisions in one workspace.</p>
           </div>
           <div className="rounded-[2rem] border border-white/10 bg-white/[0.04] p-6">
             <div className="grid gap-3 sm:grid-cols-3">
               {['Projects', 'Invoices', 'AI Assist'].map((item) => (
-                <div key={item} className="rounded-2xl border border-white/10 bg-black/40 px-4 py-5 text-center text-xs font-black uppercase tracking-[0.18em] text-[#D4AF37]">{item}</div>
+                <div key={item} className="rounded-2xl border border-white/10 bg-black/40 px-4 py-5 text-center text-xs font-black uppercase tracking-[0.18em] text-[#C724B1]">{item}</div>
               ))}
             </div>
-            <button type="button" onClick={() => { playClick(); window.location.href = '/portal'; }} className="mt-5 w-full rounded-2xl bg-white px-5 py-4 text-xs font-black uppercase tracking-[0.18em] text-black transition-all hover:bg-[#D4AF37]">Open client portal</button>
+            <button type="button" onClick={() => { playClick(); window.location.href = '/portal'; }} className="mt-5 w-full rounded-2xl bg-white px-5 py-4 text-xs font-black uppercase tracking-[0.18em] text-black transition-all hover:bg-[#6C4DFF] hover:text-white">Open client portal</button>
           </div>
         </RevealSection>
       </section>
@@ -237,21 +237,21 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
         <RevealSection className="mx-auto max-w-7xl">
           <div className="mb-12 flex items-end justify-between gap-6">
             <div>
-              <p className="mb-3 text-xs font-black uppercase tracking-[0.3em] text-[#D4AF37]">Social proof</p>
+              <p className="mb-3 text-xs font-black uppercase tracking-[0.3em] text-[#F2A93B]">Social proof</p>
               <h2 className="text-4xl font-black uppercase tracking-[-0.04em] md:text-6xl">Client reviews</h2>
             </div>
-            <BadgeCheck className="hidden h-12 w-12 text-[#D4AF37] md:block" />
+            <BadgeCheck className="hidden h-12 w-12 text-[#6C4DFF] md:block" />
           </div>
           <div className="overflow-hidden">
             <div className="review-track">
               {reviewLoop.map((review, index) => (
                 <div key={`${review.name}-${index}`} className="w-[340px] shrink-0 rounded-3xl border border-white/10 bg-white/[0.04] p-6 backdrop-blur-xl sm:w-[400px]">
-                  <div className="mb-5 flex gap-1 text-[#D4AF37]">{Array.from({ length: 5 }).map((_, i) => <Star key={i} className="h-4 w-4 fill-current" />)}</div>
+                  <div className="mb-5 flex gap-1 text-[#F2A93B]">{Array.from({ length: 5 }).map((_, i) => <Star key={i} className="h-4 w-4 fill-current" />)}</div>
                   <Quote className="mb-4 h-6 w-6 text-white/30" />
                   <p className="min-h-24 text-sm leading-7 text-[#D8D3CA]">“{review.quote}”</p>
                   <div className="mt-6 border-t border-white/10 pt-5">
                     <p className="font-black">{review.name}</p>
-                    <p className="text-xs uppercase tracking-[0.15em] text-[#D4AF37]">{review.place}</p>
+                    <p className="text-xs uppercase tracking-[0.15em] text-[#C724B1]">{review.place}</p>
                     <p className="mt-1 text-xs text-[#B8B3AA]">{review.role}</p>
                   </div>
                 </div>
@@ -264,11 +264,12 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
       <section className="relative z-10 border-t border-white/10 bg-black px-6 py-24">
         <RevealSection className="mx-auto grid max-w-6xl gap-8 lg:grid-cols-[1fr_0.9fr] lg:items-center">
           <div>
-            <MessageCircleMore className="mb-6 h-10 w-10 text-[#D4AF37]" />
-            <h2 className="text-4xl font-black uppercase tracking-[-0.04em] md:text-6xl">Ready to fold raw footage into a premium story?</h2>
+            <MessageCircleMore className="mb-6 h-10 w-10 text-[#6C4DFF]" />
+            <h2 className="text-4xl font-black uppercase tracking-[-0.04em] md:text-6xl">Let's create something worth watching</h2>
+            <p className="mt-4 text-sm text-[#B8B3AA]">Visionfold Creative Studio — Indore, Madhya Pradesh, India</p>
           </div>
           <div className="rounded-[2rem] border border-white/10 bg-white/[0.04] p-6">
-            <textarea value={brief} onChange={(e) => setBrief(e.target.value)} placeholder="Product, platform, audience, deadline, edit style..." className="min-h-36 w-full rounded-2xl border border-white/10 bg-black px-4 py-3 text-sm outline-none focus:border-[#D4AF37]" />
+            <textarea value={brief} onChange={(e) => setBrief(e.target.value)} placeholder="Product, platform, audience, deadline, edit style..." className="min-h-36 w-full rounded-2xl border border-white/10 bg-black px-4 py-3 text-sm outline-none focus:border-[#6C4DFF]" />
             <a href={`https://wa.me/${whatsappNumber}?text=${encodeURIComponent(whatsappMessage)}`} target="_blank" rel="noopener noreferrer" className="mt-4 inline-flex w-full items-center justify-center gap-3 rounded-2xl bg-[#25D366] px-6 py-4 text-xs font-black uppercase tracking-[0.18em] text-black">
               <Send className="h-4 w-4" /> Send brief on WhatsApp
             </a>
