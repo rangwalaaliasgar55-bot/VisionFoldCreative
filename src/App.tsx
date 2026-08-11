@@ -1,26 +1,29 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
 import { Navbar } from './components/Navbar';
 import { Footer } from './components/Footer';
-import { HomePage } from './components/PublicPages/HomePage';
 import { FloatingWhatsApp } from './components/FloatingWhatsApp';
 import { SiteChat } from './components/SiteChat';
-import { PolicyPage } from './components/PublicPages/PolicyPage';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import { SfxProvider } from './context/SfxContext';
 import { AdminProvider } from './context/AdminContext';
 import { ContentProvider, useContent } from './context/ContentContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { AdminApp } from './components/Admin/AdminApp';
 import { Portal } from './components/Portal/Portal';
-import { NotFound } from './components/NotFound';
-import { PortfolioPage } from './components/PublicPages/PortfolioPage';
-import { ServicesPage } from './components/PublicPages/ServicesPage';
-import { ContactPage } from './components/PublicPages/ContactPage';
-import { WorkDetailPage } from './components/PublicPages/WorkDetailPage';
-import { CmsPageView } from './components/PublicPages/CmsPageView';
-import { ErrorBoundary } from './components/ErrorBoundary';
-import { MaintenancePage } from './components/PublicPages/MaintenancePage';
+import { SkeletonLoader } from './components/SkeletonLoader';
 import { AudioMeshBackground } from './components/AudioMeshBackground';
+
+// Lazy load page components for better initial load performance
+const HomePage = lazy(() => import('./components/PublicPages/HomePage').then(m => ({ default: m.HomePage })));
+const PortfolioPage = lazy(() => import('./components/PublicPages/PortfolioPage').then(m => ({ default: m.PortfolioPage })));
+const ServicesPage = lazy(() => import('./components/PublicPages/ServicesPage').then(m => ({ default: m.ServicesPage })));
+const ContactPage = lazy(() => import('./components/PublicPages/ContactPage').then(m => ({ default: m.ContactPage })));
+const WorkDetailPage = lazy(() => import('./components/PublicPages/WorkDetailPage').then(m => ({ default: m.WorkDetailPage })));
+const CmsPageView = lazy(() => import('./components/PublicPages/CmsPageView').then(m => ({ default: m.CmsPageView })));
+const PolicyPage = lazy(() => import('./components/PublicPages/PolicyPage').then(m => ({ default: m.PolicyPage })));
+const MaintenancePage = lazy(() => import('./components/PublicPages/MaintenancePage').then(m => ({ default: m.MaintenancePage })));
+const NotFound = lazy(() => import('./components/NotFound').then(m => ({ default: m.NotFound })));
 
 const MainContent: React.FC = () => {
   const { editMode, isAdmin, setEditMode } = useContent();
@@ -106,19 +109,21 @@ const AppRoutes: React.FC = () => {
 
   return (
     <MaintenanceGate>
-      <Routes>
-        <Route path="/" element={<MainContent />} />
-        <Route path="/work" element={<PortfolioPage />} />
-        <Route path="/work/:slug" element={<WorkDetailPage />} />
-        <Route path="/services" element={<ServicesPage />} />
-        <Route path="/contact" element={<ContactPage />} />
-        <Route path="/p/:slug" element={<CmsPageView />} />
-        <Route path="/terms" element={<PolicyPage kind="terms" />} />
-        <Route path="/privacy" element={<PolicyPage kind="privacy" />} />
-        <Route path="/refund" element={<PolicyPage kind="refund" />} />
-        <Route path="/portal" element={<Portal onNavigate={(p) => (window.location.href = p === 'home' ? '/' : `/${p}`)} />} />
-        <Route path="*" element={<NotFound />} />
-      </Routes>
+      <Suspense fallback={<SkeletonLoader />}>
+        <Routes>
+          <Route path="/" element={<MainContent />} />
+          <Route path="/work" element={<PortfolioPage />} />
+          <Route path="/work/:slug" element={<WorkDetailPage />} />
+          <Route path="/services" element={<ServicesPage />} />
+          <Route path="/contact" element={<ContactPage />} />
+          <Route path="/p/:slug" element={<CmsPageView />} />
+          <Route path="/terms" element={<PolicyPage kind="terms" />} />
+          <Route path="/privacy" element={<PolicyPage kind="privacy" />} />
+          <Route path="/refund" element={<PolicyPage kind="refund" />} />
+          <Route path="/portal" element={<Portal onNavigate={(p) => (window.location.href = p === 'home' ? '/' : `/${p}`)} />} />
+          <Route path="*" element={<NotFound />} />
+        </Routes>
+      </Suspense>
     </MaintenanceGate>
   );
 };

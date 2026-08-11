@@ -82,36 +82,87 @@ export const ClientsGlobeSection: React.FC = () => {
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, isMobile ? 1.25 : 1.75));
     renderer.setSize(w, h, false);
     renderer.setClearColor(0x000000, 0);
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.1;
+    renderer.shadowMap.enabled = !isMobile;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     el.appendChild(renderer.domElement);
     renderer.domElement.style.width = '100%';
     renderer.domElement.style.height = '100%';
     renderer.domElement.style.display = 'block';
     renderer.domElement.style.pointerEvents = 'none';
 
-    const atmGeo = new THREE.SphereGeometry(1.06, 48, 48);
+    // Atmospheric glow shell with shader-like effect
+    const atmGeo = new THREE.SphereGeometry(1.08, 48, 48);
     const atmMat = new THREE.MeshBasicMaterial({
       color: 0xd4af37,
       transparent: true,
-      opacity: 0.07,
+      opacity: 0.08,
       side: THREE.BackSide,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
     });
     scene.add(new THREE.Mesh(atmGeo, atmMat));
 
+    // Outer glow corona
+    const coronaGeo = new THREE.SphereGeometry(1.15, 32, 32);
+    const coronaMat = new THREE.ShaderMaterial({
+      uniforms: {
+        time: { value: 0 },
+        color: { value: new THREE.Color(0xd4af37) },
+      },
+      vertexShader: `
+        varying vec3 vNormal;
+        varying vec3 vPosition;
+        void main() {
+          vNormal = normalize(normalMatrix * normal);
+          vPosition = position;
+          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        }
+      `,
+      fragmentShader: `
+        uniform float time;
+        uniform vec3 color;
+        varying vec3 vNormal;
+        varying vec3 vPosition;
+        void main() {
+          float intensity = pow(0.7 - dot(vNormal, vec3(0.0, 0.0, 1.0)), 2.0);
+          float pulse = 0.5 + 0.5 * sin(time * 0.5);
+          gl_FragColor = vec4(color, intensity * 0.15 * (0.8 + 0.2 * pulse));
+        }
+      `,
+      transparent: true,
+      side: THREE.BackSide,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+    });
+    const corona = new THREE.Mesh(coronaGeo, coronaMat);
+    scene.add(corona);
+
+    // Earth sphere with enhanced materials
     const earthGeo = new THREE.SphereGeometry(1, 64, 64);
-    const earthMat = new THREE.MeshStandardMaterial({
+    const earthMat = new THREE.MeshPhysicalMaterial({
       color: 0x0c0c10,
-      metalness: 0.35,
-      roughness: 0.75,
+      metalness: 0.4,
+      roughness: 0.7,
       emissive: 0x111118,
       emissiveIntensity: 0.35,
+      clearcoat: 0.3,
+      clearcoatRoughness: 0.2,
+      reflectivity: 0.5,
     });
     const earth = new THREE.Mesh(earthGeo, earthMat);
+    earth.castShadow = !isMobile;
+    earth.receiveShadow = !isMobile;
     scene.add(earth);
 
+    // Enhanced grid lines with glow
     const gridMat = new THREE.LineBasicMaterial({
       color: 0xd4af37,
       transparent: true,
-      opacity: 0.12,
+      opacity: 0.15,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
     });
     for (let i = -2; i <= 2; i++) {
       if (i === 0) continue;
@@ -131,34 +182,53 @@ export const ClientsGlobeSection: React.FC = () => {
       earth.add(new THREE.Line(g, gridMat));
     }
 
-    {
-      const starCount = isMobile ? 200 : 400;
+    // Enhanced starfield with depth layers
+    const starLayers = isMobile ? 2 : 4;
+    for (let layer = 0; layer < starLayers; layer++) {
+      const starCount = (isMobile ? 150 : 300) / (layer + 1);
       const positions = new Float32Array(starCount * 3);
+      const sizes = new Float32Array(starCount);
       for (let i = 0; i < starCount; i++) {
-        const r = 4 + Math.random() * 6;
+        const r = 4 + layer * 2 + Math.random() * 2;
         const theta = Math.random() * Math.PI * 2;
         const phi = Math.acos(2 * Math.random() - 1);
         positions[i * 3] = r * Math.sin(phi) * Math.cos(theta);
         positions[i * 3 + 1] = r * Math.sin(phi) * Math.sin(theta);
         positions[i * 3 + 2] = r * Math.cos(phi);
+        sizes[i] = (0.01 + Math.random() * 0.02) / (layer + 1);
       }
       const starGeo = new THREE.BufferGeometry();
       starGeo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+      starGeo.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
       scene.add(
         new THREE.Points(
           starGeo,
-          new THREE.PointsMaterial({ color: 0xffffff, size: 0.015, transparent: true, opacity: 0.55 })
+          new THREE.PointsMaterial({
+            color: 0xffffff,
+            size: 0.02,
+            transparent: true,
+            opacity: 0.6 / (layer + 1),
+            blending: THREE.AdditiveBlending,
+            depthWrite: false,
+            sizeAttenuation: true,
+          })
         )
       );
     }
 
-    scene.add(new THREE.AmbientLight(0xffffff, 0.55));
-    const key = new THREE.DirectionalLight(0xd4af37, 0.85);
+    // Enhanced three-point lighting
+    scene.add(new THREE.AmbientLight(0xffffff, 0.6));
+    const key = new THREE.SpotLight(0xd4af37, 1.2);
     key.position.set(3, 2, 2);
+    key.angle = Math.PI / 5;
+    key.penumbra = 0.5;
     scene.add(key);
-    const fill = new THREE.DirectionalLight(0x6688ff, 0.25);
+    const fill = new THREE.DirectionalLight(0x6688ff, 0.35);
     fill.position.set(-2, -1, -3);
     scene.add(fill);
+    const rim = new THREE.DirectionalLight(0xffffff, 0.8);
+    rim.position.set(0, 2, -3);
+    scene.add(rim);
 
     const markers = new THREE.Group();
     earth.add(markers);
@@ -168,47 +238,99 @@ export const ClientsGlobeSection: React.FC = () => {
     const R = 1.01;
     const hqPos = latLngToVec3(HQ.lat, HQ.lng, R);
 
+    // Enhanced HQ marker with pulsing glow
     {
       const m = new THREE.Mesh(
-        new THREE.SphereGeometry(0.028, 16, 16),
+        new THREE.SphereGeometry(0.032, 16, 16),
         new THREE.MeshBasicMaterial({ color: 0xd4af37 })
       );
       m.position.copy(hqPos);
       markers.add(m);
+      
+      // Pulsing ring
       const ring = new THREE.Mesh(
-        new THREE.RingGeometry(0.04, 0.055, 32),
-        new THREE.MeshBasicMaterial({ color: 0xd4af37, side: THREE.DoubleSide, transparent: true, opacity: 0.6 })
+        new THREE.RingGeometry(0.045, 0.06, 32),
+        new THREE.MeshBasicMaterial({ 
+          color: 0xd4af37, 
+          side: THREE.DoubleSide, 
+          transparent: true, 
+          opacity: 0.7,
+          blending: THREE.AdditiveBlending,
+        })
       );
       ring.position.copy(hqPos);
       ring.lookAt(0, 0, 0);
+      ring.userData = { isRing: true, baseScale: 1 };
       markers.add(ring);
+      
+      // Outer glow
+      const glow = new THREE.Mesh(
+        new THREE.SphereGeometry(0.08, 16, 16),
+        new THREE.MeshBasicMaterial({
+          color: 0xd4af37,
+          transparent: true,
+          opacity: 0.15,
+          blending: THREE.AdditiveBlending,
+          depthWrite: false,
+        })
+      );
+      glow.position.copy(hqPos);
+      markers.add(glow);
     }
 
+    // Enhanced client markers with animated arcs
     CLIENTS.forEach((c) => {
       if (c.city === HQ.city && c.country === HQ.country) return;
       const pos = latLngToVec3(c.lat, c.lng, R);
 
       const dot = new THREE.Mesh(
-        new THREE.SphereGeometry(0.018, 12, 12),
-        new THREE.MeshBasicMaterial({ color: 0xf5f0e6 })
+        new THREE.SphereGeometry(0.022, 12, 12),
+        new THREE.MeshStandardMaterial({ 
+          color: 0xf5f0e6,
+          emissive: 0xf5f0e6,
+          emissiveIntensity: 0.3,
+          metalness: 0.5,
+          roughness: 0.3,
+        })
       );
       dot.position.copy(pos);
       dot.userData = { id: c.id };
       markers.add(dot);
 
-      const curve = arcCurve(hqPos, pos, 0.28 + Math.random() * 0.12);
-      const pts = curve.getPoints(48);
+      // Enhanced arc with gradient-like appearance
+      const curve = arcCurve(hqPos, pos, 0.3 + Math.random() * 0.15);
+      const pts = curve.getPoints(64);
       const geo = new THREE.BufferGeometry().setFromPoints(pts);
-      const line = new THREE.Line(
-        geo,
-        new THREE.LineBasicMaterial({
+      
+      // Create tube geometry for thicker, more visible arcs
+      const tubeGeo = new THREE.TubeGeometry(curve, 64, 0.008, 8, false);
+      const line = new THREE.Mesh(
+        tubeGeo,
+        new THREE.MeshBasicMaterial({
           color: 0xd4af37,
           transparent: true,
-          opacity: 0.45,
+          opacity: 0.5,
+          blending: THREE.AdditiveBlending,
+          depthWrite: false,
         })
       );
-      line.userData = { id: c.id };
+      line.userData = { id: c.id, isArc: true };
       arcs.add(line);
+      
+      // Animated light pulse along arc
+      const pulseGeo = new THREE.TubeGeometry(curve, 64, 0.006, 8, false);
+      const pulse = new THREE.Mesh(
+        pulseGeo,
+        new THREE.MeshBasicMaterial({
+          color: 0xffee88,
+          transparent: true,
+          opacity: 0,
+          blending: THREE.AdditiveBlending,
+          depthWrite: false,
+        })
+      );
+      pulse.userData = { id: c.id, isPulse: true, phase: Math.random() * Math.PI * 2 };
+      arcs.add(pulse);
     });
 
     let frame = 0;
@@ -228,22 +350,48 @@ export const ClientsGlobeSection: React.FC = () => {
     const animate = () => {
       raf = requestAnimationFrame(animate);
       const t = clock.getElapsedTime();
+      
+      // Update corona shader time
+      coronaMat.uniforms.time.value = t;
+      
       if (!reduced) {
-        earth.rotation.y = t * 0.08;
+        earth.rotation.y = t * 0.06;
       }
-      arcs.children.forEach((obj) => {
-        const line = obj as THREE.Line;
-        const mat = line.material as THREE.LineBasicMaterial;
-        const isActive = line.userData.id === activeRef.current;
-        mat.opacity = isActive ? 0.9 : 0.28 + Math.sin(t * 2 + (line.userData.id || 0)) * 0.08;
+      
+      // Animate HQ ring pulse
+      markers.children.forEach((obj) => {
+        if ((obj as THREE.Mesh).userData?.isRing) {
+          const scale = 1 + Math.sin(t * 3) * 0.15;
+          obj.scale.setScalar(scale);
+          (obj as THREE.Mesh).material.opacity = 0.5 + Math.sin(t * 3) * 0.2;
+        }
       });
+      
+      // Animate arcs and pulses
+      arcs.children.forEach((obj) => {
+        const mesh = obj as THREE.Mesh;
+        const mat = mesh.material as THREE.MeshBasicMaterial;
+        
+        if (mesh.userData?.isArc) {
+          const isActive = mesh.userData.id === activeRef.current;
+          mat.opacity = isActive ? 0.85 : 0.35 + Math.sin(t * 2 + (mesh.userData.id || 0)) * 0.1;
+        } else if (mesh.userData?.isPulse) {
+          // Traveling light pulse along arc
+          const phase = mesh.userData.phase || 0;
+          const pulsePos = ((t * 0.8 + phase) % (Math.PI * 2)) / (Math.PI * 2);
+          mat.opacity = 0.6 * (1 - Math.abs(pulsePos - 0.5) * 2);
+        }
+      });
+      
+      // Animate client markers
       markers.children.forEach((obj) => {
         if (obj.userData?.id === activeRef.current) {
-          obj.scale.setScalar(1.35 + Math.sin(t * 3) * 0.15);
+          obj.scale.setScalar(1.4 + Math.sin(t * 3) * 0.15);
         } else if (obj.userData?.id) {
           obj.scale.setScalar(1);
         }
       });
+      
       renderer.render(scene, camera);
       frame += 1;
       if (frame === 2) setReady(true);
@@ -258,6 +406,8 @@ export const ClientsGlobeSection: React.FC = () => {
       earthMat.dispose();
       atmGeo.dispose();
       atmMat.dispose();
+      coronaGeo.dispose();
+      coronaMat.dispose();
       if (renderer.domElement.parentElement === el) {
         el.removeChild(renderer.domElement);
       }

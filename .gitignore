@@ -1,9 +1,102 @@
+```
+# Dependencies
 node_modules/
-build/
+
+# Build artifacts
 dist/
-.vercel-server/
-coverage/
-.DS_Store
+build/
+*.js.map
+*.ts.map
+
+# Logs and temp files
 *.log
-.env*
-!.env.example
+*.tmp
+
+# Environment
+.env
+.env.local
+*.env.*
+
+# Editors
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Coverage
+coverage/
+htmlcov/
+.coverage
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+.venv/
+pip-log.txt
+pip-delete-this-directory.txt
+.tox/
+.coverage*
+.cache
+
+# Node.js
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Compiled and binary files
+*.exe
+*.dll
+*.so
+*.a
+*.o
+*.out
+
+# Compression
+*.zip
+*.gz
+*.tar
+*.tgz
+*.bz2
+*.xz
+*.7z
+*.rar
+*.zst
+*.lz4
+*.lzh
+*.cab
+*.arj
+*.rpm
+*.deb
+*.Z
+*.lz
+*.lzo
+
+# Testing
+*.test.js
+*.spec.js
+*.test.ts
+*.spec.ts
+
+# Distribution
+*.tgz
+*.tar.gz
+*.tar.bz2
+*.tar.xz
+*.tar.zst
+
+# Cache
+.cache/
+.nyc_output/
+.mypy_cache/
+.pytest_cache/
+.jest/
+```
