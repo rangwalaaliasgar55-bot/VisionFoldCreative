@@ -14,7 +14,6 @@ const FALLBACK = [
   { id: 'process', label: 'Process', href: '/#process' },
   { id: 'pricing', label: 'Pricing', href: '/#pricing' },
   { id: 'reviews', label: 'Reviews', href: '/#reviews' },
-  { id: 'portal', label: 'Client Portal', href: '/portal' },
 ];
 
 const BOOK_CALL_URL =
@@ -38,27 +37,29 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPage, onNavigate }) => {
       .then((r) => r.json())
       .then((d) => {
         if (Array.isArray(d.nav) && d.nav.length) {
-          setLinks(
-            d.nav
-              .slice()
-              .sort((a: any, b: any) => (a.order || 0) - (b.order || 0))
-              .map((n: any) => ({
-                id: n.id || n.href,
-                label: n.label,
-                href: n.href || '/',
-              }))
-          );
+          const mapped = d.nav
+            .slice()
+            .sort((a: any, b: any) => (a.order || 0) - (b.order || 0))
+            .map((n: any) => ({
+              id: n.id || n.href,
+              label: n.label,
+              href: n.href || '/',
+            }))
+            .filter(
+              (n: { id: string; href: string; label: string }) =>
+                !/portal/i.test(n.href) &&
+                !/portal/i.test(n.label) &&
+                !/client/i.test(n.label)
+            );
+          if (mapped.length) setLinks(mapped);
         }
       })
       .catch(() => undefined);
   }, []);
 
   useEffect(() => {
-    if (open) {
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = '';
-    }
+    if (open) document.body.style.overflow = 'hidden';
+    else document.body.style.overflow = '';
     return () => {
       document.body.style.overflow = '';
     };
@@ -102,12 +103,12 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPage, onNavigate }) => {
           : 'bg-transparent py-5'
       }`}
     >
-      <div className="mx-auto flex max-w-7xl items-center justify-between px-6">
+      <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-6">
         <button
           type="button"
           onMouseEnter={playHover}
           onClick={() => go('home', '/')}
-          className="origin-left scale-90 transition-transform hover:scale-95"
+          className="origin-left scale-90 shrink-0 transition-transform hover:scale-95"
           aria-label="VisionFold home"
         >
           <VisionFoldLogo />
@@ -120,7 +121,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPage, onNavigate }) => {
               type="button"
               onMouseEnter={playHover}
               onClick={() => go(link.id, link.href)}
-              className={`rounded-full px-3.5 py-2 text-xs font-bold uppercase tracking-wider transition ${
+              className={`rounded-full px-3 py-2 text-xs font-bold uppercase tracking-wider transition ${
                 currentPage === link.id
                   ? 'text-[#7357FF]'
                   : 'text-[#98A1B3] hover:text-white'
@@ -129,13 +130,25 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPage, onNavigate }) => {
               {link.label}
             </button>
           ))}
+
+          <a
+            href="/portal"
+            onMouseEnter={playHover}
+            onClick={playClick}
+            className={`rounded-full border border-white/15 bg-white/5 px-3.5 py-2 text-xs font-bold uppercase tracking-wider transition hover:border-[#7357FF]/50 hover:text-white ${
+              currentPage === 'portal' ? 'text-[#7357FF] border-[#7357FF]/40' : 'text-[#98A1B3]'
+            }`}
+          >
+            Client Portal
+          </a>
+
           <a
             href={BOOK_CALL_URL}
             target="_blank"
             rel="noopener noreferrer"
             onMouseEnter={playHover}
             onClick={playClick}
-            className="ml-3 rounded-full bg-[#7357FF] px-5 py-2.5 text-xs font-black uppercase tracking-wider text-white shadow-lg shadow-[#7357FF]/30 transition hover:bg-[#6346E8] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#7357FF]"
+            className="ml-2 rounded-full bg-[#7357FF] px-5 py-2.5 text-xs font-black uppercase tracking-wider text-white shadow-lg shadow-[#7357FF]/30 transition hover:bg-[#6346E8] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#7357FF]"
           >
             Book a Call
           </a>
@@ -173,10 +186,16 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPage, onNavigate }) => {
               </button>
             ))}
             <a
+              href="/portal"
+              className="block w-full rounded-xl border border-white/10 bg-white/5 py-3.5 text-center text-sm font-bold uppercase tracking-wider text-[#F6F3EC] transition hover:border-[#7357FF]/40"
+            >
+              Client Portal
+            </a>
+            <a
               href={BOOK_CALL_URL}
               target="_blank"
               rel="noopener noreferrer"
-              className="mt-3 block rounded-full bg-[#7357FF] px-5 py-3.5 text-center text-sm font-black uppercase tracking-wider text-white shadow-lg shadow-[#7357FF]/25"
+              className="mt-2 block rounded-full bg-[#7357FF] px-5 py-3.5 text-center text-sm font-black uppercase tracking-wider text-white shadow-lg shadow-[#7357FF]/25"
             >
               Book a Call
             </a>
