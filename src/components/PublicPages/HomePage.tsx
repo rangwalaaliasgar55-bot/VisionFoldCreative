@@ -11,6 +11,7 @@ import { VisionFoldLogo } from '../VisionFoldLogo';
 import { ShowreelSection } from '../ShowreelSection';
 import { ClientsGlobeSection } from '../ClientsGlobeSection';
 import { ThreeHero } from '../ThreeHero';
+import { TiltCard } from '../TiltCard';
 import { useScrollReveal } from '../../hooks/useScrollReveal';
 
 interface HomePageProps {
@@ -141,11 +142,13 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
           </div>
           <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-4">
             {features.map((feature) => (
-              <div key={feature.title} className="group fold-card rounded-3xl p-7">
-                <feature.icon className="mb-8 h-8 w-8 text-[#6C4DFF] transition-transform group-hover:scale-110" />
-                <h3 className="mb-3 text-lg font-black uppercase tracking-[0.08em]">{feature.title}</h3>
-                <p className="text-sm leading-7 text-[#B8B3AA]">{feature.text}</p>
-              </div>
+              <TiltCard key={feature.title} className="h-full">
+                <div className="group fold-card h-full rounded-3xl p-7">
+                  <feature.icon className="mb-8 h-8 w-8 text-[#c9a66b] transition-transform group-hover:scale-110" />
+                  <h3 className="mb-3 text-lg font-black uppercase tracking-[0.08em]">{feature.title}</h3>
+                  <p className="text-sm leading-7 text-[#B8B3AA]">{feature.text}</p>
+                </div>
+              </TiltCard>
             ))}
           </div>
         </RevealSection>
