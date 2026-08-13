@@ -1,0 +1,186 @@
+"use client";
+
+import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
+import { api, Button, Card, Spinner, toast, useApi } from "@/components/AdminUI";
+import { Bars, Funnel } from "@/components/Charts";
+import { fmtDate, fmtMoney, timeAgo } from "@/lib/utils";
+import {
+  Brain,
+  CreditCard,
+  DollarSign,
+  FolderKanban,
+  Sparkles,
+  Star,
+  Target,
+  Users,
+  Zap,
+} from "lucide-react";
+
+type Dashboard = {
+  stats: Record<string, number>;
+  revenueByMonth: { label: string; value: number }[];
+  expensesByCategory: { label: string; value: number }[];
+  funnel: { label: string; value: number }[];
+  projectsByStatus: { label: string; value: number }[];
+  upcoming: any[];
+  recentActivity: any[];
+  recentMessages: any[];
+  automations: any[];
+};
+
+export default function AdminDashboardPage() {
+  const { data, loading, reload } = useApi<Dashboard>("/api/admin/dashboard");
+  const [insights, setInsights] = useState<{ source: string; items: string[] } | null>(null);
+  const [running, setRunning] = useState(false);
+
+  useEffect(() => {
+    api<{ source: string; items: string[] }>("/api/ai/insights", { json: {} })
+      .then(setInsights)
+      .catch(() => {});
+  }, []);
+
+  const runAutomations = useCallback(async () => {
+    setRunning(true);
+    try {
+      const res = await api<{ ran: { name: string; effects: number }[] }>("/api/admin/automations/run", { json: {} });
+      if (res.ran.length === 0) toast("Automations checked — nothing due right now");
+      else toast(`Automations executed: ${res.ran.map((r) => r.name).join(", ")}`);
+      reload();
+    } catch {
+      toast("Failed to run automations", "err");
+    } finally {
+      setRunning(false);
+    }
+  }, [reload]);
+
+  if (loading || !data) return <Spinner />;
+  const s = data.stats;
+
+  const kpis = [
+    { label: "Total revenue", value: fmtMoney(s.revenue), Icon: DollarSign, accent: "from-emerald-500/20 to-emerald-500/5 text-emerald-300" },
+    { label: "Outstanding", value: fmtMoney(s.outstanding), Icon: CreditCard, accent: "from-amber-500/20 to-amber-500/5 text-amber-300" },
+    { label: "Active projects", value: String(s.activeProjects), Icon: FolderKanban, accent: "from-brand-500/20 to-brand-500/5 text-brand-300" },
+    { label: "New leads · 30d", value: String(s.newLeads30d), Icon: Target, accent: "from-cyan-500/20 to-cyan-500/5 text-cyan-300" },
+    { label: "Clients", value: String(s.clients), Icon: Users, accent: "from-pink-500/20 to-pink-500/5 text-pink-300" },
+    { label: "Avg rating", value: `${s.avgRating}★`, Icon: Star, accent: "from-violet-500/20 to-violet-500/5 text-violet-300" },
+  ];
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h1 className="font-display text-2xl font-bold text-white">Dashboard</h1>
+          <p className="text-sm text-slate-500">Your studio at a glance — {fmtDate(new Date())}</p>
+        </div>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={runAutomations} disabled={running}>
+            <Zap size={14} className="text-amber-300" /> {running ? "Running…" : "Run automations"}
+          </Button>
+          <Link href="/admin/leads"><Button><Target size={14} /> New lead</Button></Link>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
+        {kpis.map(({ label, value, Icon, accent }) => (
+          <div key={label} className="glass card-glow rounded-2xl p-4">
+            <div className={`mb-3 grid h-9 w-9 place-items-center rounded-xl bg-gradient-to-br ${accent}`}>
+              <Icon size={16} />
+            </div>
+            <p className="font-display truncate text-xl font-bold text-white">{value}</p>
+            <p className="mt-0.5 text-[11px] text-slate-500">{label}</p>
+          </div>
+        ))}
+      </div>
+
+      <div className="grid gap-6 lg:grid-cols-3">
+        <Card title="Revenue — last 6 months" desc="Paid invoices" className="lg:col-span-2">
+          <Bars data={data.revenueByMonth} money />
+          <div className="mt-3 grid grid-cols-6 gap-2 text-center text-[10px] text-slate-500">
+            {data.revenueByMonth.map((m) => (
+              <span key={m.label}>{m.label}</span>
+            ))}
+          </div>
+        </Card>
+
+        <Card title="AI Insights" desc="Operations brain" className="lg:row-span-2">
+          <div className="flex items-center gap-2">
+            <Brain size={16} className="text-brand-300" />
+            <span className="text-xs font-semibold uppercase tracking-widest text-slate-500">
+              {insights ? `${insights.source} engine` : "Loading…"}
+            </span>
+          </div>
+          {insights ? (
+            <ul className="mt-4 space-y-3">
+              {insights.items.map((item, i) => (
+                <li key={i} className="flex gap-2.5 rounded-xl border border-white/8 bg-white/2 p-3 text-sm leading-relaxed text-slate-300">
+                  <Sparkles size={14} className="mt-0.5 shrink-0 text-cyan-300" />
+                  {item}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <div className="mt-4 space-y-2">
+              {[...Array(3)].map((_, i) => (
+                <div key={i} className="shimmer h-12 rounded-xl bg-white/5" />
+              ))}
+            </div>
+          )}
+          <div className="mt-5 border-t border-white/8 pt-4">
+            <p className="text-xs text-slate-500">
+              Without a <code>GEMINI_API_KEY</code>, insights come from a rules engine — never fake AI text.
+            </p>
+          </div>
+        </Card>
+
+        <Card title="Lead pipeline" desc="All time">
+          <Funnel data={data.funnel} />
+          <div className="mt-4 grid grid-cols-2 gap-2 border-t border-white/8 pt-4">
+            <div>
+              <p className="text-[11px] text-slate-500">Conversion (won / total)</p>
+              <p className="mt-1 font-display text-lg font-bold text-white">
+                {s.leadsTotal ? Math.round((s.leadsWon / s.leadsTotal) * 100) : 0}%
+              </p>
+            </div>
+            <div>
+              <p className="text-[11px] text-slate-500">Won this month</p>
+              <p className="mt-1 font-display text-lg font-bold text-white">{s.leadsWon ?? 0}</p>
+            </div>
+          </div>
+        </Card>
+      </div>
+
+      <div className="grid gap-6 lg:grid-cols-2">
+        <Card title="Recent activity" desc="System + team events">
+          <ul className="space-y-3">
+            {(data.recentActivity || []).slice(0, 8).map((a: any) => (
+              <li key={a.id} className="flex gap-3 text-sm">
+                <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-brand-400" />
+                <div className="min-w-0">
+                  <p className="text-slate-300">{a.action}</p>
+                  <p className="text-xs text-slate-600">{timeAgo(a.createdAt)} · {a.actor}</p>
+                </div>
+              </li>
+            ))}
+            {!data.recentActivity?.length && <p className="text-sm text-slate-500">No activity yet</p>}
+          </ul>
+        </Card>
+
+        <Card title="Upcoming deadlines" desc="Projects due soon">
+          <ul className="space-y-3">
+            {(data.upcoming || []).slice(0, 6).map((p: any) => (
+              <li key={p.id} className="flex items-center justify-between gap-3 rounded-xl border border-white/8 p-3">
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium text-white">{p.title}</p>
+                  <p className="text-xs text-slate-500">{p.status?.replace(/_/g, " ")}</p>
+                </div>
+                <span className="shrink-0 text-xs text-amber-300">{p.dueDate || "—"}</span>
+              </li>
+            ))}
+            {!data.upcoming?.length && <p className="text-sm text-slate-500">No upcoming deadlines</p>}
+          </ul>
+        </Card>
+      </div>
+    </div>
+  );
+}
