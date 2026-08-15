@@ -22,7 +22,7 @@ export default async function PortalLayout({ children }: { children: ReactNode }
       <header className="glass sticky top-0 z-40">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-5 py-3">
           <Link href="/" className="flex items-center gap-2.5">
-            <Logo className="h-8" />
+            <Logo className="h-8 w-8" />
             <span className="font-display text-sm font-bold text-white">VisionFold · Client portal</span>
           </Link>
           <div className="flex items-center gap-2">

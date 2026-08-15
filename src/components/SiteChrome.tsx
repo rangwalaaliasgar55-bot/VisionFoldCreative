@@ -32,16 +32,20 @@ function XIcon({ size = 16 }: { size?: number }) {
   );
 }
 
-export function Logo({ className = "h-9" }: { className?: string }) {
+export function Logo({ className = "h-9 w-9" }: { className?: string }) {
   return (
-    // eslint-disable-next-line @next/next/no-img-element
-    <img
-      src="/brand/vf-mark-white.png"
-      alt="VisionFold Creative"
-      width={442}
-      height={266}
-      className={`h-9 ${className}`}
-    />
+    <svg viewBox="0 0 36 36" className={className} fill="none" aria-hidden>
+      <defs>
+        <linearGradient id="vfg" x1="0" y1="0" x2="36" y2="36">
+          <stop offset="0" stopColor="#F6F3EC" />
+          <stop offset="0.45" stopColor="#F4A62A" />
+          <stop offset="1" stopColor="#7357FF" />
+        </linearGradient>
+      </defs>
+      <path d="M6 4 L30 4 L18 16 Z" fill="url(#vfg)" opacity="0.95" />
+      <path d="M6 4 L18 16 L18 32 L6 32 Z" fill="url(#vfg)" opacity="0.55" />
+      <path d="M30 4 L30 18 L18 16 Z" fill="#e2e8f0" opacity="0.18" />
+    </svg>
   );
 }
 

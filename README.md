@@ -1,9 +1,6 @@
 <div align="center">
 
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset=".github/assets/vf-logo-dark.png" />
-  <img src=".github/assets/vf-logo-light.png" alt="VisionFold Creative — Edit · Create · Inspire" width="560" />
-</picture>
+<img src=".github/assets/banner.svg" alt="VisionFold Creative — We fold stories into motion" width="100%" />
 
 <br/>
 
