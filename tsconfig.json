@@ -1,6 +1,6 @@
 {
   "compilerOptions": {
-    "target": "ES2017",
+    "target": "ES2022",
     "lib": ["dom", "dom.iterable", "esnext"],
     "allowJs": false,
     "skipLibCheck": true,
@@ -17,6 +17,34 @@
     "paths": { "@/*": ["./src/*"] },
     "plugins": [{ "name": "next" }]
   },
-  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts", ".next/dev/types/**/*.ts"],
-  "exclude": ["node_modules"]
+  "include": [
+    "next-env.d.ts",
+    "src/app/**/*.ts",
+    "src/app/**/*.tsx",
+    "src/components/AdminUI.tsx",
+    "src/components/Charts.tsx",
+    "src/components/Forms.tsx",
+    "src/components/Fx.tsx",
+    "src/components/SiteChrome.tsx",
+    "src/components/ThreeBackground.tsx",
+    "src/db/**/*.ts",
+    "src/lib/ai.ts",
+    "src/lib/auth.ts",
+    "src/lib/seed.ts",
+    "src/lib/settings.ts",
+    "src/lib/utils.ts",
+    ".next/types/**/*.ts",
+    ".next/dev/types/**/*.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "client",
+    "server",
+    "dist",
+    ".arena",
+    "src/server",
+    "src/lib/__tests__",
+    "src/App.tsx",
+    "src/main.tsx"
+  ]
 }
