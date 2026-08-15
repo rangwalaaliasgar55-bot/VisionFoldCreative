@@ -7,6 +7,7 @@ import { Reveal } from "@/components/Fx";
 import { NewsletterForm } from "@/components/Forms";
 import { getSettings } from "@/lib/settings";
 import { fmtDate } from "@/lib/utils";
+import { ensureSeed } from "@/lib/seed";
 
 export const dynamic = "force-dynamic";
 
@@ -20,6 +21,7 @@ export default async function BlogPage({
 }: {
   searchParams: Promise<{ category?: string }>;
 }) {
+  await ensureSeed();
   const params = await searchParams;
   const settings = await getSettings();
   const [allPosts, cats] = await Promise.all([

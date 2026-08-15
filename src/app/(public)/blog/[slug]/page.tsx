@@ -7,6 +7,7 @@ import { desc, eq, getTableColumns, sql } from "drizzle-orm";
 import { Reveal } from "@/components/Fx";
 import { fmtDate } from "@/lib/utils";
 import { ArrowLeft } from "lucide-react";
+import { ensureSeed } from "@/lib/seed";
 
 export const dynamic = "force-dynamic";
 
@@ -15,6 +16,7 @@ export async function generateMetadata({
 }: {
   params: Promise<{ slug: string }>;
 }): Promise<Metadata> {
+  await ensureSeed();
   const { slug } = await params;
   const row = (await db.select().from(posts).where(eq(posts.slug, slug)).limit(1))[0];
   if (!row) return { title: "Post not found" };
@@ -26,6 +28,7 @@ export async function generateMetadata({
 }
 
 export default async function PostPage({ params }: { params: Promise<{ slug: string }> }) {
+  await ensureSeed();
   const { slug } = await params;
   const row = (await db.select().from(posts).where(eq(posts.slug, slug)).limit(1))[0];
   if (!row || row.status !== "published") notFound();

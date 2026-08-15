@@ -248,6 +248,64 @@ export const newsletter = pgTable(
   (t) => [uniqueIndex("newsletter_email_uq").on(t.email)]
 );
 
+export const quotas = pgTable("quotas", {
+  id: serial("id").primaryKey(),
+  storageUsedBytes: numeric("storage_used_bytes").notNull().default("45800000000"),
+  storageLimitBytes: numeric("storage_limit_bytes").notNull().default("107374182400"), // 100 GB
+  aiTokensUsed: integer("ai_tokens_used").notNull().default(18500),
+  aiTokensLimit: integer("ai_tokens_limit").notNull().default(250000),
+  renderHoursUsed: numeric("render_hours_used").notNull().default("18.5"),
+  renderHoursLimit: numeric("render_hours_limit").notNull().default("50.0"),
+  activeProjectsLimit: integer("active_projects_limit").notNull().default(20),
+  alertThresholdPercent: integer("alert_threshold_percent").notNull().default(80),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+});
+
+export const frameAnnotations = pgTable(
+  "frame_annotations",
+  {
+    id: serial("id").primaryKey(),
+    projectId: integer("project_id")
+      .notNull()
+      .references(() => projects.id, { onDelete: "cascade" }),
+    clientId: integer("client_id").references(() => clients.id, { onDelete: "cascade" }),
+    timestamp: text("timestamp").notNull().default("00:00"),
+    comment: text("comment").notNull(),
+    author: text("author").notNull().default("Client"),
+    resolved: boolean("resolved").notNull().default(false),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  },
+  (t) => [index("annotations_project_idx").on(t.projectId)]
+);
+
+export const deliverables = pgTable(
+  "deliverables",
+  {
+    id: serial("id").primaryKey(),
+    projectId: integer("project_id")
+      .notNull()
+      .references(() => projects.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    format: text("format").notNull().default("ProRes 422 HQ"),
+    resolution: text("resolution").notNull().default("4K UHD (3840x2160)"),
+    sizeBytes: numeric("size_bytes").notNull().default("12400000000"),
+    downloadUrl: text("download_url").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  },
+  (t) => [index("deliverables_project_idx").on(t.projectId)]
+);
+
+export const webhooks = pgTable("webhooks", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  url: text("url").notNull(),
+  events: text("events").notNull().default("project.completed,invoice.paid,lead.created"),
+  secret: text("secret").notNull().default(""),
+  active: boolean("active").notNull().default(true),
+  lastTriggeredAt: timestamp("last_triggered_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+});
+
 export type User = typeof users.$inferSelect;
 export type Client = typeof clients.$inferSelect;
 export type Project = typeof projects.$inferSelect;
@@ -263,10 +321,7 @@ export type Category = typeof categories.$inferSelect;
 export type MediaItem = typeof media.$inferSelect;
 export type Automation = typeof automations.$inferSelect;
 export type ActivityLog = typeof activity.$inferSelect;
-
-export type ProjectStatus =
-  | "intake"
-  | "in_progress"
-  | "review"
-  | "revision"
-  | "completed";
+export type Quota = typeof quotas.$inferSelect;
+export type FrameAnnotation = typeof frameAnnotations.$inferSelect;
+export type Deliverable = typeof deliverables.$inferSelect;
+export type Webhook = typeof webhooks.$inferSelect;

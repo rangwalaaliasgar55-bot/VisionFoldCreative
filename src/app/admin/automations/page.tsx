@@ -98,7 +98,11 @@ export default function AdminAutomationsPage() {
           <Card
             title="Automation engine"
             desc="Toggle the master switch in Blog → SEO & Plugins"
-            actions={<Badge tone={aiStatus ? "contacted" : "new">{aiStatus ? `${aiStatus.phase} · ${aiStatus.provider}` : "…"}</Badge>}
+            actions={
+              <Badge tone={aiStatus ? "contacted" : "new"}>
+                {aiStatus ? `${aiStatus.phase} · ${aiStatus.provider}` : "…"}
+              </Badge>
+            }
           >
             {loading ? (
               <Spinner />

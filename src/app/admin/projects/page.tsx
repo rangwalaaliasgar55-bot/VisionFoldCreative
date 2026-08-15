@@ -1,9 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   api,
+  Badge,
   Button,
+  Card,
   ConfirmButton,
   Empty,
   Field,
@@ -18,7 +20,19 @@ import {
   useApi,
 } from "@/components/AdminUI";
 import { fmtDate, fmtMoney, timeAgo } from "@/lib/utils";
-import { CalendarClock, MessageSquarePlus, Pencil, Plus } from "lucide-react";
+import {
+  CalendarClock,
+  CheckCircle2,
+  Download,
+  Film,
+  MessageSquare,
+  MessageSquarePlus,
+  Pencil,
+  Plus,
+  RotateCcw,
+  Sliders,
+  Sparkles,
+} from "lucide-react";
 
 type ProjectRow = {
   id: number;
@@ -35,23 +49,56 @@ type ProjectRow = {
 
 type ClientOpt = { id: number; name: string };
 type UpdateRow = { id: number; projectId: number; title: string; body: string; createdAt: string };
+type AnnotationRow = { id: number; projectId: number; clientId: number; timestamp: string; comment: string; author: string; resolved: boolean; createdAt: string };
+type DeliverableRow = { id: number; projectId: number; name: string; format: string; resolution: string; sizeBytes: string; downloadUrl: string };
 
-const EMPTY = { clientId: 0, title: "", service: "Video Editing", description: "", status: "in_progress", progress: 0, dueDate: "", budget: "" };
+const EMPTY = {
+  clientId: 0,
+  title: "",
+  service: "Brand Film",
+  description: "",
+  status: "in_progress",
+  progress: 0,
+  dueDate: "",
+  budget: "2500",
+};
 
 export default function AdminProjectsPage() {
   const [showAdd, setShowAdd] = useState(false);
   const [editing, setEditing] = useState<ProjectRow | null>(null);
   const [updating, setUpdating] = useState<ProjectRow | null>(null);
+  const [inspectingProj, setInspectingProj] = useState<ProjectRow | null>(null);
+
   const [updates, setUpdates] = useState<UpdateRow[]>([]);
+  const [annotations, setAnnotations] = useState<AnnotationRow[]>([]);
+  const [deliverablesList, setDeliverablesList] = useState<DeliverableRow[]>([]);
+
   const [form, setForm] = useState(EMPTY);
   const [updateForm, setUpdateForm] = useState({ title: "", body: "" });
+  const [deliverableForm, setDeliverableForm] = useState({
+    name: "",
+    format: "Apple ProRes 422 HQ",
+    resolution: "4K UHD (3840x2160)",
+    sizeBytes: "12000000000",
+    downloadUrl: "",
+  });
 
   const { data: projects, loading, reload } = useApi<ProjectRow[]>("/api/admin/projects");
   const { data: clients } = useApi<ClientOpt[]>("/api/admin/clients");
 
-  async function loadUpdates(projectId: number) {
-    const rows = await api<UpdateRow[]>(`/api/admin/updates?projectId=${projectId}`);
-    setUpdates(rows);
+  async function loadProjectDetails(projectId: number) {
+    try {
+      const [uRows, aRows, dRows] = await Promise.all([
+        api<UpdateRow[]>(`/api/admin/updates?projectId=${projectId}`),
+        api<AnnotationRow[]>(`/api/admin/annotations?projectId=${projectId}`),
+        api<DeliverableRow[]>(`/api/admin/deliverables?projectId=${projectId}`),
+      ]);
+      setUpdates(uRows);
+      setAnnotations(aRows);
+      setDeliverablesList(dRows);
+    } catch {
+      toast("Error loading project data", "err");
+    }
   }
 
   function openEdit(p: ProjectRow) {
@@ -66,6 +113,11 @@ export default function AdminProjectsPage() {
       dueDate: p.dueDate || "",
       budget: p.budget || "",
     });
+  }
+
+  function openInspector(p: ProjectRow) {
+    setInspectingProj(p);
+    loadProjectDetails(p.id);
   }
 
   async function save(e: React.FormEvent) {
@@ -103,10 +155,44 @@ export default function AdminProjectsPage() {
       await api("/api/admin/updates", { json: { projectId: updating.id, ...updateForm } });
       toast("Update posted — visible in the client portal");
       setUpdateForm({ title: "", body: "" });
-      loadUpdates(updating.id);
+      loadProjectDetails(updating.id);
       reload();
     } catch (err) {
       toast(err instanceof Error ? err.message : "Failed", "err");
+    }
+  }
+
+  async function handleAddDeliverable(e: React.FormEvent) {
+    e.preventDefault();
+    if (!inspectingProj || !deliverableForm.downloadUrl.trim() || !deliverableForm.name.trim()) return;
+    try {
+      await api("/api/admin/deliverables", {
+        json: { projectId: inspectingProj.id, ...deliverableForm },
+      });
+      toast("Deliverable master linked to project!");
+      setDeliverableForm({
+        name: "",
+        format: "Apple ProRes 422 HQ",
+        resolution: "4K UHD (3840x2160)",
+        sizeBytes: "12000000000",
+        downloadUrl: "",
+      });
+      loadProjectDetails(inspectingProj.id);
+    } catch {
+      toast("Failed to add deliverable", "err");
+    }
+  }
+
+  async function toggleAnnotationResolved(a: AnnotationRow) {
+    try {
+      await api(`/api/admin/annotations/${a.id}`, {
+        method: "PATCH",
+        json: { resolved: !a.resolved },
+      });
+      toast(a.resolved ? "Flag reopened" : "Revision marked resolved! ✨");
+      if (inspectingProj) loadProjectDetails(inspectingProj.id);
+    } catch {
+      toast("Failed to update flag", "err");
     }
   }
 
@@ -126,8 +212,8 @@ export default function AdminProjectsPage() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="font-display text-2xl font-bold text-white">Projects</h1>
-          <p className="text-sm text-slate-500">Set progress — clients see it live in their portal</p>
+          <h1 className="font-display text-2xl font-bold text-white">Project Pipeline & 4K Suite</h1>
+          <p className="text-sm text-slate-500">Track milestones, timecode revision notes, progress sliders, and master files</p>
         </div>
         <Button onClick={() => setShowAdd(true)}>
           <Plus size={14} /> New project
@@ -147,26 +233,36 @@ export default function AdminProjectsPage() {
                   <StatusBadge status={s} />
                   <span className="font-display text-xl font-bold text-white">{statusFilter(s).length}</span>
                 </div>
-                <p className="mt-1 text-[11px] text-slate-500">projects</p>
+                <p className="mt-1 text-[11px] text-slate-500">{s.replace("_", " ")} projects</p>
               </div>
             ))}
           </div>
 
           <div className="space-y-3">
             {projects.map((p) => (
-              <div key={p.id} className="glass rounded-2xl p-5">
+              <div key={p.id} className="glass card-glow rounded-2xl p-5">
                 <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div className="min-w-0">
+                  <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
-                      <h3 className="font-display text-base font-semibold text-white">{p.title}</h3>
+                      <h3 className="font-display text-base font-bold text-white">{p.title}</h3>
                       <StatusBadge status={p.status} />
                     </div>
-                    <p className="mt-0.5 text-xs text-slate-500">
-                      {p.clientName} · {p.service} · budget {fmtMoney(p.budget)}
+                    <p className="mt-1 text-xs text-slate-400">
+                      Client: <strong className="text-slate-200">{p.clientName}</strong> · Service: <strong className="text-cyan-300">{p.service}</strong> · Budget: <strong className="text-emerald-300">{fmtMoney(p.budget)}</strong>
                     </p>
                   </div>
                   <div className="flex items-center gap-1.5">
-                    <Button size="sm" variant="outline" onClick={() => { setUpdating(p); loadUpdates(p.id); }}>
+                    <Button size="sm" variant="outline" onClick={() => openInspector(p)}>
+                      <Film size={13} className="text-cyan-300" /> Review Suite
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        setUpdating(p);
+                        loadProjectDetails(p.id);
+                      }}
+                    >
                       <MessageSquarePlus size={13} /> Update
                     </Button>
                     <Button size="sm" variant="ghost" onClick={() => openEdit(p)}>
@@ -176,12 +272,13 @@ export default function AdminProjectsPage() {
                   </div>
                 </div>
 
-                <div className="mt-4 flex flex-wrap items-center gap-4">
+                <div className="mt-4 flex flex-wrap items-center gap-4 border-t border-white/8 pt-3">
                   <div className="min-w-40 flex-1">
-                    <div className="flex items-center gap-2">
-                      <ProgressBar value={p.progress} />
-                      <span className="w-9 text-right text-sm font-bold text-white">{p.progress}%</span>
+                    <div className="flex items-center justify-between text-xs mb-1">
+                      <span className="text-slate-400">Timeline Progress</span>
+                      <span className="font-bold text-white">{p.progress}%</span>
                     </div>
+                    <ProgressBar value={p.progress} />
                     <input
                       type="range"
                       min={0}
@@ -189,12 +286,12 @@ export default function AdminProjectsPage() {
                       step={5}
                       value={p.progress}
                       onChange={(e) => quickProgress(p, Number(e.target.value))}
-                      className="mt-2 w-full accent-violet-500"
+                      className="mt-2 w-full accent-brand-500 cursor-pointer"
                     />
                   </div>
                   <div className="flex items-center gap-1.5 text-xs text-slate-400">
                     <CalendarClock size={13} className="text-amber-300" />
-                    due {fmtDate(p.dueDate)}
+                    Due {fmtDate(p.dueDate)}
                   </div>
                 </div>
               </div>
@@ -203,7 +300,139 @@ export default function AdminProjectsPage() {
         </>
       )}
 
-      <Modal open={showAdd || Boolean(editing)} onClose={() => { setShowAdd(false); setEditing(null); }} title={editing ? "Edit project" : "New project"} wide>
+      {/* Review Suite & Inspector Modal */}
+      {inspectingProj && (
+        <Modal
+          open={Boolean(inspectingProj)}
+          onClose={() => setInspectingProj(null)}
+          title={`Review Suite: ${inspectingProj.title}`}
+          wide
+        >
+          <div className="space-y-6">
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/8 bg-ink/60 p-4">
+              <div>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-cyan-300">{inspectingProj.service}</span>
+                <h2 className="font-display text-lg font-bold text-white">{inspectingProj.title}</h2>
+                <p className="text-xs text-slate-400">{inspectingProj.clientName} · Due {fmtDate(inspectingProj.dueDate)}</p>
+              </div>
+              <StatusBadge status={inspectingProj.status} />
+            </div>
+
+            {/* Frame Revision Annotations Table */}
+            <Card
+              title={
+                <div className="flex items-center gap-2">
+                  <MessageSquare size={16} className="text-cyan-300" />
+                  <span>Timecode Revision Notes ({annotations.length})</span>
+                </div>
+              }
+              desc="Time-stamped client feedback pinned directly to the master timeline"
+            >
+              <div className="space-y-2.5 max-h-48 overflow-y-auto scrollbar-thin">
+                {annotations.map((a) => (
+                  <div
+                    key={a.id}
+                    className={`flex items-center justify-between gap-3 rounded-xl p-3 border transition-all ${
+                      a.resolved ? "border-white/5 bg-white/2 opacity-60" : "border-amber-400/30 bg-amber-500/5"
+                    }`}
+                  >
+                    <div className="flex items-start gap-3 min-w-0">
+                      <span className="font-mono text-xs font-bold text-cyan-300 px-2 py-0.5 rounded bg-black/50 shrink-0">
+                        {a.timestamp}
+                      </span>
+                      <div>
+                        <p className="text-xs text-slate-200">{a.comment}</p>
+                        <p className="text-[10px] text-slate-500 mt-0.5">By {a.author} · {timeAgo(a.createdAt)}</p>
+                      </div>
+                    </div>
+
+                    <button
+                      onClick={() => toggleAnnotationResolved(a)}
+                      className={`shrink-0 rounded-xl px-2.5 py-1 text-xs font-semibold flex items-center gap-1 ${
+                        a.resolved ? "bg-emerald-500/20 text-emerald-300 border border-emerald-400/30" : "bg-white/10 text-slate-300 hover:bg-white/20"
+                      }`}
+                    >
+                      <CheckCircle2 size={13} /> {a.resolved ? "Resolved" : "Mark Resolved"}
+                    </button>
+                  </div>
+                ))}
+                {annotations.length === 0 && (
+                  <p className="py-4 text-center text-xs text-slate-500">No timecode revision notes posted yet.</p>
+                )}
+              </div>
+            </Card>
+
+            {/* Deliverable Master Files */}
+            <Card
+              title="Master Deliverable Files"
+              desc="Links for final ProRes masters, web cuts, and subtitle bundles"
+            >
+              <div className="space-y-3">
+                <div className="space-y-2">
+                  {deliverablesList.map((d) => (
+                    <div key={d.id} className="glass flex items-center justify-between rounded-xl p-3 text-xs">
+                      <div>
+                        <p className="font-semibold text-white">{d.name}</p>
+                        <p className="text-slate-400">{d.format} · {d.resolution}</p>
+                      </div>
+                      <a
+                        href={d.downloadUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 text-cyan-300 hover:underline font-semibold"
+                      >
+                        <Download size={13} /> Download ↗
+                      </a>
+                    </div>
+                  ))}
+                  {deliverablesList.length === 0 && (
+                    <p className="py-2 text-xs text-slate-500">No master deliverable files uploaded yet.</p>
+                  )}
+                </div>
+
+                {/* Add Deliverable Form */}
+                <form onSubmit={handleAddDeliverable} className="border-t border-white/8 pt-3 space-y-3">
+                  <p className="text-xs font-semibold text-white">Attach New Master Render</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    <Input
+                      placeholder="File Name (e.g. Master_4K_ProRes.mov)"
+                      value={deliverableForm.name}
+                      onChange={(e) => setDeliverableForm({ ...deliverableForm, name: e.target.value })}
+                      className="text-xs"
+                    />
+                    <Input
+                      placeholder="Download URL (Dropbox / S3 / Frame.io)"
+                      value={deliverableForm.downloadUrl}
+                      onChange={(e) => setDeliverableForm({ ...deliverableForm, downloadUrl: e.target.value })}
+                      className="text-xs"
+                    />
+                  </div>
+                  <Button size="sm" type="submit">
+                    <Plus size={13} /> Link Master Render
+                  </Button>
+                </form>
+              </div>
+            </Card>
+
+            <div className="flex justify-end pt-2">
+              <Button variant="ghost" onClick={() => setInspectingProj(null)}>
+                Close Suite
+              </Button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {/* Edit/Create Project Modal */}
+      <Modal
+        open={showAdd || Boolean(editing)}
+        onClose={() => {
+          setShowAdd(false);
+          setEditing(null);
+        }}
+        title={editing ? "Edit project" : "New project"}
+        wide
+      >
         <form onSubmit={save} className="space-y-4">
           <div className="grid gap-3 sm:grid-cols-2">
             <Field label="Title *">
@@ -211,15 +440,26 @@ export default function AdminProjectsPage() {
             </Field>
             <Field label="Client *">
               <Select required value={form.clientId} onChange={(e) => setForm((f) => ({ ...f, clientId: Number(e.target.value) }))}>
-                <option value={0} disabled>Select client…</option>
+                <option value={0} disabled>
+                  Select client…
+                </option>
                 {(clients || []).map((c) => (
-                  <option key={c.id} value={c.id}>{c.name}</option>
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
                 ))}
               </Select>
             </Field>
             <Field label="Service">
               <Select value={form.service} onChange={(e) => setForm((f) => ({ ...f, service: e.target.value }))}>
-                {["Video Editing", "Brand Film", "YouTube Editing", "Commercials", "Music Video", "Wedding", "Corporate", "Podcast Editing"].map((s) => (
+                {[
+                  "Brand Film",
+                  "YouTube Editing",
+                  "Commercials & Ads",
+                  "Music Video",
+                  "Wedding Cinema",
+                  "Podcast Editing",
+                ].map((s) => (
                   <option key={s}>{s}</option>
                 ))}
               </Select>
@@ -230,7 +470,9 @@ export default function AdminProjectsPage() {
             <Field label="Status">
               <Select value={form.status} onChange={(e) => setForm((f) => ({ ...f, status: e.target.value }))}>
                 {["intake", "in_progress", "review", "revision", "completed"].map((s) => (
-                  <option key={s} value={s}>{s.replace("_", " ")}</option>
+                  <option key={s} value={s}>
+                    {s.replace("_", " ")}
+                  </option>
                 ))}
               </Select>
             </Field>
@@ -240,29 +482,42 @@ export default function AdminProjectsPage() {
           </div>
           <Field label="Progress %">
             <input
-              type="range" min={0} max={100} step={5} value={form.progress}
+              type="range"
+              min={0}
+              max={100}
+              step={5}
+              value={form.progress}
               onChange={(e) => setForm((f) => ({ ...f, progress: Number(e.target.value) }))}
-              className="w-full accent-violet-500"
+              className="w-full accent-brand-500 cursor-pointer"
             />
-            <p className="mt-1 text-xs text-slate-500">{form.progress}% — setting 100% triggers the review-request automation</p>
+            <p className="mt-1 text-xs text-slate-500">{form.progress}% — setting 100% triggers completion workflows</p>
           </Field>
           <Field label="Description">
             <Textarea rows={3} value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} />
           </Field>
           <div className="flex justify-end gap-2">
-            <Button variant="ghost" onClick={() => { setShowAdd(false); setEditing(null); }}>Cancel</Button>
+            <Button
+              variant="ghost"
+              onClick={() => {
+                setShowAdd(false);
+                setEditing(null);
+              }}
+            >
+              Cancel
+            </Button>
             <Button type="submit">{editing ? "Save changes" : "Create project"}</Button>
           </div>
         </form>
       </Modal>
 
+      {/* Post Timeline Update Modal */}
       <Modal open={Boolean(updating)} onClose={() => setUpdating(null)} title={`Post update — ${updating?.title || ""}`} wide>
         <form onSubmit={postUpdate} className="space-y-4">
           <Field label="Update title *">
-            <Input required value={updateForm.title} onChange={(e) => setUpdateForm((f) => ({ ...f, title: e.target.value }))} placeholder="Cut v2 delivered" />
+            <Input required value={updateForm.title} onChange={(e) => setUpdateForm((f) => ({ ...f, title: e.target.value }))} placeholder="e.g. Cut v2 delivered in 4K ProRes" />
           </Field>
           <Field label="Details">
-            <Textarea rows={4} required value={updateForm.body} onChange={(e) => setUpdateForm((f) => ({ ...f, body: e.target.value }))} placeholder="What changed in this pass?" />
+            <Textarea rows={4} required value={updateForm.body} onChange={(e) => setUpdateForm((f) => ({ ...f, body: e.target.value }))} placeholder="What changed in this pass? Color grading, audio mix, pacing..." />
           </Field>
 
           {updates.length > 0 && (
@@ -273,7 +528,9 @@ export default function AdminProjectsPage() {
                   <div key={u.id} className="flex gap-2.5 text-sm">
                     <div className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-brand-400" />
                     <div>
-                      <p className="font-medium text-white">{u.title} <span className="text-[10px] font-normal text-slate-600">{timeAgo(u.createdAt)}</span></p>
+                      <p className="font-medium text-white">
+                        {u.title} <span className="text-[10px] font-normal text-slate-600">{timeAgo(u.createdAt)}</span>
+                      </p>
                       <p className="text-xs text-slate-400">{u.body}</p>
                     </div>
                   </div>
@@ -283,7 +540,9 @@ export default function AdminProjectsPage() {
           )}
 
           <div className="flex justify-end gap-2">
-            <Button variant="ghost" onClick={() => setUpdating(null)}>Close</Button>
+            <Button variant="ghost" onClick={() => setUpdating(null)}>
+              Close
+            </Button>
             <Button type="submit">Post update</Button>
           </div>
         </form>

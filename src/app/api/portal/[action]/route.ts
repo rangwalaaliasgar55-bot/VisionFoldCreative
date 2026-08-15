@@ -166,9 +166,83 @@ export async function POST(
       await db.insert(messages).values({
         clientId: client.id,
         sender: "admin",
-        body: `Payment received for ${inv.number} ($${money(inv.amount)}) — thank you! Receipt sent to ${client.email}.`,
+        body: `Payment received for ${inv.number} ($${money(inv.amount)}) — thank you! Receipt generated.`,
         read: false,
       });
+      return ok({ ok: true });
+    }
+
+    if (action === "request-project") {
+      const title = String(body.title || "").trim();
+      const service = String(body.service || "Video Editing");
+      const description = String(body.description || "").trim();
+      const budget = String(body.budget || "1500.00");
+      if (!title) return bad("Project title is required.");
+
+      const [newProj] = await db
+        .insert(projects)
+        .values({
+          clientId: client.id,
+          title,
+          service,
+          description,
+          status: "intake",
+          progress: 5,
+          budget: budget.replace(/[^0-9.]/g, "") || "1500.00",
+        })
+        .returning();
+
+      await db.insert(updates).values({
+        projectId: newProj.id,
+        title: "Intake Brief Submitted",
+        body: `Client requested new project "${title}". Footage intake initiated.`,
+      });
+
+      await db.insert(messages).values({
+        clientId: client.id,
+        sender: "admin",
+        body: `We received your request for "${title}"! We're reviewing your brief and will confirm timeline shortly.`,
+        read: false,
+      });
+
+      return ok(newProj);
+    }
+
+    if (action === "project-feedback") {
+      const projectId = Number(body.projectId);
+      const timestamp = String(body.timestamp || "00:00");
+      const feedback = String(body.feedback || "").trim();
+      const approved = Boolean(body.approved);
+      if (!projectId) return bad("Project ID is required.");
+
+      if (approved) {
+        await db.update(projects).set({ status: "completed", progress: 100 }).where(eq(projects.id, projectId));
+        await db.insert(updates).values({
+          projectId,
+          title: "Master Cut Approved by Client",
+          body: "Client approved final master render. Project marked completed!",
+        });
+        await db.insert(messages).values({
+          clientId: client.id,
+          sender: "client",
+          body: `I have approved the master cut for project #${projectId}! Outstanding work.`,
+          read: true,
+        });
+      } else {
+        await db.update(projects).set({ status: "revision" }).where(eq(projects.id, projectId));
+        await db.insert(updates).values({
+          projectId,
+          title: `Revision Requested at ${timestamp}`,
+          body: feedback,
+        });
+        await db.insert(messages).values({
+          clientId: client.id,
+          sender: "client",
+          body: `[Revision Request at ${timestamp}]: ${feedback}`,
+          read: true,
+        });
+      }
+
       return ok({ ok: true });
     }
 

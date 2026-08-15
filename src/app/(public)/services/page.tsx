@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { getSettings } from "@/lib/settings";
-import { Accordion, Reveal, Tilt } from "@/components/Fx";
+import { Accordion, RatesCalculator, Reveal, SplitCompare, Tilt } from "@/components/Fx";
 import {
   Clapperboard,
   Heart,
@@ -101,7 +101,7 @@ export default async function ServicesPage() {
   const settings = await getSettings();
   return (
     <div className="bg-aurora">
-      <section className="mx-auto max-w-7xl px-5 pb-24 pt-20 sm:px-8">
+      <section className="mx-auto max-w-7xl px-5 pb-24 pt-20 sm:px-8 space-y-20">
         <Reveal>
           <div className="mx-auto max-w-2xl text-center">
             <p className="text-xs font-semibold uppercase tracking-[0.3em] text-cyan-300">Services & pricing</p>
@@ -115,10 +115,11 @@ export default async function ServicesPage() {
           </div>
         </Reveal>
 
-        <div className="mt-14 grid gap-5 md:grid-cols-2 lg:grid-cols-3">
+        {/* Pricing Cards */}
+        <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
           {SERVICES.map(({ Icon, title, price, unit, desc, perks }, i) => (
             <Reveal key={title} delay={i * 70}>
-              <Tilt max={5} className="h-full">
+              <Tilt max={6} className="h-full">
                 <div className="glass card-glow flex h-full flex-col rounded-3xl p-6">
                   <div className="flex items-start justify-between">
                     <div className="grid h-12 w-12 place-items-center rounded-2xl bg-gradient-to-br from-[#7357FF]/30 to-[#F4A62A]/15 text-brand-300">
@@ -151,7 +152,24 @@ export default async function ServicesPage() {
           ))}
         </div>
 
-        <div className="mx-auto mt-24 max-w-3xl">
+        {/* Interactive Rates & Investment Estimator */}
+        <Reveal>
+          <RatesCalculator />
+        </Reveal>
+
+        {/* Before / After Color Grade & VFX Split Comparison */}
+        <Reveal>
+          <div className="space-y-4 text-center">
+            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-cyan-300">Post-Production Polish</p>
+            <h2 className="font-display text-3xl font-bold text-white sm:text-4xl">
+              From Raw Sensor Log to <span className="text-gradient">Cinematic Master</span>
+            </h2>
+            <SplitCompare />
+          </div>
+        </Reveal>
+
+        {/* FAQ */}
+        <div className="mx-auto max-w-3xl">
           <Reveal>
             <div className="text-center">
               <p className="text-xs font-semibold uppercase tracking-[0.3em] text-cyan-300">FAQ</p>
@@ -166,7 +184,7 @@ export default async function ServicesPage() {
         </div>
 
         <Reveal>
-          <div className="glass mt-16 rounded-3xl p-8 text-center">
+          <div className="glass rounded-3xl p-8 text-center">
             <p className="text-sm text-slate-400">
               Not sure which service fits? Send the footage — we'll tell you honestly.
             </p>
