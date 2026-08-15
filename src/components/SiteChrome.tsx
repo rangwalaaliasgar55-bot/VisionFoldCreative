@@ -71,7 +71,7 @@ export function SiteHeader({ title }: { title: string }) {
   return (
     <header
       className={`fixed inset-x-0 top-0 z-50 transition-all duration-300 ${
-        scrolled ? "border-b border-white/10 bg-ink/90 py-2.5 backdrop-blur-2xl shadow-[0_8px_40px_-12px_rgba(0,0,0,0.7)]" : "py-5"
+        scrolled ? "border-b border-white/10 bg-[#0B1020]/90 py-2.5 backdrop-blur-2xl shadow-[0_8px_40px_-12px_rgba(0,0,0,0.7)]" : "py-5"
       }`}
     >
       <div className="mx-auto flex max-w-7xl items-center justify-between px-5 sm:px-8">
@@ -89,7 +89,7 @@ export function SiteHeader({ title }: { title: string }) {
         </nav>
 
         <div className="hidden items-center gap-2 lg:flex">
-          <Link href="/portal" className="rounded-full border border-white/15 bg-white/5 px-4 py-2 text-xs font-bold uppercase tracking-wider text-[#98A1B3] transition hover:border-[#F4A62A]/50 hover:text-white">
+          <Link href="/portal" className="rounded-full border border-white/15 bg-white/5 px-4 py-2 text-xs font-bold uppercase tracking-wider text-[#98A1B3] transition hover:border-[#7357FF]/50 hover:text-white">
             Client Portal
           </Link>
           <Link href="/contact" className="rounded-full bg-[#7357FF] px-5 py-2.5 text-xs font-black uppercase tracking-wider text-white shadow-lg shadow-[#7357FF]/30 transition hover:bg-[#6346E8] hover:scale-[1.02]">
@@ -103,7 +103,7 @@ export function SiteHeader({ title }: { title: string }) {
       </div>
 
       {open && (
-        <div className="glass mx-4 mt-3 rounded-2xl border border-white/10 bg-ink/95 p-4 lg:hidden">
+        <div className="glass mx-4 mt-3 rounded-2xl border border-white/10 bg-[#0B1020]/95 p-4 lg:hidden">
           <nav className="flex flex-col">
             {NAV.map((n) => (
               <Link key={n.href} href={n.href} onClick={() => setOpen(false)} className="rounded-xl px-4 py-3 text-sm font-medium text-slate-200 hover:bg-white/5">
