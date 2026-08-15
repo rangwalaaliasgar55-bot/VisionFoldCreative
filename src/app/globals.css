@@ -232,6 +232,25 @@ select:focus-visible {
   outline-offset: 2px;
 }
 
+/* Admin application surface */
+.admin-surface {
+  background:
+    radial-gradient(55rem 30rem at 88% -8%, rgba(115, 87, 255, 0.09), transparent 62%),
+    #0B1020;
+}
+.admin-surface section,
+.admin-surface article {
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.015);
+}
+.admin-surface input[type="date"]::-webkit-calendar-picker-indicator {
+  filter: invert(0.7);
+  opacity: 0.65;
+}
+.admin-surface kbd {
+  font-family: var(--font-sans);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
   .animate-marquee,

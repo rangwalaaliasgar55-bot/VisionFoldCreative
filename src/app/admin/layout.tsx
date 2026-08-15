@@ -1,23 +1,24 @@
 import type { ReactNode } from "react";
-import { redirect } from "next/navigation";
 import { requireAdmin } from "@/lib/auth";
 import { ensureSeed } from "@/lib/seed";
-import { AdminSidebar, Toasts } from "@/components/AdminUI";
+import { Toasts } from "@/components/AdminUI";
+import { AdminShell } from "@/components/Admin/AdminShell";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminLayout({ children }: { children: ReactNode }) {
   await ensureSeed();
   const admin = await requireAdmin();
-  if (!admin) redirect("/admin/login");
+
+  // Middleware keeps protected admin routes behind a session cookie. The login
+  // page shares this layout, so unauthenticated requests must render it without
+  // the application chrome instead of redirecting back to themselves.
+  if (!admin) return <>{children}</>;
 
   return (
-    <div className="min-h-screen bg-ink">
-      <AdminSidebar name={admin.name} email={admin.email} />
-      <div className="lg:pl-64">
-        <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6">{children}</main>
-      </div>
+    <AdminShell name={admin.name} email={admin.email}>
+      {children}
       <Toasts />
-    </div>
+    </AdminShell>
   );
 }
