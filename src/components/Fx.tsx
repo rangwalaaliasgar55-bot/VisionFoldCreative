@@ -132,15 +132,17 @@ export function Counter({
   suffix = "",
   duration = 1600,
   className = "",
+  decimals = 0,
 }: {
   to: number;
   prefix?: string;
   suffix?: string;
   duration?: number;
   className?: string;
+  decimals?: number;
 }) {
   const ref = useRef<HTMLSpanElement>(null);
-  const [value, setValue] = useState(0);
+  const [progress, setProgress] = useState(0);
   const started = useRef(false);
   useEffect(() => {
     const el = ref.current;
@@ -153,7 +155,7 @@ export function Counter({
           const tick = (now: number) => {
             const p = Math.min(1, (now - start) / duration);
             const eased = 1 - Math.pow(1 - p, 3);
-            setValue(Math.round(to * eased));
+            setProgress(eased);
             if (p < 1) requestAnimationFrame(tick);
           };
           requestAnimationFrame(tick);
@@ -168,7 +170,10 @@ export function Counter({
   return (
     <span ref={ref} className={className}>
       {prefix}
-      {value.toLocaleString()}
+      {(to * progress).toLocaleString("en-US", {
+        minimumFractionDigits: decimals,
+        maximumFractionDigits: decimals,
+      })}
       {suffix}
     </span>
   );
@@ -280,7 +285,7 @@ export function Reel3D({
             />
             <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-transparent" />
             <div className="absolute inset-x-0 bottom-0 p-3.5">
-              <p className="text-[10px] font-bold uppercase tracking-widest text-amber-300">{it.category}</p>
+              <p className="text-[10px] font-bold uppercase tracking-widest text-cyan-300">{it.category}</p>
               <p className="truncate text-sm font-semibold text-white">{it.title}</p>
             </div>
           </Link>
@@ -318,7 +323,7 @@ export function SplitCompare({
     <div className="mx-auto max-w-5xl rounded-3xl border border-white/10 bg-panel/80 p-4 sm:p-6">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
         <h3 className="font-display text-base font-bold text-white flex items-center gap-2">
-          <Sliders size={16} className="text-amber-300" /> {title}
+          <Sliders size={16} className="text-cyan-300" /> {title}
         </h3>
         <span className="text-xs text-slate-400">Drag center handle to compare</span>
       </div>
@@ -336,9 +341,9 @@ export function SplitCompare({
           src={gradedImage}
           alt="Cinema Color Graded"
           className="absolute inset-0 h-full w-full object-cover"
-          style={{ filter: "contrast(1.2) saturate(1.3) drop-shadow(0 0 12px rgba(244,166,42,0.3))" }}
+          style={{ filter: "contrast(1.2) saturate(1.3) drop-shadow(0 0 12px rgba(115,87,255,0.3))" }}
         />
-        <div className="absolute left-4 top-4 rounded-xl bg-black/80 px-3 py-1 text-xs font-bold uppercase tracking-wider text-amber-300 backdrop-blur-md">
+        <div className="absolute left-4 top-4 rounded-xl bg-black/80 px-3 py-1 text-xs font-bold uppercase tracking-wider text-cyan-300 backdrop-blur-md">
           VisionFold Master Grade
         </div>
 
@@ -444,7 +449,7 @@ export function RatesCalculator() {
           <div>
             <div className="flex justify-between text-xs mb-1.5">
               <span className="font-semibold text-slate-300">Deliverable Videos:</span>
-              <span className="font-bold text-amber-300">{videoCount} {videoCount === 1 ? "cut" : "cuts"}</span>
+              <span className="font-bold text-cyan-300">{videoCount} {videoCount === 1 ? "cut" : "cuts"}</span>
             </div>
             <input
               type="range"
@@ -459,7 +464,7 @@ export function RatesCalculator() {
           <div>
             <div className="flex justify-between text-xs mb-1.5">
               <span className="font-semibold text-slate-300">Raw Footage Duration:</span>
-              <span className="font-bold text-amber-300">{rawFootageHours} hrs raw</span>
+              <span className="font-bold text-cyan-300">{rawFootageHours} hrs raw</span>
             </div>
             <input
               type="range"
@@ -548,7 +553,7 @@ export function PortfolioFilterGrid({
             onClick={() => setActiveCat(c)}
             className={`rounded-full px-5 py-2 text-xs font-bold uppercase tracking-wider transition-all ${
               activeCat === c
-                ? "bg-brand-600 text-white shadow-[0_0_24px_-6px_rgba(244,166,42,0.9)] scale-105"
+                ? "bg-brand-600 text-white shadow-[0_0_24px_-6px_rgba(115,87,255,0.9)] scale-105"
                 : "glass text-slate-300 hover:text-white hover:border-white/20"
             }`}
           >
@@ -582,7 +587,7 @@ export function PortfolioFilterGrid({
                     </div>
                   </div>
                 ) : null}
-                <span className="absolute left-4 top-4 rounded-full bg-black/60 px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-amber-300 backdrop-blur-md">
+                <span className="absolute left-4 top-4 rounded-full bg-black/60 px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-cyan-300 backdrop-blur-md">
                   {item.category}
                 </span>
                 {item.featured && (
@@ -598,7 +603,7 @@ export function PortfolioFilterGrid({
                 <p className="line-clamp-2 text-xs leading-relaxed text-slate-400">{item.description}</p>
                 <div className="flex items-center justify-between border-t border-white/8 pt-3 text-[11px] text-slate-500">
                   <span>Year: {item.year}</span>
-                  <span className="text-amber-300 font-semibold group-hover:translate-x-0.5 transition-transform">
+                  <span className="text-cyan-300 font-semibold group-hover:translate-x-0.5 transition-transform">
                     View Master Cut →
                   </span>
                 </div>

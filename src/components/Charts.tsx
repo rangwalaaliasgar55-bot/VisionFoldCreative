@@ -2,7 +2,7 @@
 
 import { fmtMoney } from "@/lib/utils";
 
-const PALETTE = ["#F4A62A", "#F7C873", "#C97A12", "#34d399", "#F5D78A", "#F6F3EC"];
+const PALETTE = ["#7357FF", "#F4A62A", "#A78BFA", "#34d399", "#F5D78A", "#5B3FD4"];
 
 export function Bars({
   data,
@@ -106,12 +106,12 @@ export function Sparkline({ data, width = 120, height = 40 }: { data: number[]; 
     .join(" ");
   return (
     <svg width={width} height={height} className="overflow-visible">
-      <polyline points={pts} fill="none" stroke="#F4A62A" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+      <polyline points={pts} fill="none" stroke="#7357FF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
       <polygon points={`0,${height} ${pts} ${width},${height}`} fill="url(#sparkfill)" opacity="0.25" />
       <defs>
         <linearGradient id="sparkfill" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stopColor="#F4A62A" />
-          <stop offset="1" stopColor="#F4A62A" stopOpacity="0" />
+          <stop offset="0" stopColor="#7357FF" />
+          <stop offset="1" stopColor="#7357FF" stopOpacity="0" />
         </linearGradient>
       </defs>
     </svg>

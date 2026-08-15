@@ -204,9 +204,9 @@ export default function AdminSitePage() {
                   <Input value={hero.heroCta} onChange={(e) => set("heroCta", e.target.value)} />
                 </Field>
                 <div className="grid grid-cols-2 gap-3">
-                  {(["statsYears", "statsProjects", "statsClients", "statsAwards"] as const).map((k) => (
+                  {(["statsYears", "statsRating", "statsCountries", "statsTurnaround"] as const).map((k) => (
                     <Field key={k} label={k.replace("stats", "")}>
-                      <Input type="number" value={hero[k]} onChange={(e) => set(k, Number(e.target.value))} />
+                      <Input type="number" step={k === "statsRating" ? "0.1" : "1"} value={hero[k]} onChange={(e) => set(k, Number(e.target.value))} />
                     </Field>
                   ))}
                 </div>
@@ -246,8 +246,8 @@ export default function AdminSitePage() {
           <div className="sticky top-6 h-fit">
             <Card title="Live preview" desc="This mirrors the homepage hero">
               <div className="bg-aurora relative overflow-hidden rounded-2xl border border-white/8 p-8 text-center">
-                <div className="glass mx-auto inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-xs font-medium text-amber-300">
-                  <span className="animate-pulseglow h-1.5 w-1.5 rounded-full bg-amber-400" />
+                <div className="glass mx-auto inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-xs font-medium text-cyan-300">
+                  <span className="animate-pulseglow h-1.5 w-1.5 rounded-full bg-cyan-400" />
                   Premium video editing studio
                 </div>
                 <h2 className="font-display mt-5 text-3xl font-bold leading-tight text-white sm:text-4xl">
@@ -260,12 +260,12 @@ export default function AdminSitePage() {
                 <div className="mt-8 grid grid-cols-4 gap-3">
                   {[
                     [hero.statsYears, "Years"],
-                    [hero.statsProjects, "Projects"],
-                    [hero.statsClients, "Clients"],
-                    [hero.statsAwards, "Awards"],
+                    [`${hero.statsRating}/5`, "Rating"],
+                    [hero.statsCountries, "Countries"],
+                    [`${hero.statsTurnaround}h`, "Turnaround"],
                   ].map(([v, l]) => (
                     <div key={String(l)} className="glass rounded-xl py-3">
-                      <p className="font-display text-xl font-bold text-white">{v}+</p>
+                      <p className="font-display text-xl font-bold text-white">{v}</p>
                       <p className="text-[9px] uppercase tracking-widest text-slate-500">{l}</p>
                     </div>
                   ))}
@@ -300,7 +300,7 @@ export default function AdminSitePage() {
             {/* AI Tokens Budget */}
             <div className="glass card-glow rounded-2xl p-5 space-y-2.5">
               <div className="flex items-center justify-between">
-                <div className="grid h-9 w-9 place-items-center rounded-xl bg-amber-500/15 text-amber-300">
+                <div className="grid h-9 w-9 place-items-center rounded-xl bg-cyan-500/15 text-cyan-300">
                   <Cpu size={18} />
                 </div>
                 <Badge tone="published">{aiPct}% used</Badge>

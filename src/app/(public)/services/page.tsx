@@ -104,7 +104,7 @@ export default async function ServicesPage() {
       <section className="mx-auto max-w-7xl px-5 pb-24 pt-20 sm:px-8 space-y-20">
         <Reveal>
           <div className="mx-auto max-w-2xl text-center">
-            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-amber-300">Services & pricing</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-cyan-300">Services & pricing</p>
             <h1 className="font-display mt-3 text-4xl font-bold text-white sm:text-6xl">
               Transparent pricing, <span className="text-gradient">cinema-grade output</span>
             </h1>
@@ -122,7 +122,7 @@ export default async function ServicesPage() {
               Most popular
             </div>
             <div className="flex flex-col items-start gap-5 sm:flex-row sm:items-center">
-              <div className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-[#F4A62A]/35 to-[#F4A62A]/10 text-brand-300">
+              <div className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-[#7357FF]/30 to-[#F4A62A]/15 text-brand-300">
                 <Clapperboard size={26} />
               </div>
               <div className="flex-1">
@@ -136,7 +136,7 @@ export default async function ServicesPage() {
               </div>
               <Link
                 href="/contact"
-                className="shrink-0 rounded-xl bg-brand-500 px-6 py-3 text-sm font-bold text-black transition-all hover:bg-brand-400"
+                className="shrink-0 rounded-xl bg-brand-500 px-6 py-3 text-sm font-bold text-white shadow-lg shadow-brand-500/30 transition-all hover:bg-brand-600"
               >
                 Order a Short
               </Link>
@@ -151,7 +151,7 @@ export default async function ServicesPage() {
               <Tilt max={6} className="h-full">
                 <div className="glass card-glow flex h-full flex-col rounded-3xl p-6">
                   <div className="flex items-start justify-between">
-                    <div className="grid h-12 w-12 place-items-center rounded-2xl bg-gradient-to-br from-[#F4A62A]/30 to-[#F4A62A]/10 text-brand-300">
+                    <div className="grid h-12 w-12 place-items-center rounded-2xl bg-gradient-to-br from-[#7357FF]/30 to-[#F4A62A]/10 text-brand-300">
                       <Icon size={22} />
                     </div>
                     <div className="text-right">
@@ -198,7 +198,7 @@ export default async function ServicesPage() {
         {/* Before / After Color Grade & VFX Split Comparison */}
         <Reveal>
           <div className="space-y-4 text-center">
-            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-amber-300">Post-Production Polish</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-cyan-300">Post-Production Polish</p>
             <h2 className="font-display text-3xl font-bold text-white sm:text-4xl">
               From Raw Sensor Log to <span className="text-gradient">Cinematic Master</span>
             </h2>
@@ -210,7 +210,7 @@ export default async function ServicesPage() {
         <div className="mx-auto max-w-3xl">
           <Reveal>
             <div className="text-center">
-              <p className="text-xs font-semibold uppercase tracking-[0.3em] text-amber-300">FAQ</p>
+              <p className="text-xs font-semibold uppercase tracking-[0.3em] text-cyan-300">FAQ</p>
               <h2 className="font-display mt-3 text-3xl font-bold text-white sm:text-4xl">
                 Before you <span className="text-gradient">press record</span>
               </h2>

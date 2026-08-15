@@ -42,7 +42,7 @@ export default async function BlogPage({
       <section className="mx-auto max-w-7xl px-5 pb-24 pt-20 sm:px-8">
         <Reveal>
           <div className="mx-auto max-w-2xl text-center">
-            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-amber-300">The studio journal</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-cyan-300">The studio journal</p>
             <h1 className="font-display mt-3 text-4xl font-bold text-white sm:text-6xl">
               Editing intelligence, <span className="text-gradient">no fluff</span>
             </h1>
@@ -84,7 +84,7 @@ export default async function BlogPage({
                       {p.title}
                     </h2>
                     <p className="mt-2 line-clamp-2 text-sm text-slate-400">{p.excerpt}</p>
-                    <p className="mt-4 text-sm font-semibold text-amber-300 transition-transform group-hover:translate-x-1">
+                    <p className="mt-4 text-sm font-semibold text-cyan-300 transition-transform group-hover:translate-x-1">
                       Read article →
                     </p>
                   </div>
@@ -142,7 +142,7 @@ export default async function BlogPage({
               </p>
               <Link
                 href="/contact"
-                className="mt-4 block rounded-xl bg-[#F4A62A] hover:bg-[#D98E0C] py-2.5 text-center text-sm font-semibold text-black"
+                className="mt-4 block rounded-xl bg-[#7357FF] hover:bg-[#6346E8] py-2.5 text-center text-sm font-semibold text-white"
               >
                 Start a project
               </Link>

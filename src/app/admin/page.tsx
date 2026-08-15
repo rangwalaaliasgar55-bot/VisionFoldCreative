@@ -66,9 +66,9 @@ export default function AdminDashboardPage() {
     { label: "Total revenue", value: fmtMoney(s.revenue), Icon: DollarSign, accent: "from-emerald-500/20 to-emerald-500/5 text-emerald-300", roles: ["admin", "accountant"] },
     { label: "Outstanding", value: fmtMoney(s.outstanding), Icon: CreditCard, accent: "from-amber-500/20 to-amber-500/5 text-amber-300", roles: ["admin", "accountant"] },
     { label: "Active projects", value: String(s.activeProjects), Icon: FolderKanban, accent: "from-brand-500/20 to-brand-500/5 text-brand-300", roles: ["admin", "editor", "accountant"] },
-    { label: "New leads · 30d", value: String(s.newLeads30d), Icon: Target, accent: "from-amber-500/20 to-amber-500/5 text-amber-300", roles: ["admin", "editor"] },
+    { label: "New leads · 30d", value: String(s.newLeads30d), Icon: Target, accent: "from-cyan-500/20 to-cyan-500/5 text-cyan-300", roles: ["admin", "editor"] },
     { label: "Clients", value: String(s.clients), Icon: Users, accent: "from-pink-500/20 to-pink-500/5 text-pink-300", roles: ["admin", "editor", "accountant"] },
-    { label: "Avg rating", value: `${s.avgRating}★`, Icon: Star, accent: "from-amber-500/20 to-amber-500/5 text-amber-300", roles: ["admin", "editor"] },
+    { label: "Avg rating", value: `${s.avgRating}★`, Icon: Star, accent: "from-violet-500/20 to-violet-500/5 text-violet-300", roles: ["admin", "editor"] },
   ].filter((item) => item.roles.includes(data.viewer.role));
 
   return (
@@ -105,7 +105,7 @@ export default function AdminDashboardPage() {
       >
         <div className="grid gap-3 md:grid-cols-3">
           {[
-            { label: "Client messages", value: s.unreadMessages || 0, detail: "waiting for a studio reply", href: "/admin/clients", Icon: MessageSquare, tone: "text-amber-300 bg-amber-500/10", roles: ["admin", "editor", "accountant"] },
+            { label: "Client messages", value: s.unreadMessages || 0, detail: "waiting for a studio reply", href: "/admin/clients", Icon: MessageSquare, tone: "text-cyan-300 bg-cyan-500/10", roles: ["admin", "editor", "accountant"] },
             { label: "Cuts needing attention", value: s.reviewProjects || 0, detail: "in review or revision", href: "/admin/projects", Icon: FolderKanban, tone: "text-brand-300 bg-brand-500/10", roles: ["admin", "editor"] },
             { label: "Overdue invoices", value: s.overdueInvoices || 0, detail: "require payment follow-up", href: "/admin/invoices", Icon: AlertTriangle, tone: "text-amber-300 bg-amber-500/10", roles: ["admin", "accountant"] },
           ].filter((item) => item.roles.includes(data.viewer.role)).map(({ label, value, detail, href, Icon, tone }) => (
@@ -139,7 +139,7 @@ export default function AdminDashboardPage() {
             <ul className="mt-4 space-y-3">
               {insights.items.map((item, i) => (
                 <li key={i} className="flex gap-2.5 rounded-xl border border-white/8 bg-white/2 p-3 text-sm leading-relaxed text-slate-300">
-                  <Sparkles size={14} className="mt-0.5 shrink-0 text-amber-300" />
+                  <Sparkles size={14} className="mt-0.5 shrink-0 text-cyan-300" />
                   {item}
                 </li>
               ))}

@@ -17,7 +17,7 @@ export default function AdminLoginPage() {
       <div className="relative w-full max-w-md">
         <div className="auth-3d-card glass-bright rounded-3xl p-8 shadow-2xl">
           <div className="mb-8 text-center">
-            <div className="animate-floaty mx-auto mb-4 grid h-16 w-16 place-items-center rounded-2xl bg-gradient-to-br from-[#F4A62A] to-[#C97A12] shadow-[0_0_60px_-15px_rgba(244,166,42,0.9)]">
+            <div className="animate-floaty mx-auto mb-4 grid h-16 w-16 place-items-center rounded-2xl bg-gradient-to-br from-[#7357FF] to-[#5B3FD4] shadow-[0_0_60px_-15px_rgba(115,87,255,0.9)]">
               <Logo className="h-8 w-8" />
             </div>
             <h1 className="font-display text-2xl font-bold text-white">VisionFold staff</h1>

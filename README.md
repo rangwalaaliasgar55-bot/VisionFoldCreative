@@ -30,7 +30,7 @@
 <tr><td width="50%">
 
 ### 🎬 Public marketing site
-Cinematic dark-first design (true black · gold), Three.js hero with an interactive client globe (drag to rotate), scroll-triggered reveal animations + reading-progress bar, editorial blog, services & portfolio pages, CMS-driven custom pages at `/p/[slug]`, contact → lead pipeline, newsletter, and a WordPress-compatible API surface (`/api/wp/v2/*`) for SEO tooling. A brand-themed easter egg — **VisionFold Runner** (a dino-style mini game, bottom-left button) — keeps visitors engaged.
+Cinematic dark-first design (ink · violet · amber), Three.js hero with an interactive client globe (drag to rotate), scroll-triggered reveal animations + reading-progress bar, editorial blog, services & portfolio pages, CMS-driven custom pages at `/p/[slug]`, contact → lead pipeline, newsletter, and a WordPress-compatible API surface (`/api/wp/v2/*`) for SEO tooling. A floating WhatsApp chat button (real studio number) and a brand-themed easter egg — **VisionFold Runner** (a dino-style mini game) — keep visitors engaged.
 
 </td><td width="50%">
 
@@ -136,10 +136,10 @@ curl -X POST https://<app>/api/cron/run-scheduled \
 
 | Token | Value |
 |---|---|
-| Ink (background) | `#0A0A0B` |
-| Gold (primary) | `#F4A62A` |
+| Ink (background) | `#0B1020` |
+| Violet (primary) | `#7357FF` |
+| Amber (accent) | `#F4A62A` |
 | Warm white (text) | `#F6F3EC` |
-| Muted (secondary text) | `#A3A09A` |
 | Fonts | Space Grotesk (display) · Inter (body) |
 
 ---

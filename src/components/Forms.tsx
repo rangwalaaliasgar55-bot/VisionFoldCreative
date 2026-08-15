@@ -53,7 +53,7 @@ export function LoginForm({
         <label className="mb-1.5 block text-xs font-semibold uppercase tracking-widest text-slate-400">Password</label>
         <input type="password" required value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" className="field" />
       </div>
-      <button type="submit" disabled={loading} className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#F4A62A] hover:bg-[#D98E0C] py-3 text-sm font-semibold text-black shadow-lg shadow-[#F4A62A]/30 transition-transform hover:scale-[1.02] disabled:opacity-60">
+      <button type="submit" disabled={loading} className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#7357FF] hover:bg-[#6346E8] py-3 text-sm font-semibold text-white shadow-lg shadow-[#7357FF]/30 transition-transform hover:scale-[1.02] disabled:opacity-60">
         {loading ? <Loader2 className="animate-spin" size={16} /> : null}
         {loading ? "Signing in…" : "Sign in"}
       </button>
@@ -103,7 +103,7 @@ export function ClientRegisterForm() {
         <input required minLength={8} maxLength={128} type="password" value={form.confirm} onChange={(e) => set("confirm", e.target.value)} placeholder="Confirm password" className="field col-span-2" autoComplete="new-password" />
       </div>
       <label className="flex items-start gap-2 text-[11px] leading-relaxed text-slate-500"><input required type="checkbox" className="mt-0.5 accent-brand-500" />I agree to use the portal for legitimate project collaboration and accept the site policies.</label>
-      <button type="submit" disabled={loading} className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#F4A62A] py-3 text-sm font-semibold text-black shadow-lg shadow-[#F4A62A]/30 transition hover:bg-[#D98E0C] disabled:opacity-60">{loading && <Loader2 className="animate-spin" size={16} />}{loading ? "Creating workspace…" : "Create client workspace"}</button>
+      <button type="submit" disabled={loading} className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#7357FF] py-3 text-sm font-semibold text-white shadow-lg shadow-[#7357FF]/30 transition hover:bg-[#6346E8] disabled:opacity-60">{loading && <Loader2 className="animate-spin" size={16} />}{loading ? "Creating workspace…" : "Create client workspace"}</button>
     </form>
   );
 }
@@ -184,7 +184,7 @@ export function ContactForm() {
         <label className="mb-1.5 block text-xs font-semibold uppercase tracking-widest text-slate-400">Tell us about the project *</label>
         <textarea required rows={4} className="field resize-none" placeholder="What are you making? Timeline, footage, references — anything helps." value={form.message} onChange={(e) => set("message", e.target.value)} />
       </div>
-      <button type="submit" disabled={status === "loading"} className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#F4A62A] hover:bg-[#D98E0C] py-3.5 text-sm font-semibold text-black shadow-lg shadow-[#F4A62A]/30 transition-transform hover:scale-[1.01] disabled:opacity-60">
+      <button type="submit" disabled={status === "loading"} className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#7357FF] hover:bg-[#6346E8] py-3.5 text-sm font-semibold text-white shadow-lg shadow-[#7357FF]/30 transition-transform hover:scale-[1.01] disabled:opacity-60">
         {status === "loading" ? <Loader2 className="animate-spin" size={16} /> : <Send size={15} />}
         {status === "loading" ? "Sending…" : "Send brief — get a quote in 24h"}
       </button>
@@ -210,7 +210,7 @@ export function NewsletterForm({ compact = false }: { compact?: boolean }) {
   return (
     <form onSubmit={submit} className={`flex gap-2 ${compact ? "" : "mt-3"}`}>
       <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@email.com" className="field flex-1" />
-      <button type="submit" disabled={state === "loading"} className="shrink-0 rounded-xl bg-[#F4A62A] hover:bg-[#D98E0C] px-4 py-2.5 text-sm font-semibold text-black transition-transform hover:scale-105 disabled:opacity-60">{state === "loading" ? "…" : "Join"}</button>
+      <button type="submit" disabled={state === "loading"} className="shrink-0 rounded-xl bg-[#7357FF] hover:bg-[#6346E8] px-4 py-2.5 text-sm font-semibold text-white transition-transform hover:scale-105 disabled:opacity-60">{state === "loading" ? "…" : "Join"}</button>
     </form>
   );
 }

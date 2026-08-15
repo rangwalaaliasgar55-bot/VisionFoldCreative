@@ -87,7 +87,7 @@ export function SiteHeader({ title }: { title: string }) {
           <Link href="/portal" className="rounded-full border border-white/15 bg-white/5 px-4 py-2 text-xs font-bold uppercase tracking-wider text-[#98A1B3] transition hover:border-[#F4A62A]/50 hover:text-white">
             Client Portal
           </Link>
-          <Link href="/contact" className="rounded-full bg-[#F4A62A] px-5 py-2.5 text-xs font-black uppercase tracking-wider text-black shadow-lg shadow-[#F4A62A]/30 transition hover:bg-[#D98E0C] hover:scale-[1.02]">
+          <Link href="/contact" className="rounded-full bg-[#7357FF] px-5 py-2.5 text-xs font-black uppercase tracking-wider text-white shadow-lg shadow-[#7357FF]/30 transition hover:bg-[#6346E8] hover:scale-[1.02]">
             Book a Call
           </Link>
         </div>
@@ -109,7 +109,7 @@ export function SiteHeader({ title }: { title: string }) {
               <Link href="/portal" onClick={() => setOpen(false)} className="rounded-xl border border-white/10 bg-white/5 py-3 text-center text-sm font-bold uppercase tracking-wider text-[#F6F3EC]">
                 Client Portal
               </Link>
-              <Link href="/contact" onClick={() => setOpen(false)} className="rounded-full bg-[#F4A62A] py-3 text-center text-sm font-black uppercase tracking-wider text-black shadow-lg shadow-[#F4A62A]/25">
+              <Link href="/contact" onClick={() => setOpen(false)} className="rounded-full bg-[#7357FF] py-3 text-center text-sm font-black uppercase tracking-wider text-white shadow-lg shadow-[#7357FF]/25">
                 Book a Call
               </Link>
             </div>

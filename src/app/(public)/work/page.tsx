@@ -25,7 +25,7 @@ export default async function WorkPage() {
       <section className="mx-auto max-w-7xl px-5 pb-16 pt-20 sm:px-8 space-y-16">
         <Reveal>
           <div className="mx-auto max-w-2xl text-center">
-            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-amber-300">Portfolio</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-cyan-300">Portfolio</p>
             <h1 className="font-display mt-3 text-4xl font-bold text-white sm:text-6xl">
               Cuts that <span className="text-gradient">kept people watching</span>
             </h1>
@@ -38,13 +38,13 @@ export default async function WorkPage() {
         <Reveal delay={150}>
           <div className="mx-auto grid max-w-3xl grid-cols-3 gap-4">
             {[
-              { v: Number(settings.statsProjects || 420), s: "+", l: "Delivered" },
-              { v: 9, s: "", l: "Countries" },
-              { v: 5, s: "/5", l: "Avg. rating" },
+              { v: Number(settings.statsYears || 2), s: "", l: "Years editing", d: 0 },
+              { v: Number(settings.statsCountries || 12), s: "", l: "Countries", d: 0 },
+              { v: Number(settings.statsRating || 4.9), s: "/5", l: "Avg. rating", d: 1 },
             ].map((x) => (
               <div key={x.l} className="glass rounded-2xl py-5 text-center">
                 <div className="font-display text-2xl font-bold text-white sm:text-3xl">
-                  <Counter to={x.v} suffix={x.s} />
+                  <Counter to={x.v} suffix={x.s} decimals={x.d} />
                 </div>
                 <div className="mt-1 text-[10px] uppercase tracking-widest text-slate-500">{x.l}</div>
               </div>
@@ -58,7 +58,7 @@ export default async function WorkPage() {
         {/* Before / After Color Comparison */}
         <Reveal>
           <div className="text-center space-y-4">
-            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-amber-300">Master Finishing</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-cyan-300">Master Finishing</p>
             <h2 className="font-display text-3xl font-bold text-white sm:text-4xl">
               Interactive 35mm <span className="text-gradient">Color Grading Breakdown</span>
             </h2>
@@ -76,7 +76,7 @@ export default async function WorkPage() {
             </p>
             <Link
               href="/contact"
-              className="mt-6 inline-block rounded-full bg-[#F4A62A] hover:bg-[#D98E0C] px-8 py-3.5 text-sm font-semibold text-black shadow-[0_0_36px_-10px_rgba(244,166,42,0.9)] transition-transform hover:scale-105"
+              className="mt-6 inline-block rounded-full bg-[#7357FF] hover:bg-[#6346E8] px-8 py-3.5 text-sm font-semibold text-white shadow-[0_0_36px_-10px_rgba(115,87,255,0.9)] transition-transform hover:scale-105"
             >
               Start a project →
             </Link>

@@ -21,11 +21,42 @@ import {
   users,
   webhooks,
 } from "@/db/schema";
-import { count } from "drizzle-orm";
-import { hashPassword } from "@/lib/auth";
+import { count, eq } from "drizzle-orm";
+import { hashPassword, verifyPassword } from "@/lib/auth";
 import { DEFAULT_SETTINGS } from "@/lib/settings";
 
 let seedPromise: Promise<void> | null = null;
+
+/** Admin credential source of truth (env override, else the studio default). */
+export function getAdminCredentials() {
+  const email = (process.env.ADMIN_EMAIL || "visionfoldcreative@gmail.com").toLowerCase();
+  const password = process.env.ADMIN_PASSWORD || "aliasgar134";
+  return { email, password };
+}
+
+/**
+ * Always ensure the owner account can sign in, regardless of DB state:
+ * - creates the admin if missing
+ * - upgrades accounts still sitting on the legacy 'demo1234' seed default
+ * (runs on every request via ensureSeed — idempotent and cheap)
+ */
+export async function ensureAdmin() {
+  const { email, password } = getAdminCredentials();
+  const rows = await db.select().from(users).where(eq(users.email, email)).limit(1);
+  const admin = rows[0];
+  if (!admin) {
+    await db
+      .insert(users)
+      .values({ email, name: "VisionFold Studio", passwordHash: hashPassword(password), role: "admin" });
+    return;
+  }
+  if (password !== "demo1234" && verifyPassword("demo1234", admin.passwordHash)) {
+    await db
+      .update(users)
+      .set({ passwordHash: hashPassword(password), name: admin.name || "VisionFold Studio" })
+      .where(eq(users.id, admin.id));
+  }
+}
 
 export async function ensureSeed() {
   if (!seedPromise) {
@@ -38,6 +69,7 @@ export async function ensureSeed() {
     });
   }
   await seedPromise;
+  await ensureAdmin();
 }
 
 export async function resetSeed() {
@@ -90,8 +122,7 @@ async function runSeed(force: boolean) {
     // Demo people (fake clients/leads/messages/activity) only seed when asked for,
     // or in local development. Production stays clean of placeholder names.
     const seedDemo = process.env.SEED_DEMO === "true" || !isProd;
-    const adminEmail = (process.env.ADMIN_EMAIL || "visionfoldcreative@gmail.com").toLowerCase();
-    const adminPassword = process.env.ADMIN_PASSWORD || "aliasgar134";
+    const { email: adminEmail, password: adminPassword } = getAdminCredentials();
     if (isProd && !process.env.ADMIN_PASSWORD) {
       console.warn(
         "[seed] WARNING: ADMIN_PASSWORD env var is not set — the default admin password is active. " +

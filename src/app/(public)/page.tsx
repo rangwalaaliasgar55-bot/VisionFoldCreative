@@ -80,8 +80,8 @@ export default async function HomePage() {
         <div className="grid-bg pointer-events-none absolute inset-0" />
         <div className="relative mx-auto max-w-7xl px-5 text-center sm:px-8">
           <Reveal>
-            <div className="glass mx-auto inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-xs font-medium text-amber-300">
-              <span className="animate-pulseglow h-1.5 w-1.5 rounded-full bg-amber-400" />
+            <div className="glass mx-auto inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-xs font-medium text-cyan-300">
+              <span className="animate-pulseglow h-1.5 w-1.5 rounded-full bg-cyan-400" />
               Premium Video Editing Studio — High-Retention Post-Production
             </div>
           </Reveal>
@@ -100,7 +100,7 @@ export default async function HomePage() {
             <div className="mt-9 flex flex-wrap items-center justify-center gap-4">
               <Link
                 href="/contact"
-                className="group flex items-center gap-2 rounded-full bg-[#F4A62A] px-8 py-4 text-sm font-black uppercase tracking-wider text-black shadow-lg shadow-[#F4A62A]/35 transition-transform hover:scale-105 hover:bg-[#D98E0C]"
+                className="group flex items-center gap-2 rounded-full bg-[#7357FF] px-8 py-4 text-sm font-black uppercase tracking-wider text-white shadow-lg shadow-[#7357FF]/35 transition-transform hover:scale-105 hover:bg-[#6346E8]"
               >
                 {settings.heroCta}
                 <ArrowRight size={16} className="transition-transform group-hover:translate-x-1" />
@@ -109,7 +109,7 @@ export default async function HomePage() {
                 href="/work"
                 className="glass flex items-center gap-2 rounded-full px-8 py-4 text-sm font-semibold text-slate-200 transition-all hover:border-white/30 hover:text-white"
               >
-                <Film size={16} className="text-amber-300" />
+                <Film size={16} className="text-cyan-300" />
                 {settings.heroSecondary}
               </Link>
             </div>
@@ -117,14 +117,14 @@ export default async function HomePage() {
           <Reveal delay={400}>
             <div className="mx-auto mt-14 grid max-w-3xl grid-cols-2 gap-4 sm:grid-cols-4">
               {[
-                { value: Number(settings.statsYears || 8), suffix: "+", label: "Years editing" },
-                { value: Number(settings.statsProjects || 420), suffix: "+", label: "Projects delivered" },
-                { value: Number(settings.statsClients || 160), suffix: "+", label: "Happy clients" },
-                { value: Number(settings.statsAwards || 14), suffix: "", label: "Awards & nods" },
+                { value: Number(settings.statsYears || 2), suffix: "", label: "Years editing" },
+                { value: Number(settings.statsRating || 4.9), suffix: "/5", label: "Client rating", decimals: 1 },
+                { value: Number(settings.statsCountries || 12), suffix: "", label: "Countries served" },
+                { value: Number(settings.statsTurnaround || 24), suffix: "h", label: "Turnaround time" },
               ].map((s) => (
                 <div key={s.label} className="glass rounded-2xl px-4 py-5">
                   <div className="font-display text-3xl font-bold text-white sm:text-4xl">
-                    <Counter to={s.value} suffix={s.suffix} />
+                    <Counter to={s.value} suffix={s.suffix} decimals={s.decimals || 0} />
                   </div>
                   <div className="mt-1 text-xs uppercase tracking-widest text-slate-500">{s.label}</div>
                 </div>
@@ -160,7 +160,7 @@ export default async function HomePage() {
       <section className="mx-auto max-w-7xl px-5 py-24 sm:px-8">
         <Reveal>
           <div className="mx-auto max-w-2xl text-center">
-            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-amber-300">What we cut</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-cyan-300">What we cut</p>
             <h2 className="font-display mt-3 text-4xl font-bold text-white sm:text-5xl">
               Editing services that <span className="text-gradient">ship results</span>
             </h2>
@@ -177,7 +177,7 @@ export default async function HomePage() {
                   <h3 className="font-display text-lg font-semibold text-white">{title}</h3>
                   <p className="mt-2 flex-1 text-sm leading-relaxed text-slate-400">{desc}</p>
                   <div className="mt-4 flex items-center justify-between">
-                    <span className="text-sm font-semibold text-amber-300">{price}</span>
+                    <span className="text-sm font-semibold text-cyan-300">{price}</span>
                     <Link href="/contact" className="text-xs font-medium text-slate-500 transition-colors hover:text-white">
                       Get a quote →
                     </Link>
@@ -193,7 +193,7 @@ export default async function HomePage() {
       <section className="mx-auto max-w-7xl px-5 py-12 sm:px-8">
         <Reveal variant="scale">
           <div className="mb-8 text-center">
-            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-amber-300">Optical Standards</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-cyan-300">Optical Standards</p>
             <h2 className="font-display mt-2 text-3xl font-bold text-white sm:text-5xl">
               Photochemical Color & <span className="text-gradient">Finishing VFX</span>
             </h2>
@@ -210,7 +210,7 @@ export default async function HomePage() {
         <div className="mx-auto max-w-7xl px-5 sm:px-8">
           <Reveal>
             <div className="max-w-2xl">
-              <p className="text-xs font-semibold uppercase tracking-[0.3em] text-amber-300">How we work</p>
+              <p className="text-xs font-semibold uppercase tracking-[0.3em] text-cyan-300">How we work</p>
               <h2 className="font-display mt-3 text-4xl font-bold text-white sm:text-5xl">Four passes. Zero guesswork.</h2>
             </div>
           </Reveal>
@@ -221,7 +221,7 @@ export default async function HomePage() {
                   <span className="font-display absolute -right-2 -top-6 text-7xl font-bold text-white/4 transition-colors group-hover:text-brand-500/10">
                     {step}
                   </span>
-                  <Icon size={22} className="text-amber-300" />
+                  <Icon size={22} className="text-cyan-300" />
                   <h3 className="font-display mt-4 text-base font-semibold text-white">{title}</h3>
                   <p className="mt-2 text-sm leading-relaxed text-slate-400">{desc}</p>
                 </div>
@@ -235,7 +235,7 @@ export default async function HomePage() {
       <section className="mx-auto max-w-7xl px-5 py-24 sm:px-8">
         <Reveal>
           <div className="mx-auto max-w-2xl text-center">
-            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-amber-300">The 3D Reel</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-cyan-300">The 3D Reel</p>
             <h2 className="font-display mt-3 text-4xl font-bold text-white sm:text-5xl">
               Work you can <span className="text-gradient">feel</span>
             </h2>
@@ -248,7 +248,7 @@ export default async function HomePage() {
         <div className="mt-6 text-center">
           <Link
             href="/work"
-            className="inline-flex items-center gap-2 text-sm font-semibold text-amber-300 transition-colors hover:text-white"
+            className="inline-flex items-center gap-2 text-sm font-semibold text-cyan-300 transition-colors hover:text-white"
           >
             Browse the full portfolio <ArrowRight size={15} />
           </Link>
@@ -266,7 +266,7 @@ export default async function HomePage() {
           <div className="mx-auto max-w-7xl px-5 sm:px-8">
             <Reveal>
               <div className="mx-auto max-w-2xl text-center">
-                <p className="text-xs font-semibold uppercase tracking-[0.3em] text-amber-300">Client reviews</p>
+                <p className="text-xs font-semibold uppercase tracking-[0.3em] text-cyan-300">Client reviews</p>
                 <h2 className="font-display mt-3 text-4xl font-bold text-white sm:text-5xl">
                   Rated by the creators <span className="text-gradient">we cut for</span>
                 </h2>
@@ -305,12 +305,12 @@ export default async function HomePage() {
           <Reveal>
             <div className="flex flex-wrap items-end justify-between gap-4">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.3em] text-amber-300">From the studio</p>
+                <p className="text-xs font-semibold uppercase tracking-[0.3em] text-cyan-300">From the studio</p>
                 <h2 className="font-display mt-3 text-4xl font-bold text-white">
                   Editing tips & <span className="text-gradient">insider notes</span>
                 </h2>
               </div>
-              <Link href="/blog" className="text-sm font-semibold text-amber-300 transition-colors hover:text-white">
+              <Link href="/blog" className="text-sm font-semibold text-cyan-300 transition-colors hover:text-white">
                 All articles →
               </Link>
             </div>
@@ -330,7 +330,7 @@ export default async function HomePage() {
                     </div>
                     <div className="p-5">
                       <div className="flex items-center gap-2 text-[11px] text-slate-500">
-                        <span className="font-semibold uppercase tracking-widest text-amber-300">
+                        <span className="font-semibold uppercase tracking-widest text-cyan-300">
                           {p.categoryName || "Studio"}
                         </span>
                         <span>·</span>
@@ -354,7 +354,7 @@ export default async function HomePage() {
         <Reveal>
           <div className="bg-aurora relative overflow-hidden rounded-[2.5rem] border border-brand-400/20 p-10 text-center sm:p-16">
             <div className="animate-floaty2 pointer-events-none absolute -left-10 top-8 h-40 w-40 rounded-full bg-brand-600/25 blur-3xl" />
-            <div className="animate-floaty pointer-events-none absolute -right-10 bottom-8 h-40 w-40 rounded-full bg-amber-400/20 blur-3xl" />
+            <div className="animate-floaty pointer-events-none absolute -right-10 bottom-8 h-40 w-40 rounded-full bg-cyan-400/20 blur-3xl" />
             <h2 className="font-display relative text-3xl font-bold text-white sm:text-5xl">
               Got footage? <span className="text-gradient">Let&rsquo;s make it move.</span>
             </h2>
@@ -364,7 +364,7 @@ export default async function HomePage() {
             <div className="relative mt-8 flex flex-wrap justify-center gap-4">
               <Link
                 href="/contact"
-                className="glow-ring rounded-full bg-[#F4A62A] px-8 py-4 text-sm font-black uppercase tracking-wider text-black transition-transform hover:scale-105 hover:bg-[#D98E0C]"
+                className="glow-ring rounded-full bg-[#7357FF] px-8 py-4 text-sm font-black uppercase tracking-wider text-white transition-transform hover:scale-105 hover:bg-[#6346E8]"
               >
                 Book a Call / Get Quote
               </Link>

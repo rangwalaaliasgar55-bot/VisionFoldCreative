@@ -110,7 +110,7 @@ export default async function PostPage({ params }: { params: Promise<{ slug: str
             </p>
             <Link
               href="/contact"
-              className="mt-5 inline-block rounded-full bg-[#F4A62A] hover:bg-[#D98E0C] px-7 py-3 text-sm font-semibold text-black transition-transform hover:scale-105"
+              className="mt-5 inline-block rounded-full bg-[#7357FF] hover:bg-[#6346E8] px-7 py-3 text-sm font-semibold text-white transition-transform hover:scale-105"
             >
               Start a project
             </Link>
@@ -124,7 +124,7 @@ export default async function PostPage({ params }: { params: Promise<{ slug: str
           <div className="mt-6 grid gap-5 md:grid-cols-3">
             {related.map((p) => (
               <Link key={p.id} href={`/blog/${p.slug}`} className="glass card-glow group rounded-3xl p-5">
-                <span className="text-[10px] font-semibold uppercase tracking-widest text-amber-300">
+                <span className="text-[10px] font-semibold uppercase tracking-widest text-cyan-300">
                   {p.categoryName || "Studio"}
                 </span>
                 <h3 className="font-display mt-2 font-semibold leading-snug text-white transition-colors group-hover:text-brand-300">

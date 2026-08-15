@@ -87,9 +87,9 @@ export function ClientsGlobeSection() {
     // 1. Atmosphere Glow Shell
     const atmosGeo = new THREE.SphereGeometry(1.08, 48, 48);
     const atmosMat = new THREE.MeshBasicMaterial({
-      color: 0xF4A62A,
+      color: 0x7357ff,
       transparent: true,
-      opacity: 0.3,
+      opacity: 0.26,
       side: THREE.BackSide,
     });
     scene.add(new THREE.Mesh(atmosGeo, atmosMat));
@@ -114,10 +114,10 @@ export function ClientsGlobeSection() {
       map: earthDay,
       bumpMap: earthDay,
       bumpScale: 0.02,
-      specular: new THREE.Color(0xfff2d8),
+      specular: new THREE.Color(0x7357ff),
       shininess: 26,
       emissiveMap: earthNight,
-      emissive: new THREE.Color(0xc07a10),
+      emissive: new THREE.Color(0x4a2bc7),
       emissiveIntensity: 0.5,
     });
     const earth = new THREE.Mesh(earthGeo, earthMat);
@@ -140,7 +140,7 @@ export function ClientsGlobeSection() {
       const stars = new THREE.Points(
         starGeo,
         new THREE.PointsMaterial({
-          color: 0xF4A62A,
+          color: 0x8B6FFF,
           size: 0.022,
           transparent: true,
           opacity: 0.7,
@@ -157,10 +157,10 @@ export function ClientsGlobeSection() {
     const keyLight = new THREE.DirectionalLight(0xffe6b8, 1.5);
     keyLight.position.set(4, 3, 3);
     scene.add(keyLight);
-    const rimLight = new THREE.DirectionalLight(0xF4A62A, 1.2);
+    const rimLight = new THREE.DirectionalLight(0x7357ff, 1.2);
     rimLight.position.set(-3, -1, -3);
     scene.add(rimLight);
-    const backLight = new THREE.DirectionalLight(0x8a5a10, 0.7);
+    const backLight = new THREE.DirectionalLight(0x4a2bc7, 0.7);
     backLight.position.set(0, 0, -4);
     scene.add(backLight);
 
@@ -202,7 +202,7 @@ export function ClientsGlobeSection() {
       const pos = latLngToVec3(c.lat, c.lng, R);
       const dot = new THREE.Mesh(
         new THREE.SphereGeometry(0.018, 12, 12),
-        new THREE.MeshBasicMaterial({ color: 0xF7C873 })
+        new THREE.MeshBasicMaterial({ color: 0xa78bfa })
       );
       dot.position.copy(pos);
       dot.userData = { id: c.id };
@@ -212,7 +212,7 @@ export function ClientsGlobeSection() {
       const pts = curve.getPoints(60);
       const line = new THREE.Line(
         new THREE.BufferGeometry().setFromPoints(pts),
-        new THREE.LineBasicMaterial({ color: 0xC98A2A, transparent: true, opacity: 0.5 })
+        new THREE.LineBasicMaterial({ color: 0x7357ff, transparent: true, opacity: 0.45 })
       );
       line.userData = { id: c.id };
       arcs.add(line);
@@ -294,7 +294,7 @@ export function ClientsGlobeSection() {
         if (obj instanceof THREE.Line) {
           const mat = obj.material as THREE.LineBasicMaterial;
           const isActive = obj.userData.id === activeRef.current;
-          mat.color.setHex(isActive ? 0xF4A62A : 0xC98A2A);
+          mat.color.setHex(isActive ? 0xf4a62a : 0x7357ff);
           mat.opacity = isActive ? 0.95 : 0.3 + Math.sin(t * 2 + obj.userData.id) * 0.08;
         } else if (obj instanceof THREE.Mesh && obj.userData.curve) {
           const curve = obj.userData.curve as THREE.QuadraticBezierCurve3;
@@ -357,10 +357,10 @@ export function ClientsGlobeSection() {
 
         <div className="mb-8 grid grid-cols-2 gap-3 sm:grid-cols-4 max-w-3xl mx-auto">
           {[
-            { label: "15+ Countries", sub: "Global Clients" },
-            { label: "Indore & Global", sub: "Production HQ" },
-            { label: "420+ Projects", sub: "Master Delivered" },
-            { label: "24h SLA", sub: "Async Turnaround" },
+            { label: "12 Countries", sub: "Global Clients" },
+            { label: "2 Years", sub: "Editing Experience" },
+            { label: "4.9/5", sub: "Client Rating" },
+            { label: "24h", sub: "Turnaround" },
           ].map((s) => (
             <div key={s.label} className="glass rounded-2xl p-4 text-center">
               <p className="font-display text-xl font-bold text-white">{s.label}</p>
@@ -371,7 +371,7 @@ export function ClientsGlobeSection() {
 
         <div className="grid items-center gap-8 lg:grid-cols-[1.5fr_1fr]">
           {/* 3D Interactive Globe Canvas Viewport */}
-          <div className="relative aspect-square overflow-hidden rounded-3xl border border-brand-400/20 bg-gradient-to-b from-[#0a0a0b] via-[#131007] to-black sm:aspect-[16/11] shadow-2xl">
+          <div className="relative aspect-square overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-b from-[#0e1326] to-black sm:aspect-[16/11] shadow-2xl">
             <div ref={mountRef} className="absolute inset-0 z-10" />
             {!ready && (
               <div className="absolute inset-0 z-20 flex items-center justify-center text-xs uppercase tracking-[0.2em] text-slate-400">

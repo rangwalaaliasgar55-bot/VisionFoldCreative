@@ -88,7 +88,7 @@ function SidebarContent({ pathname, onNavigate, name, email, role }: { pathname:
     <div className="flex h-full flex-col">
       <div className="flex h-[72px] items-center border-b border-white/[0.07] px-5">
         <Link href="/admin" onClick={onNavigate} className="group flex min-w-0 items-center gap-3">
-          <div className="relative grid h-9 w-9 shrink-0 place-items-center overflow-hidden rounded-xl bg-gradient-to-br from-brand-500 via-amber-500 to-amber text-sm font-black text-white shadow-[0_8px_28px_-8px_rgba(244,166,42,.8)]">
+          <div className="relative grid h-9 w-9 shrink-0 place-items-center overflow-hidden rounded-xl bg-gradient-to-br from-brand-500 via-amber-500 to-amber text-sm font-black text-white shadow-[0_8px_28px_-8px_rgba(115,87,255,.8)]">
             V<span className="absolute -bottom-2 -right-2 h-5 w-5 rounded-full bg-white/20 blur-md" />
           </div>
           <div className="min-w-0">
@@ -117,7 +117,7 @@ function SidebarContent({ pathname, onNavigate, name, email, role }: { pathname:
                         : "text-slate-400 hover:bg-white/[0.045] hover:text-slate-100"
                     )}
                   >
-                    {active && <span className="absolute -left-3 h-5 w-0.5 rounded-r-full bg-brand-400 shadow-[0_0_12px_2px_rgba(244,166,42,.7)]" />}
+                    {active && <span className="absolute -left-3 h-5 w-0.5 rounded-r-full bg-brand-400 shadow-[0_0_12px_2px_rgba(115,87,255,.7)]" />}
                     <Icon size={16} strokeWidth={active ? 2.2 : 1.7} className={active ? "text-brand-300" : "text-slate-500 group-hover:text-slate-300"} />
                     <span>{label}</span>
                   </Link>
@@ -186,14 +186,14 @@ export function AdminShell({ children, name, email, role }: { children: ReactNod
 
   return (
     <div className="admin-surface animate-page-in min-h-screen bg-ink">
-      <aside className="fixed inset-y-0 left-0 z-40 hidden w-[260px] border-r border-white/[0.07] bg-[#0E0E10] xl:block">
+      <aside className="fixed inset-y-0 left-0 z-40 hidden w-[260px] border-r border-white/[0.07] bg-[#0d1324] xl:block">
         <SidebarContent pathname={pathname} name={name} email={email} role={staffRole} />
       </aside>
 
       {mobileOpen && (
         <div className="fixed inset-0 z-[80] xl:hidden">
           <button aria-label="Close menu" className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setMobileOpen(false)} />
-          <aside className="relative h-full w-[min(86vw,290px)] border-r border-white/10 bg-[#0E0E10] shadow-2xl">
+          <aside className="relative h-full w-[min(86vw,290px)] border-r border-white/10 bg-[#0d1324] shadow-2xl">
             <button aria-label="Close menu" onClick={() => setMobileOpen(false)} className="absolute right-3 top-5 z-10 rounded-lg p-2 text-slate-400 hover:bg-white/5 hover:text-white"><X size={18} /></button>
             <SidebarContent pathname={pathname} onNavigate={() => setMobileOpen(false)} name={name} email={email} role={staffRole} />
           </aside>

@@ -29,7 +29,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           rel="stylesheet"
         />
       </head>
-      <body className="min-h-screen bg-ink text-[#F6F3EC] antialiased selection:bg-[#F4A62A]/40 selection:text-black">
+      <body className="min-h-screen bg-ink text-[#F6F3EC] antialiased selection:bg-[#7357FF]/40 selection:text-white">
         {children}
       </body>
     </html>

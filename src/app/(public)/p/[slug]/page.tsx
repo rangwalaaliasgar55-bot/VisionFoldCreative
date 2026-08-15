@@ -35,7 +35,7 @@ export default async function CmsPublicPage({ params }: Props) {
 
   return (
     <main className="relative min-h-screen overflow-hidden pb-24 pt-32">
-      <div className="pointer-events-none absolute inset-x-0 top-0 h-[30rem] bg-[radial-gradient(circle_at_50%_0%,rgba(244,166,42,.16),transparent_65%)]" />
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-[30rem] bg-[radial-gradient(circle_at_50%_0%,rgba(115,87,255,.16),transparent_65%)]" />
       <article className="relative mx-auto max-w-5xl px-5 sm:px-8">
         <BlockRenderer blocks={page.blocks} />
       </article>
