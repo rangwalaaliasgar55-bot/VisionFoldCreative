@@ -38,8 +38,9 @@ export function Logo({ className = "h-9" }: { className?: string }) {
     <img
       src="/brand/vf-mark-white.png"
       alt="VisionFold Creative"
-      style={{ width: "auto" }}
-      className={`h-9 object-contain ${className}`}
+      width={442}
+      height={266}
+      className={`h-9 ${className}`}
     />
   );
 }

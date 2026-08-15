@@ -21,7 +21,7 @@ export default async function PublicLayout({ children }: { children: ReactNode }
         <div className="grid-bg pointer-events-none absolute inset-0" />
         <div className="relative w-full max-w-xl text-center">
           <div className="animate-floaty mx-auto mb-8 grid h-20 w-20 place-items-center rounded-3xl bg-gradient-to-br from-[#7357FF] to-[#5B3FD4] shadow-[0_0_80px_-20px_rgba(115,87,255,0.9)]">
-            <Logo className="h-10 w-10" />
+            <Logo className="h-10" />
           </div>
           <p className="text-xs font-semibold uppercase tracking-[0.3em] text-cyan-300">
             {settings.siteTitle} · Maintenance

@@ -15,16 +15,16 @@ import {
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Services & Pricing",
-  description: "Video editing services and transparent pricing: brand films, YouTube editing, music videos, ads and more.",
+  title: "Services",
+  description: "Video editing services: brand films, YouTube editing, music videos, ads and more — every project quoted individually.",
 };
 
 const SERVICES = [
   {
     Icon: Clapperboard,
     title: "Brand Films",
-    price: "from ₹2,00,000",
-    unit: "custom · per film",
+    price: "Custom quote",
+    unit: "custom",
     desc: "Launch films, about films and founder stories cut to cinema standard.",
     perks: ["Story-first beat sheet", "Motion graphics included", "Film-grade color", "2 revision rounds", "All aspect ratios"],
   },
@@ -32,39 +32,39 @@ const SERVICES = [
     Icon: MonitorPlay,
     title: "YouTube Editing",
     price: "Custom quote",
-    unit: "per video · long-form",
+    unit: "custom",
     desc: "Long-form edits engineered for retention, plus a monthly retainer option.",
     perks: ["Retention pacing & hooks", "Sound design & music", "Chapter cards & end screens", "48h–72h turnaround", "Monthly retainer discounts"],
   },
   {
     Icon: Music,
     title: "Music Videos",
-    price: "from ₹1,50,000",
-    unit: "custom · per video",
+    price: "Custom quote",
+    unit: "custom",
     desc: "Rhythm cuts and cinematic grade that make the song feel bigger.",
     perks: ["Beat-synced cutting", "VFX cleanup", "Lyric video option", "Premiere teaser cut", "Vertical edits included"],
   },
   {
     Icon: Megaphone,
     title: "Commercials & Ads",
-    price: "from ₹1,25,000",
-    unit: "custom · per campaign",
+    price: "Custom quote",
+    unit: "custom",
     desc: "Platform-ready ad packs delivered in days, optimized to convert.",
     perks: ["16:9 + 9:16 + 1:1", "Subtitle pass", "Hook variations", "3-day delivery", "Platform QC"],
   },
   {
     Icon: Heart,
     title: "Wedding Cinema",
-    price: "from ₹1,00,000",
-    unit: "custom · per film",
+    price: "Custom quote",
+    unit: "custom",
     desc: "Ceremony films and teasers edited into stories worth rewatching.",
     perks: ["Ceremony + highlight film", "Cinematic grade", "Licensed music", "Teaser in 7 days", "USB + cloud delivery"],
   },
   {
     Icon: Mic,
     title: "Podcast Editing",
-    price: "from ₹40,000",
-    unit: "custom · per episode",
+    price: "Custom quote",
+    unit: "custom",
     desc: "Full episode cleanup plus a clip engine for Shorts and Reels.",
     perks: ["Audio repair & mixing", "Multicam switching", "Clip engine (3+ clips)", "Caption files", "Weekly scheduling"],
   },
@@ -104,43 +104,14 @@ export default async function ServicesPage() {
       <section className="mx-auto max-w-7xl px-5 pb-24 pt-20 sm:px-8 space-y-20">
         <Reveal>
           <div className="mx-auto max-w-2xl text-center">
-            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-cyan-300">Services & pricing</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-cyan-300">Services</p>
             <h1 className="font-display mt-3 text-4xl font-bold text-white sm:text-6xl">
-              Transparent pricing, <span className="text-gradient">cinema-grade output</span>
+              Custom quotes, <span className="text-gradient">cinema-grade output</span>
             </h1>
             <p className="mt-4 text-slate-400">
               Every service includes structured revision rounds, a review link and delivery in every
               format you need. No hidden line items — ever.
             </p>
-          </div>
-        </Reveal>
-
-        {/* Shorts — flat rate highlight */}
-        <Reveal>
-          <div className="glass card-glow relative mx-auto max-w-3xl overflow-hidden rounded-3xl p-7 sm:p-9">
-            <div className="absolute right-0 top-0 rounded-bl-2xl bg-brand-500/15 px-4 py-1.5 text-xs font-bold uppercase tracking-widest text-brand-300">
-              Most popular
-            </div>
-            <div className="flex flex-col items-start gap-5 sm:flex-row sm:items-center">
-              <div className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-[#7357FF]/30 to-[#F4A62A]/15 text-brand-300">
-                <Clapperboard size={26} />
-              </div>
-              <div className="flex-1">
-                <h3 className="font-display text-xl font-bold text-white sm:text-2xl">
-                  Shorts &amp; Reels — <span className="text-gradient">₹700 flat</span>
-                </h3>
-                <p className="mt-1 text-sm text-slate-400">
-                  Vertical edits for Instagram, YouTube Shorts and TikTok. Delivered in 24 hours — hook, captions,
-                  sound design and platform-safe export included.
-                </p>
-              </div>
-              <Link
-                href="/contact"
-                className="shrink-0 rounded-xl bg-brand-500 px-6 py-3 text-sm font-bold text-white shadow-lg shadow-brand-500/30 transition-all hover:bg-brand-600"
-              >
-                Order a Short
-              </Link>
-            </div>
           </div>
         </Reveal>
 
@@ -186,7 +157,7 @@ export default async function ServicesPage() {
           <p className="mx-auto max-w-3xl text-center text-sm leading-relaxed text-slate-400">
             <span className="font-semibold text-white">Long-form rates are custom.</span> Every film, episode and
             campaign is quoted individually — the final price depends on the footage length, complexity, revision
-            rounds and turnaround. Shorts &amp; Reels are a flat <span className="font-semibold text-brand-300">₹700 each</span>.
+            rounds and turnaround — and every rate is confirmed with you before we start.
           </p>
         </Reveal>
 

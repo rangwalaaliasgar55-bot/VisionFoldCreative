@@ -27,13 +27,13 @@ import { ensureSeed } from "@/lib/seed";
 export const dynamic = "force-dynamic";
 
 const SERVICES = [
-  { Icon: Clapperboard, title: "Brand Films", desc: "Launch films and brand stories that make people feel something — cut, graded and mixed to cinema standard.", price: "from ₹2,00,000" },
+  { Icon: Clapperboard, title: "Brand Films", desc: "Launch films and brand stories that make people feel something — cut, graded and mixed to cinema standard.", price: "Custom quote" },
   { Icon: MonitorPlay, title: "YouTube Editing", desc: "Retention-first edits with pacing, sound design and hooks engineered to hold watch-time.", price: "Custom quote" },
-  { Icon: Music, title: "Music Videos", desc: "Rhythm cuts, film-grade color and VFX cleanup that make the song hit harder.", price: "from ₹1,50,000" },
-  { Icon: Megaphone, title: "Commercials & Ads", desc: "Platform-ready ad packs — 16:9, 9:16, 1:1 with subtitles — shipped in days, not weeks.", price: "from ₹1,25,000" },
-  { Icon: Heart, title: "Wedding Cinema", desc: "Ceremony films and teasers edited into stories you'll rewatch for decades.", price: "from ₹1,00,000" },
-  { Icon: Mic, title: "Podcast Editing", desc: "Full episode cleanup plus a clip engine that turns every episode into Shorts and Reels.", price: "from ₹40,000 / ep" },
-  { Icon: Zap, title: "Shorts & Reels", desc: "Vertical edits for Instagram, Shorts and TikTok — hook, captions, sound design. Delivered in 24 hours.", price: "₹700 flat" },
+  { Icon: Music, title: "Music Videos", desc: "Rhythm cuts, film-grade color and VFX cleanup that make the song hit harder.", price: "Custom quote" },
+  { Icon: Megaphone, title: "Commercials & Ads", desc: "Platform-ready ad packs — 16:9, 9:16, 1:1 with subtitles — shipped in days, not weeks.", price: "Custom quote" },
+  { Icon: Heart, title: "Wedding Cinema", desc: "Ceremony films and teasers edited into stories you'll rewatch for decades.", price: "Custom quote" },
+  { Icon: Mic, title: "Podcast Editing", desc: "Full episode cleanup plus a clip engine that turns every episode into Shorts and Reels.", price: "Custom quote" },
+  { Icon: Zap, title: "Shorts & Reels", desc: "Vertical edits for Instagram, Shorts and TikTok — hook, captions, sound design. Delivered in 24 hours.", price: "Custom quote" },
 ];
 
 const PROCESS = [

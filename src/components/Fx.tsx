@@ -389,32 +389,14 @@ export function RatesCalculator() {
   const [needsMotionGfx, setNeedsMotionGfx] = useState(true);
   const [fastTurnaround, setFastTurnaround] = useState(false);
 
-  const baseRates = {
-    short: 700,
-    brand: 200000,
-    youtube: 30000,
-    commercial: 125000,
-    music: 150000,
-    podcast: 40000,
-  };
-
-  const calculatedTotal = Math.round(
-    serviceType === "short"
-      ? 700 * videoCount
-      : baseRates[serviceType] * videoCount +
-          (rawFootageHours > 2 ? (rawFootageHours - 2) * 12500 : 0) +
-          (needsMotionGfx ? 20000 * videoCount : 0) +
-          (fastTurnaround ? 30000 * videoCount : 0)
-  );
-
   return (
     <div className="glass card-glow mx-auto max-w-3xl rounded-3xl p-6 sm:p-8 space-y-6">
       <div className="text-center space-y-2">
         <div className="inline-flex items-center gap-2 rounded-full bg-brand-500/10 px-3.5 py-1 text-xs font-semibold text-brand-300 border border-brand-400/20">
-          <Sparkles size={13} /> Transparent Pricing Calculator
+          <Sparkles size={13} /> Custom Quote Builder
         </div>
-        <h3 className="font-display text-2xl font-bold text-white sm:text-3xl">Estimate Your Project Investment</h3>
-        <p className="text-xs text-slate-400">Instant studio rate estimate with no surprise hidden fees.</p>
+        <h3 className="font-display text-2xl font-bold text-white sm:text-3xl">Tell Us About Your Project</h3>
+        <p className="text-xs text-slate-400">Answer a few questions — we&rsquo;ll send a custom quote within 24 hours.</p>
       </div>
 
       <div className="space-y-4">
@@ -422,7 +404,7 @@ export function RatesCalculator() {
           <label className="text-xs font-semibold uppercase tracking-wider text-slate-400 block mb-2">Service Type</label>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
             {[
-              { id: "short", label: "Shorts · ₹700" },
+              { id: "short", label: "Shorts" },
               { id: "brand", label: "Brand Film" },
               { id: "youtube", label: "YouTube Cut" },
               { id: "commercial", label: "Ad Suite" },
@@ -508,16 +490,15 @@ export function RatesCalculator() {
 
       <div className="rounded-2xl border border-white/10 bg-panel p-5 flex flex-wrap items-center justify-between gap-4">
         <div>
-          <p className="text-xs uppercase tracking-wider text-slate-400">Estimated Studio Investment</p>
-          <p className="font-display text-3xl sm:text-4xl font-bold text-gradient">
-            ₹{calculatedTotal.toLocaleString("en-IN")}
-          </p>
+          <p className="text-xs uppercase tracking-wider text-slate-400">Your custom quote</p>
+          <p className="font-display text-2xl sm:text-3xl font-bold text-gradient">Priced to your brief</p>
+          <p className="mt-1 text-xs text-slate-400">Every rate is confirmed with you before we start — no hidden fees.</p>
         </div>
         <Link
-          href={`/contact?service=${serviceType}&budget=${calculatedTotal}`}
+          href={`/contact?service=${serviceType}`}
           className="rounded-full bg-brand-600 px-7 py-3 text-sm font-bold text-white shadow-lg shadow-brand-500/30 hover:bg-brand-500 transition-transform hover:scale-105"
         >
-          Lock In This Rate →
+          Request custom quote →
         </Link>
       </div>
     </div>

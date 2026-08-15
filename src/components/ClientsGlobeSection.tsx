@@ -67,7 +67,7 @@ export function ClientsGlobeSection() {
 
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(42, w / h, 0.1, 100);
-    camera.position.set(0, 0.1, 3.15);
+    camera.position.set(0, 0.1, 2.7);
 
     const renderer = new THREE.WebGLRenderer({ antialias: !isMobile, alpha: true, powerPreference: "high-performance" });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, isMobile ? 1.2 : 1.75));
@@ -89,7 +89,7 @@ export function ClientsGlobeSection() {
     const atmosMat = new THREE.MeshBasicMaterial({
       color: 0x7357ff,
       transparent: true,
-      opacity: 0.26,
+      opacity: 0.18,
       side: THREE.BackSide,
     });
     scene.add(new THREE.Mesh(atmosGeo, atmosMat));
@@ -110,59 +110,26 @@ export function ClientsGlobeSection() {
     earthNight.colorSpace = THREE.SRGBColorSpace;
 
     const earthMat = new THREE.MeshPhongMaterial({
-      color: 0x27405c,
       map: earthDay,
       bumpMap: earthDay,
-      bumpScale: 0.02,
+      bumpScale: 0.018,
       specular: new THREE.Color(0x7357ff),
-      shininess: 26,
+      shininess: 24,
       emissiveMap: earthNight,
       emissive: new THREE.Color(0x4a2bc7),
-      emissiveIntensity: 0.5,
+      emissiveIntensity: 0.45,
     });
     const earth = new THREE.Mesh(earthGeo, earthMat);
     scene.add(earth);
 
-    // Starfield backdrop so the globe always reads against something
-    {
-      const starCount = isMobile ? 220 : 420;
-      const starPos = new Float32Array(starCount * 3);
-      for (let i = 0; i < starCount; i++) {
-        const r = 6.5 + Math.random() * 4;
-        const theta = Math.random() * Math.PI * 2;
-        const phi = Math.acos(2 * Math.random() - 1);
-        starPos[i * 3] = r * Math.sin(phi) * Math.cos(theta);
-        starPos[i * 3 + 1] = r * Math.sin(phi) * Math.sin(theta);
-        starPos[i * 3 + 2] = r * Math.cos(phi);
-      }
-      const starGeo = new THREE.BufferGeometry();
-      starGeo.setAttribute("position", new THREE.BufferAttribute(starPos, 3));
-      const stars = new THREE.Points(
-        starGeo,
-        new THREE.PointsMaterial({
-          color: 0x8B6FFF,
-          size: 0.022,
-          transparent: true,
-          opacity: 0.7,
-          blending: THREE.AdditiveBlending,
-          depthWrite: false,
-        })
-      );
-      scene.add(stars);
-      (scene.userData as any).stars = stars;
-    }
-
     // 3. Ambient & Directional Lights
-    scene.add(new THREE.AmbientLight(0xffffff, 0.85));
-    const keyLight = new THREE.DirectionalLight(0xffe6b8, 1.5);
+    scene.add(new THREE.AmbientLight(0xffffff, 0.65));
+    const keyLight = new THREE.DirectionalLight(0xf4a62a, 1.3);
     keyLight.position.set(4, 3, 3);
     scene.add(keyLight);
-    const rimLight = new THREE.DirectionalLight(0x7357ff, 1.2);
-    rimLight.position.set(-3, -1, -3);
+    const rimLight = new THREE.DirectionalLight(0x7357ff, 0.8);
+    rimLight.position.set(-3, -1, -2);
     scene.add(rimLight);
-    const backLight = new THREE.DirectionalLight(0x4a2bc7, 0.7);
-    backLight.position.set(0, 0, -4);
-    scene.add(backLight);
 
     // 4. Client Pins & Arcs
     const markers = new THREE.Group();
@@ -343,7 +310,7 @@ export function ClientsGlobeSection() {
       <div className="mx-auto max-w-7xl">
         <div className="mb-12 text-center">
           <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-brand-400/30 bg-brand-500/10 px-4 py-1.5 text-xs font-semibold text-brand-300">
-            <Globe2 className="h-4 w-4 text-amber-300 animate-spin-slow" />
+            <Globe2 className="h-4 w-4 text-cyan-300 animate-spin-slow" />
             <span>Worldwide Creative Footprint</span>
           </div>
           <h2 className="font-display text-4xl font-bold text-white sm:text-5xl">
@@ -364,7 +331,7 @@ export function ClientsGlobeSection() {
           ].map((s) => (
             <div key={s.label} className="glass rounded-2xl p-4 text-center">
               <p className="font-display text-xl font-bold text-white">{s.label}</p>
-              <p className="mt-0.5 text-[10px] uppercase tracking-wider text-amber-300 font-semibold">{s.sub}</p>
+              <p className="mt-0.5 text-[10px] uppercase tracking-wider text-cyan-300 font-semibold">{s.sub}</p>
             </div>
           ))}
         </div>
@@ -382,7 +349,7 @@ export function ClientsGlobeSection() {
             {/* Active Client Location Info Box */}
             <div className="pointer-events-none absolute bottom-4 left-4 right-4 z-20 rounded-2xl border border-white/10 bg-black/80 p-4 backdrop-blur-xl sm:left-auto sm:right-4 sm:w-64">
               <div className="flex gap-2.5">
-                <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-amber-300" />
+                <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-cyan-300" />
                 <div>
                   <p className="font-display font-bold text-white">{activeClient.city}</p>
                   <p className="text-xs text-slate-400">{activeClient.country}</p>
@@ -416,7 +383,7 @@ export function ClientsGlobeSection() {
                       c.city === "Indore"
                         ? "bg-amber-400 ring-4 ring-amber-400/20"
                         : active === c.id
-                        ? "bg-amber-300 ring-4 ring-amber-300/20"
+                        ? "bg-cyan-300 ring-4 ring-cyan-300/20"
                         : "bg-white/30"
                     }`}
                   />
