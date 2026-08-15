@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Badge,
   Button,
@@ -97,14 +97,14 @@ export default function ClientPortalPage() {
   const [payingInvoice, setPayingInvoice] = useState<any | null>(null);
   const [processingPay, setProcessingPay] = useState(false);
 
-  async function loadData() {
+  const loadData = useCallback(async () => {
     try {
       const res = await fetch("/api/portal/overview");
       if (res.ok) {
         const d = await res.json();
         setData(d);
-        if (d.projects?.length && !activeReviewProj) {
-          setActiveReviewProj(d.projects[0]);
+        if (d.projects?.length) {
+          setActiveReviewProj((current: any) => current || d.projects[0]);
         }
       }
     } catch {
@@ -112,13 +112,16 @@ export default function ClientPortalPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, []);
 
   useEffect(() => {
-    loadData();
-    const interval = setInterval(loadData, 8000);
-    return () => clearInterval(interval);
-  }, []);
+    const initial = window.setTimeout(() => void loadData(), 0);
+    const interval = window.setInterval(() => void loadData(), 8000);
+    return () => {
+      window.clearTimeout(initial);
+      window.clearInterval(interval);
+    };
+  }, [loadData]);
 
   useEffect(() => {
     if (chatScrollRef.current) {
@@ -228,12 +231,12 @@ export default function ClientPortalPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ invoiceId }),
       });
-      if (res.ok) {
-        toast("Payment processed successfully! Receipt generated.");
-        setPayingInvoice(null);
-        await loadData();
+      const result = await res.json().catch(() => ({}));
+      if (res.ok && result.checkoutUrl) {
+        toast("Opening secure checkout…");
+        window.location.assign(result.checkoutUrl);
       } else {
-        toast("Payment failed", "err");
+        toast(result.error || "Secure payment is not available yet", "err");
       }
     } catch {
       toast("Payment network error", "err");

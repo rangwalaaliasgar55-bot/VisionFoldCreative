@@ -2,7 +2,6 @@ import { db } from "@/db";
 import { invoices, messages, projects, ratings, updates } from "@/db/schema";
 import { eq, sql } from "drizzle-orm";
 import { bad, hashPassword, ok, readBody, requireClient, verifyPassword } from "@/lib/auth";
-import { money } from "@/lib/utils";
 import { clients } from "@/db/schema";
 
 export const dynamic = "force-dynamic";
@@ -99,8 +98,16 @@ export async function POST(
 
     if (action === "rating") {
       const stars = Math.max(1, Math.min(5, Number(body.stars ?? 0)));
-      const comment = String(body.comment || "").trim();
+      const comment = String(body.comment || "").trim().slice(0, 2000);
       const projectId = body.projectId ? Number(body.projectId) : null;
+      if (projectId) {
+        const ownedProject = await db
+          .select({ id: projects.id })
+          .from(projects)
+          .where(sql`${projects.id} = ${projectId} and ${projects.clientId} = ${client.id}`)
+          .limit(1);
+        if (!ownedProject.length) return bad("Project not found.", 404);
+      }
       const existing = await db
         .select()
         .from(ratings)
@@ -162,14 +169,19 @@ export async function POST(
       )[0];
       if (!inv) return bad("Invoice not found.", 404);
       if (inv.status === "paid") return bad("Already paid.");
-      await db.update(invoices).set({ status: "paid" }).where(eq(invoices.id, inv.id));
-      await db.insert(messages).values({
-        clientId: client.id,
-        sender: "admin",
-        body: `Payment received for ${inv.number} ($${money(inv.amount)}) — thank you! Receipt generated.`,
-        read: false,
-      });
-      return ok({ ok: true });
+
+      // Never mark an invoice paid from a browser click. A verified payment
+      // provider webhook must perform that state transition. Until a provider
+      // is connected, direct the client to a configured hosted checkout.
+      const checkoutBase = process.env.PAYMENT_CHECKOUT_URL?.trim();
+      if (!checkoutBase) {
+        return bad("Online payment is not configured. Please contact the studio for payment instructions.", 503);
+      }
+      const checkout = new URL(checkoutBase);
+      checkout.searchParams.set("invoice", inv.number);
+      checkout.searchParams.set("amount", String(inv.amount));
+      checkout.searchParams.set("client", String(client.id));
+      return ok({ ok: true, checkoutUrl: checkout.toString() });
     }
 
     if (action === "request-project") {
@@ -214,6 +226,14 @@ export async function POST(
       const feedback = String(body.feedback || "").trim();
       const approved = Boolean(body.approved);
       if (!projectId) return bad("Project ID is required.");
+      const ownedProject = await db
+        .select({ id: projects.id })
+        .from(projects)
+        .where(sql`${projects.id} = ${projectId} and ${projects.clientId} = ${client.id}`)
+        .limit(1);
+      if (!ownedProject.length) return bad("Project not found.", 404);
+      if (!approved && !feedback) return bad("Revision feedback is required.");
+      if (feedback.length > 5000) return bad("Feedback is too long (maximum 5,000 characters).");
 
       if (approved) {
         await db.update(projects).set({ status: "completed", progress: 100 }).where(eq(projects.id, projectId));

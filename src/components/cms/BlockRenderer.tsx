@@ -1,12 +1,25 @@
 import React from 'react';
 import type { CmsBlock } from '../../lib/cmsTypes';
 
+// CMS text accepts a small amount of HTML. Strip executable markup before it
+// reaches dangerouslySetInnerHTML; editors can format copy without turning a
+// compromised admin session into persistent script execution.
+function sanitizeCmsHtml(value: unknown) {
+  return String(value || '')
+    .replace(/<\s*(script|iframe|object|embed|style|link|meta)[^>]*>[\s\S]*?<\s*\/\s*\1\s*>/gi, '')
+    .replace(/<\s*(script|iframe|object|embed|style|link|meta)\b[^>]*\/?\s*>/gi, '')
+    .replace(/\s+on[a-z]+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, '')
+    .replace(/(href|src)\s*=\s*(["'])\s*javascript:[\s\S]*?\2/gi, '$1="#"');
+}
+
 export function BlockRenderer({ blocks }: { blocks: CmsBlock[] }) {
   const ordered = [...(blocks || [])].sort((a, b) => a.order - b.order);
   return (
     <div className="space-y-8">
-      {ordered.map((b) => (
-        <Block key={b.id} block={b} />
+      {ordered.map((b, index) => (
+        <div key={b.id} className="cms-block-reveal" style={{ animationDelay: `${Math.min(index * 70, 420)}ms` }}>
+          <Block block={b} />
+        </div>
       ))}
     </div>
   );
@@ -27,7 +40,7 @@ function Block({ block }: { block: CmsBlock }) {
       return (
         <div
           className="prose prose-invert max-w-none text-[#B8B3AA] leading-relaxed"
-          dangerouslySetInnerHTML={{ __html: String(c.html || '') }}
+          dangerouslySetInnerHTML={{ __html: sanitizeCmsHtml(c.html) }}
         />
       );
     case 'image':

@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Plus,
   Save,
@@ -28,12 +28,13 @@ export const PageBuilder: React.FC = () => {
   const [msg, setMsg] = useState('');
   const [err, setErr] = useState('');
   const [preview, setPreview] = useState(false);
+  const blockCounter = useRef(0);
 
   const loadList = useCallback(async () => {
     setLoading(true);
     setErr('');
     try {
-      const res = await adminApi.get<{ pages: CmsPage[] }>('/api/cms/pages/admin');
+      const res = await adminApi.get<{ pages: CmsPage[] }>('/api/admin/cms/pages');
       setPages(res.pages || []);
     } catch (e: any) {
       setErr(e.message || 'Failed to load pages — sign in again if session expired');
@@ -45,7 +46,7 @@ export const PageBuilder: React.FC = () => {
   const loadPage = async (id: string) => {
     setErr('');
     try {
-      const res = await adminApi.get<{ page: CmsPage; revisions: CmsRevision[] }>(`/api/cms/pages/${id}`);
+      const res = await adminApi.get<{ page: CmsPage; revisions: CmsRevision[] }>(`/api/admin/cms/pages/${id}`);
       setPage(res.page);
       setRevisions(res.revisions || []);
       setSelectedId(id);
@@ -55,7 +56,8 @@ export const PageBuilder: React.FC = () => {
   };
 
   useEffect(() => {
-    void loadList();
+    const task = window.setTimeout(() => void loadList(), 0);
+    return () => window.clearTimeout(task);
   }, [loadList]);
 
   const createPage = async () => {
@@ -63,7 +65,7 @@ export const PageBuilder: React.FC = () => {
     if (!title) return;
     setErr('');
     try {
-      const res = await adminApi.post<{ page: CmsPage }>('/api/cms/pages', { title });
+      const res = await adminApi.post<{ page: CmsPage }>('/api/admin/cms/pages', { title });
       await loadList();
       await loadPage(res.page.id);
       setMsg('Draft created — click Save after edits');
@@ -78,7 +80,7 @@ export const PageBuilder: React.FC = () => {
     setMsg('');
     setErr('');
     try {
-      const res = await adminApi.put<{ page: CmsPage }>(`/api/cms/pages/${page.id}`, {
+      const res = await adminApi.put<{ page: CmsPage }>(`/api/admin/cms/pages/${page.id}`, {
         title: page.title,
         slug: page.slug,
         seo: page.seo,
@@ -100,7 +102,7 @@ export const PageBuilder: React.FC = () => {
     if (!page) return;
     try {
       await save();
-      const res = await adminApi.post<{ page: CmsPage }>(`/api/cms/pages/${page.id}/publish`, {});
+      const res = await adminApi.post<{ page: CmsPage }>(`/api/admin/cms/pages/${page.id}/publish`, {});
       setPage(res.page);
       setMsg(`Published → /p/${res.page.slug}`);
       await loadList();
@@ -112,7 +114,7 @@ export const PageBuilder: React.FC = () => {
   const unpublish = async () => {
     if (!page) return;
     try {
-      const res = await adminApi.post<{ page: CmsPage }>(`/api/cms/pages/${page.id}/unpublish`, {});
+      const res = await adminApi.post<{ page: CmsPage }>(`/api/admin/cms/pages/${page.id}/unpublish`, {});
       setPage(res.page);
       setMsg('Unpublished → draft');
       await loadList();
@@ -125,7 +127,7 @@ export const PageBuilder: React.FC = () => {
     if (!page) return;
     if (!confirm(`Delete “${page.title}” permanently?`)) return;
     try {
-      await adminApi.delete(`/api/cms/pages/${page.id}`);
+      await adminApi.delete(`/api/admin/cms/pages/${page.id}`);
       setPage(null);
       setSelectedId(null);
       setMsg('Page deleted');
@@ -140,7 +142,7 @@ export const PageBuilder: React.FC = () => {
     const cat = BLOCK_CATALOG.find((c) => c.type === type);
     if (!cat) return;
     const block: CmsBlock = {
-      id: `blk_${Date.now()}`,
+      id: `blk_local_${++blockCounter.current}`,
       type: cat.type,
       order: page.blocks.length,
       content: { ...cat.defaults },
@@ -179,7 +181,7 @@ export const PageBuilder: React.FC = () => {
   const rollback = async (revisionId: string) => {
     if (!page || !confirm('Restore this revision?')) return;
     try {
-      const res = await adminApi.post<{ page: CmsPage }>(`/api/cms/pages/${page.id}/rollback`, {
+      const res = await adminApi.post<{ page: CmsPage }>(`/api/admin/cms/pages/${page.id}/rollback`, {
         revisionId,
       });
       setPage(res.page);

@@ -48,6 +48,7 @@ const NAV: NavGroup[] = [
   {
     label: "Publish",
     items: [
+      { href: "/admin/pages", label: "Pages", description: "Build, preview and publish custom pages", Icon: FileText },
       { href: "/admin/blog", label: "Posts", description: "WordPress-style publishing and SEO", Icon: Newspaper },
       { href: "/admin/portfolio", label: "Portfolio", description: "Work, reels and case studies", Icon: ImageIcon },
       { href: "/admin/media", label: "Media library", description: "Manage reusable site assets", Icon: FileImage },
@@ -166,7 +167,6 @@ export function AdminShell({ children, name, email }: { children: ReactNode; nam
 
   useEffect(() => {
     if (paletteOpen) requestAnimationFrame(() => searchRef.current?.focus());
-    else setQuery("");
   }, [paletteOpen]);
 
   const results = useMemo(() => {
