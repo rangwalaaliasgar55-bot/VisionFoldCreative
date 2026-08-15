@@ -256,6 +256,17 @@ select:focus-visible {
   transform-origin: 50% 0;
 }
 
+.auth-3d-card {
+  transform: perspective(1100px) rotateX(0deg) translateZ(0);
+  transform-style: preserve-3d;
+  transition: transform 0.55s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.55s ease;
+}
+.auth-3d-card:hover {
+  transform: perspective(1100px) rotateX(1.5deg) translateY(-3px) translateZ(8px);
+  box-shadow: 0 35px 90px -35px rgba(115, 87, 255, 0.55);
+}
+.auth-3d-card > * { transform: translateZ(18px); }
+
 /* Admin application surface */
 .admin-surface {
   background:
@@ -291,7 +302,10 @@ select:focus-visible {
     animation: none !important;
   }
   .card-glow:hover,
-  .fold-card:hover {
+  .fold-card:hover,
+  .auth-3d-card,
+  .auth-3d-card:hover {
     transform: none !important;
+    transition: none !important;
   }
 }

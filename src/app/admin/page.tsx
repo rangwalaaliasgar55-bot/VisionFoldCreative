@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 
 type Dashboard = {
+  viewer: { name: string; role: "admin" | "editor" | "accountant" };
   stats: Record<string, number>;
   revenueByMonth: { label: string; value: number }[];
   expensesByCategory: { label: string; value: number }[];
@@ -38,10 +39,11 @@ export default function AdminDashboardPage() {
   const [running, setRunning] = useState(false);
 
   useEffect(() => {
+    if (!data || data.viewer.role === "accountant") return;
     api<{ source: string; items: string[] }>("/api/ai/insights", { json: {} })
       .then(setInsights)
       .catch(() => {});
-  }, []);
+  }, [data]);
 
   const runAutomations = useCallback(async () => {
     setRunning(true);
@@ -61,26 +63,26 @@ export default function AdminDashboardPage() {
   const s = data.stats;
 
   const kpis = [
-    { label: "Total revenue", value: fmtMoney(s.revenue), Icon: DollarSign, accent: "from-emerald-500/20 to-emerald-500/5 text-emerald-300" },
-    { label: "Outstanding", value: fmtMoney(s.outstanding), Icon: CreditCard, accent: "from-amber-500/20 to-amber-500/5 text-amber-300" },
-    { label: "Active projects", value: String(s.activeProjects), Icon: FolderKanban, accent: "from-brand-500/20 to-brand-500/5 text-brand-300" },
-    { label: "New leads · 30d", value: String(s.newLeads30d), Icon: Target, accent: "from-cyan-500/20 to-cyan-500/5 text-cyan-300" },
-    { label: "Clients", value: String(s.clients), Icon: Users, accent: "from-pink-500/20 to-pink-500/5 text-pink-300" },
-    { label: "Avg rating", value: `${s.avgRating}★`, Icon: Star, accent: "from-violet-500/20 to-violet-500/5 text-violet-300" },
-  ];
+    { label: "Total revenue", value: fmtMoney(s.revenue), Icon: DollarSign, accent: "from-emerald-500/20 to-emerald-500/5 text-emerald-300", roles: ["admin", "accountant"] },
+    { label: "Outstanding", value: fmtMoney(s.outstanding), Icon: CreditCard, accent: "from-amber-500/20 to-amber-500/5 text-amber-300", roles: ["admin", "accountant"] },
+    { label: "Active projects", value: String(s.activeProjects), Icon: FolderKanban, accent: "from-brand-500/20 to-brand-500/5 text-brand-300", roles: ["admin", "editor", "accountant"] },
+    { label: "New leads · 30d", value: String(s.newLeads30d), Icon: Target, accent: "from-cyan-500/20 to-cyan-500/5 text-cyan-300", roles: ["admin", "editor"] },
+    { label: "Clients", value: String(s.clients), Icon: Users, accent: "from-pink-500/20 to-pink-500/5 text-pink-300", roles: ["admin", "editor", "accountant"] },
+    { label: "Avg rating", value: `${s.avgRating}★`, Icon: Star, accent: "from-violet-500/20 to-violet-500/5 text-violet-300", roles: ["admin", "editor"] },
+  ].filter((item) => item.roles.includes(data.viewer.role));
 
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="font-display text-2xl font-bold text-white">Dashboard</h1>
-          <p className="text-sm text-slate-500">Your studio at a glance — {fmtDate(new Date())}</p>
+          <h1 className="font-display text-2xl font-bold text-white">{data.viewer.role === "admin" ? "Owner dashboard" : data.viewer.role === "editor" ? "Editorial workspace" : "Finance dashboard"}</h1>
+          <p className="text-sm text-slate-500">Welcome, {data.viewer.name} · {fmtDate(new Date())}</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={runAutomations} disabled={running}>
+          {data.viewer.role !== "accountant" && <Button variant="outline" onClick={runAutomations} disabled={running}>
             <Zap size={14} className="text-amber-300" /> {running ? "Running…" : "Run automations"}
-          </Button>
-          <Link href="/admin/leads"><Button><Target size={14} /> New lead</Button></Link>
+          </Button>}
+          {data.viewer.role !== "accountant" ? <Link href="/admin/leads"><Button><Target size={14} /> New lead</Button></Link> : <Link href="/admin/invoices"><Button><CreditCard size={14} /> New invoice</Button></Link>}
         </div>
       </div>
 
@@ -103,10 +105,10 @@ export default function AdminDashboardPage() {
       >
         <div className="grid gap-3 md:grid-cols-3">
           {[
-            { label: "Client messages", value: s.unreadMessages || 0, detail: "waiting for a studio reply", href: "/admin/clients", Icon: MessageSquare, tone: "text-cyan-300 bg-cyan-500/10" },
-            { label: "Cuts needing attention", value: s.reviewProjects || 0, detail: "in review or revision", href: "/admin/projects", Icon: FolderKanban, tone: "text-brand-300 bg-brand-500/10" },
-            { label: "Overdue invoices", value: s.overdueInvoices || 0, detail: "require payment follow-up", href: "/admin/invoices", Icon: AlertTriangle, tone: "text-amber-300 bg-amber-500/10" },
-          ].map(({ label, value, detail, href, Icon, tone }) => (
+            { label: "Client messages", value: s.unreadMessages || 0, detail: "waiting for a studio reply", href: "/admin/clients", Icon: MessageSquare, tone: "text-cyan-300 bg-cyan-500/10", roles: ["admin", "editor", "accountant"] },
+            { label: "Cuts needing attention", value: s.reviewProjects || 0, detail: "in review or revision", href: "/admin/projects", Icon: FolderKanban, tone: "text-brand-300 bg-brand-500/10", roles: ["admin", "editor"] },
+            { label: "Overdue invoices", value: s.overdueInvoices || 0, detail: "require payment follow-up", href: "/admin/invoices", Icon: AlertTriangle, tone: "text-amber-300 bg-amber-500/10", roles: ["admin", "accountant"] },
+          ].filter((item) => item.roles.includes(data.viewer.role)).map(({ label, value, detail, href, Icon, tone }) => (
             <Link key={label} href={href} className="group flex items-center gap-3 rounded-xl border border-white/[0.07] bg-black/10 p-3 transition hover:border-white/15 hover:bg-white/[0.025]">
               <span className={`grid h-10 w-10 shrink-0 place-items-center rounded-xl ${tone}`}><Icon size={17} /></span>
               <span className="min-w-0 flex-1"><span className="flex items-baseline gap-2"><strong className="font-display text-xl text-white">{value}</strong><span className="text-xs font-semibold text-slate-300">{label}</span></span><span className="block truncate text-[10px] text-slate-600">{detail}</span></span>
@@ -117,16 +119,16 @@ export default function AdminDashboardPage() {
       </Card>
 
       <div className="grid gap-6 lg:grid-cols-3">
-        <Card title="Revenue — last 6 months" desc="Paid invoices" className="lg:col-span-2">
+        {data.viewer.role !== "editor" && <Card title="Revenue — last 6 months" desc="Paid invoices" className="lg:col-span-2">
           <Bars data={data.revenueByMonth} money />
           <div className="mt-3 grid grid-cols-6 gap-2 text-center text-[10px] text-slate-500">
             {data.revenueByMonth.map((m) => (
               <span key={m.label}>{m.label}</span>
             ))}
           </div>
-        </Card>
+        </Card>}
 
-        <Card title="AI Insights" desc="Operations brain" className="lg:row-span-2">
+        {data.viewer.role !== "accountant" && <Card title="AI Insights" desc="Operations brain" className="lg:row-span-2">
           <div className="flex items-center gap-2">
             <Brain size={16} className="text-brand-300" />
             <span className="text-xs font-semibold uppercase tracking-widest text-slate-500">
@@ -154,9 +156,9 @@ export default function AdminDashboardPage() {
               Without a <code>GEMINI_API_KEY</code>, insights come from a rules engine — never fake AI text.
             </p>
           </div>
-        </Card>
+        </Card>}
 
-        <Card title="Lead pipeline" desc="All time">
+        {data.viewer.role !== "accountant" && <Card title="Lead pipeline" desc="All time">
           <Funnel data={data.funnel} />
           <div className="mt-4 grid grid-cols-2 gap-2 border-t border-white/8 pt-4">
             <div>
@@ -170,7 +172,7 @@ export default function AdminDashboardPage() {
               <p className="mt-1 font-display text-lg font-bold text-white">{s.leadsWon ?? 0}</p>
             </div>
           </div>
-        </Card>
+        </Card>}
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">

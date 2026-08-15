@@ -434,6 +434,15 @@ export default function ClientPortalPage() {
               );
             })}
           </div>
+          {projects.length === 0 && (
+            <div className="relative overflow-hidden rounded-3xl border border-dashed border-brand-400/25 bg-brand-500/[0.04] px-6 py-14 text-center">
+              <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_120%,rgba(115,87,255,.18),transparent_55%)]" />
+              <Film size={34} className="relative mx-auto text-brand-300" />
+              <h3 className="relative mt-4 font-display text-xl font-bold text-white">Your first production starts here</h3>
+              <p className="relative mx-auto mt-2 max-w-md text-sm leading-relaxed text-slate-500">Send the studio your brief, footage link, goals and budget. We will review it and turn this empty workspace into a live production timeline.</p>
+              <Button className="relative mt-5" onClick={() => setShowIntake(true)}><Plus size={14} /> Submit your first brief</Button>
+            </div>
+          )}
 
           {/* 4K DELIVERABLE REVIEW PLAYER */}
           {activeReviewProj && (

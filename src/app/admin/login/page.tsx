@@ -15,27 +15,20 @@ export default function AdminLoginPage() {
     <div className="bg-aurora relative flex min-h-screen items-center justify-center px-5 py-16">
       <div className="grid-bg pointer-events-none absolute inset-0" />
       <div className="relative w-full max-w-md">
-        <div className="glass-bright rounded-3xl p-8 shadow-2xl">
+        <div className="auth-3d-card glass-bright rounded-3xl p-8 shadow-2xl">
           <div className="mb-8 text-center">
             <div className="animate-floaty mx-auto mb-4 grid h-16 w-16 place-items-center rounded-2xl bg-gradient-to-br from-[#7357FF] to-[#5B3FD4] shadow-[0_0_60px_-15px_rgba(115,87,255,0.9)]">
               <Logo className="h-8 w-8" />
             </div>
-            <h1 className="font-display text-2xl font-bold text-white">VisionFold Admin</h1>
+            <h1 className="font-display text-2xl font-bold text-white">VisionFold staff</h1>
             <p className="mt-1 text-sm text-slate-400">
-              Leads · Clients · Projects · WordPress content · Automations
+              Role-aware workspace for owners, editors and accountants.
             </p>
           </div>
           <LoginForm role="admin" />
           <div className="mt-6 rounded-2xl border border-brand-400/20 bg-brand-500/5 p-4 text-xs leading-relaxed text-slate-400">
-            <p className="font-semibold text-brand-300">Bootstrap admin</p>
-            <p className="mt-1">
-              email: <code className="text-slate-200">visionfoldcreative@gmail.com</code>
-              <br />
-              password: <code className="text-slate-200">aliasgar134</code>
-            </p>
-            <p className="mt-2 text-slate-500">
-              Configure via <code>ADMIN_EMAIL</code> / <code>ADMIN_PASSWORD</code> env vars.
-            </p>
+            <p className="font-semibold text-brand-300">Protected staff access</p>
+            <p className="mt-1">Your owner assigns your role. Editors see production and publishing tools; accountants see the financial workspace; owners control everything.</p>
           </div>
         </div>
         <p className="mt-6 text-center text-xs text-slate-600">

@@ -61,6 +61,53 @@ export function LoginForm({
   );
 }
 
+export function ClientRegisterForm() {
+  const [form, setForm] = useState({ name: "", email: "", company: "", phone: "", password: "", confirm: "" });
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const set = (key: string, value: string) => setForm((current) => ({ ...current, [key]: value }));
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    setError(null);
+    if (form.password !== form.confirm) return setError("Passwords do not match.");
+    setLoading(true);
+    try {
+      const res = await fetch("/api/auth/register-client", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(form),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setError(data.error || "Registration failed.");
+        setLoading(false);
+        return;
+      }
+      window.location.href = "/portal";
+    } catch {
+      setError("Network error — please try again.");
+      setLoading(false);
+    }
+  }
+
+  return (
+    <form onSubmit={submit} className="space-y-3">
+      {error && <div className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">{error}</div>}
+      <div className="grid grid-cols-2 gap-3">
+        <input required minLength={2} value={form.name} onChange={(e) => set("name", e.target.value)} placeholder="Full name" className="field col-span-2" autoComplete="name" />
+        <input required type="email" value={form.email} onChange={(e) => set("email", e.target.value)} placeholder="Email" className="field col-span-2" autoComplete="email" />
+        <input value={form.company} onChange={(e) => set("company", e.target.value)} placeholder="Company" className="field" autoComplete="organization" />
+        <input value={form.phone} onChange={(e) => set("phone", e.target.value)} placeholder="Phone" className="field" autoComplete="tel" />
+        <input required minLength={8} maxLength={128} type="password" value={form.password} onChange={(e) => set("password", e.target.value)} placeholder="Password · 8+ characters" className="field col-span-2" autoComplete="new-password" />
+        <input required minLength={8} maxLength={128} type="password" value={form.confirm} onChange={(e) => set("confirm", e.target.value)} placeholder="Confirm password" className="field col-span-2" autoComplete="new-password" />
+      </div>
+      <label className="flex items-start gap-2 text-[11px] leading-relaxed text-slate-500"><input required type="checkbox" className="mt-0.5 accent-brand-500" />I agree to use the portal for legitimate project collaboration and accept the site policies.</label>
+      <button type="submit" disabled={loading} className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#7357FF] py-3 text-sm font-semibold text-white shadow-lg shadow-[#7357FF]/30 transition hover:bg-[#6346E8] disabled:opacity-60">{loading && <Loader2 className="animate-spin" size={16} />}{loading ? "Creating workspace…" : "Create client workspace"}</button>
+    </form>
+  );
+}
+
 export function LogoutButton({ label = "Sign out" }: { label?: string }) {
   async function logout() {
     await fetch("/api/auth/logout", { method: "POST" });
@@ -159,7 +206,7 @@ export function NewsletterForm({ compact = false }: { compact?: boolean }) {
       setState("err");
     }
   }
-  if (state === "done") return <p className="text-sm font-medium text-emerald-400">You're in! First cut lands in your inbox soon. ✂️</p>;
+  if (state === "done") return <p className="text-sm font-medium text-emerald-400">You&apos;re in! First cut lands in your inbox soon. ✂️</p>;
   return (
     <form onSubmit={submit} className={`flex gap-2 ${compact ? "" : "mt-3"}`}>
       <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@email.com" className="field flex-1" />

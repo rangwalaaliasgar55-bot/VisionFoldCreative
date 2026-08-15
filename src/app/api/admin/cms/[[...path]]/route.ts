@@ -1,4 +1,4 @@
-import { bad, ok, readBody, requireAdmin } from "@/lib/auth";
+import { bad, ok, readBody, requireStaff } from "@/lib/auth";
 import { BLOCK_CATALOG, DEFAULT_CMS_STORE, type CmsBlock, type CmsPage, type CmsRevision, type CmsStore } from "@/lib/cmsTypes";
 import { getSetting, setSetting } from "@/lib/settings";
 
@@ -61,7 +61,7 @@ function normalizeBlocks(value: unknown, fallback: CmsBlock[]): CmsBlock[] {
 }
 
 async function authorize() {
-  const admin = await requireAdmin();
+  const admin = await requireStaff(["admin", "editor"]);
   if (!admin) return null;
   return admin;
 }
@@ -119,6 +119,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ path?: string[
   const current = store.pages[index];
 
   if (action === "publish" || action === "unpublish") {
+    if (action === "publish" && current.blocks.length === 0) return bad("Add at least one content block before publishing.");
     const page: CmsPage = {
       ...current,
       status: action === "publish" ? "published" : "draft",

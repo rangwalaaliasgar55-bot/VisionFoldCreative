@@ -22,6 +22,7 @@ import {
   Receipt,
   Search,
   Settings2,
+  ShieldCheck,
   Target,
   Users,
   X,
@@ -31,7 +32,8 @@ import {
 import { LogoutButton } from "@/components/Forms";
 import { cx } from "@/components/AdminUI";
 
-type NavItem = { href: string; label: string; description: string; Icon: LucideIcon };
+type StaffRole = "admin" | "editor" | "accountant";
+type NavItem = { href: string; label: string; description: string; Icon: LucideIcon; roles?: StaffRole[] };
 type NavGroup = { label: string; items: NavItem[] };
 
 const NAV: NavGroup[] = [
@@ -39,26 +41,27 @@ const NAV: NavGroup[] = [
     label: "Workspace",
     items: [
       { href: "/admin", label: "Dashboard", description: "Studio overview and activity", Icon: LayoutDashboard },
-      { href: "/admin/leads", label: "Leads", description: "Pipeline, proposals and follow-ups", Icon: Target },
+      { href: "/admin/leads", label: "Leads", description: "Pipeline, proposals and follow-ups", Icon: Target, roles: ["admin", "editor"] },
       { href: "/admin/clients", label: "Clients", description: "People and portal access", Icon: Users },
       { href: "/admin/projects", label: "Projects", description: "Production, reviews and delivery", Icon: FolderKanban },
-      { href: "/admin/invoices", label: "Finance", description: "Invoices, payments and expenses", Icon: Receipt },
+      { href: "/admin/invoices", label: "Finance", description: "Invoices, payments and expenses", Icon: Receipt, roles: ["admin", "accountant"] },
+      { href: "/admin/team", label: "Team & roles", description: "Staff access and permissions", Icon: ShieldCheck, roles: ["admin"] },
     ],
   },
   {
     label: "Publish",
     items: [
-      { href: "/admin/pages", label: "Pages", description: "Build, preview and publish custom pages", Icon: FileText },
-      { href: "/admin/blog", label: "Posts", description: "WordPress-style publishing and SEO", Icon: Newspaper },
-      { href: "/admin/portfolio", label: "Portfolio", description: "Work, reels and case studies", Icon: ImageIcon },
-      { href: "/admin/media", label: "Media library", description: "Manage reusable site assets", Icon: FileImage },
-      { href: "/admin/site", label: "Site editor", description: "Content, appearance and settings", Icon: Globe },
+      { href: "/admin/pages", label: "Pages", description: "Build, preview and publish custom pages", Icon: FileText, roles: ["admin", "editor"] },
+      { href: "/admin/blog", label: "Posts", description: "WordPress-style publishing and SEO", Icon: Newspaper, roles: ["admin", "editor"] },
+      { href: "/admin/portfolio", label: "Portfolio", description: "Work, reels and case studies", Icon: ImageIcon, roles: ["admin", "editor"] },
+      { href: "/admin/media", label: "Media library", description: "Manage reusable site assets", Icon: FileImage, roles: ["admin", "editor"] },
+      { href: "/admin/site", label: "Site editor", description: "Content, appearance and settings", Icon: Globe, roles: ["admin", "editor"] },
     ],
   },
   {
     label: "Intelligence",
     items: [
-      { href: "/admin/automations", label: "Automations & AI", description: "Workflows and creative copilot", Icon: Zap },
+      { href: "/admin/automations", label: "Automations & AI", description: "Workflows and creative copilot", Icon: Zap, roles: ["admin", "editor"] },
     ],
   },
 ];
@@ -66,17 +69,21 @@ const NAV: NavGroup[] = [
 const ALL_ITEMS = NAV.flatMap((group) => group.items);
 
 const QUICK_ACTIONS: NavItem[] = [
-  { href: "/admin/blog", label: "Write a post", description: "Create, optimize and publish", Icon: FileText },
-  { href: "/admin/portfolio", label: "Add portfolio work", description: "Publish a new case study", Icon: ImageIcon },
-  { href: "/admin/leads", label: "Capture a lead", description: "Add a prospect to the pipeline", Icon: Target },
-  { href: "/admin/projects", label: "Start a project", description: "Set up production and client access", Icon: FolderKanban },
+  { href: "/admin/blog", label: "Write a post", description: "Create, optimize and publish", Icon: FileText, roles: ["admin", "editor"] },
+  { href: "/admin/portfolio", label: "Add portfolio work", description: "Publish a new case study", Icon: ImageIcon, roles: ["admin", "editor"] },
+  { href: "/admin/leads", label: "Capture a lead", description: "Add a prospect to the pipeline", Icon: Target, roles: ["admin", "editor"] },
+  { href: "/admin/projects", label: "Start a project", description: "Set up production and client access", Icon: FolderKanban, roles: ["admin", "editor"] },
 ];
 
 function isActive(pathname: string, href: string) {
   return href === "/admin" ? pathname === href : pathname.startsWith(href);
 }
 
-function SidebarContent({ pathname, onNavigate, name, email }: { pathname: string; onNavigate?: () => void; name: string; email: string }) {
+function canSee(item: NavItem, role: StaffRole) {
+  return !item.roles || item.roles.includes(role);
+}
+
+function SidebarContent({ pathname, onNavigate, name, email, role }: { pathname: string; onNavigate?: () => void; name: string; email: string; role: StaffRole }) {
   return (
     <div className="flex h-full flex-col">
       <div className="flex h-[72px] items-center border-b border-white/[0.07] px-5">
@@ -96,7 +103,7 @@ function SidebarContent({ pathname, onNavigate, name, email }: { pathname: strin
           <div key={group.label} className="mb-6 last:mb-2">
             <p className="mb-2 px-3 text-[9px] font-bold uppercase tracking-[.2em] text-slate-600">{group.label}</p>
             <div className="space-y-0.5">
-              {group.items.map(({ href, label, Icon }) => {
+              {group.items.filter((item) => canSee(item, role)).map(({ href, label, Icon }) => {
                 const active = isActive(pathname, href);
                 return (
                   <Link
@@ -131,7 +138,7 @@ function SidebarContent({ pathname, onNavigate, name, email }: { pathname: strin
           </div>
           <div className="min-w-0 flex-1">
             <p className="truncate text-xs font-semibold text-white">{name}</p>
-            <p className="truncate text-[10px] text-slate-600">{email}</p>
+            <p className="truncate text-[10px] capitalize text-slate-600">{role} · {email}</p>
           </div>
           <LogoutButton label="" />
         </div>
@@ -140,14 +147,16 @@ function SidebarContent({ pathname, onNavigate, name, email }: { pathname: strin
   );
 }
 
-export function AdminShell({ children, name, email }: { children: ReactNode; name: string; email: string }) {
+export function AdminShell({ children, name, email, role }: { children: ReactNode; name: string; email: string; role: string }) {
+  const staffRole: StaffRole = role === "editor" || role === "accountant" ? role : "admin";
   const pathname = usePathname() || "/admin";
   const [mobileOpen, setMobileOpen] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [quickOpen, setQuickOpen] = useState(false);
   const [query, setQuery] = useState("");
   const searchRef = useRef<HTMLInputElement>(null);
-  const current = ALL_ITEMS.find((item) => isActive(pathname, item.href)) || ALL_ITEMS[0];
+  const visibleItems = useMemo(() => ALL_ITEMS.filter((item) => canSee(item, staffRole)), [staffRole]);
+  const current = visibleItems.find((item) => isActive(pathname, item.href)) || visibleItems[0];
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -171,14 +180,14 @@ export function AdminShell({ children, name, email }: { children: ReactNode; nam
 
   const results = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return ALL_ITEMS;
-    return ALL_ITEMS.filter((item) => `${item.label} ${item.description}`.toLowerCase().includes(q));
-  }, [query]);
+    if (!q) return visibleItems;
+    return visibleItems.filter((item) => `${item.label} ${item.description}`.toLowerCase().includes(q));
+  }, [query, visibleItems]);
 
   return (
     <div className="admin-surface min-h-screen bg-ink">
       <aside className="fixed inset-y-0 left-0 z-40 hidden w-[260px] border-r border-white/[0.07] bg-[#0d1324] xl:block">
-        <SidebarContent pathname={pathname} name={name} email={email} />
+        <SidebarContent pathname={pathname} name={name} email={email} role={staffRole} />
       </aside>
 
       {mobileOpen && (
@@ -186,7 +195,7 @@ export function AdminShell({ children, name, email }: { children: ReactNode; nam
           <button aria-label="Close menu" className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setMobileOpen(false)} />
           <aside className="relative h-full w-[min(86vw,290px)] border-r border-white/10 bg-[#0d1324] shadow-2xl">
             <button aria-label="Close menu" onClick={() => setMobileOpen(false)} className="absolute right-3 top-5 z-10 rounded-lg p-2 text-slate-400 hover:bg-white/5 hover:text-white"><X size={18} /></button>
-            <SidebarContent pathname={pathname} onNavigate={() => setMobileOpen(false)} name={name} email={email} />
+            <SidebarContent pathname={pathname} onNavigate={() => setMobileOpen(false)} name={name} email={email} role={staffRole} />
           </aside>
         </div>
       )}
@@ -215,7 +224,7 @@ export function AdminShell({ children, name, email }: { children: ReactNode; nam
             {quickOpen && (
               <div className="absolute right-0 top-12 w-72 rounded-2xl border border-white/10 bg-panel p-2 shadow-2xl shadow-black/50">
                 <p className="px-3 py-2 text-[9px] font-bold uppercase tracking-[.2em] text-slate-600">Quick create</p>
-                {QUICK_ACTIONS.map(({ href, label, description, Icon }) => (
+                {QUICK_ACTIONS.filter((item) => canSee(item, staffRole)).map(({ href, label, description, Icon }) => (
                   <Link key={label} href={href} onClick={() => setQuickOpen(false)} className="flex items-center gap-3 rounded-xl p-3 hover:bg-white/5">
                     <span className="grid h-8 w-8 place-items-center rounded-lg bg-brand-500/10 text-brand-300"><Icon size={15} /></span>
                     <span className="min-w-0 flex-1"><span className="block text-xs font-semibold text-white">{label}</span><span className="block truncate text-[10px] text-slate-500">{description}</span></span>

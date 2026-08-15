@@ -27,7 +27,7 @@ import {
   hashPassword,
   ok,
   readBody,
-  requireAdmin,
+  requireStaff,
 } from "@/lib/auth";
 import { ensureSeed, resetSeed } from "@/lib/seed";
 import { DEFAULT_SETTINGS, getSettings, setSettings } from "@/lib/settings";
@@ -37,9 +37,23 @@ export const dynamic = "force-dynamic";
 
 async function getAdmin() {
   await ensureSeed();
-  const admin = await requireAdmin();
+  const admin = await requireStaff();
   if (!admin) throw new Error("__unauthorized__");
   return admin;
+}
+
+function canAccess(role: string, path: string, write = false) {
+  if (role === "admin") return true;
+  const root = path.split("/")[0];
+  if (role === "accountant") {
+    if (write) return ["invoices", "expenses", "messages"].includes(root);
+    return ["dashboard", "clients", "projects", "invoices", "expenses", "messages", "activity"].includes(root);
+  }
+  if (role === "editor") {
+    if (["invoices", "expenses", "quotas", "webhooks", "team", "system"].includes(root)) return false;
+    return true;
+  }
+  return false;
 }
 
 function handleErr(err: unknown) {
@@ -55,10 +69,11 @@ export async function GET(
   ctx: { params: Promise<{ slug: string[] }> }
 ) {
   try {
-    await getAdmin();
+    const admin = await getAdmin();
     const { slug } = await ctx.params;
     const path = slug.join("/");
     const url = new URL(req.url);
+    if (!canAccess(admin.role, path)) return bad("Your role does not have access to this area.", 403);
 
     // 1. Dashboard
     if (path === "dashboard") {
@@ -159,24 +174,27 @@ export async function GET(
         .sort((a, b) => (a.dueDate || "").localeCompare(b.dueDate || ""))
         .slice(0, 6);
 
+      const canViewFinance = admin.role === "admin" || admin.role === "accountant";
+      const canViewGrowth = admin.role === "admin" || admin.role === "editor";
       return ok({
+        viewer: { name: admin.name, role: admin.role },
         stats: {
-          revenue: totalRevenue,
-          outstanding,
-          totalExpenses,
+          revenue: canViewFinance ? totalRevenue : 0,
+          outstanding: canViewFinance ? outstanding : 0,
+          totalExpenses: canViewFinance ? totalExpenses : 0,
           activeProjects,
-          newLeads30d,
-          leadsWon,
-          leadsTotal,
+          newLeads30d: canViewGrowth ? newLeads30d : 0,
+          leadsWon: canViewGrowth ? leadsWon : 0,
+          leadsTotal: canViewGrowth ? leadsTotal : 0,
           clients: allClients.length,
           avgRating,
           overdueInvoices: allInvoices.filter((invoice) => invoice.status === "overdue").length,
           unreadMessages: recentMsgs.filter((message) => message.sender === "client" && !message.read).length,
           reviewProjects: allProjects.filter((project) => project.status === "review" || project.status === "revision").length,
         },
-        revenueByMonth,
-        expensesByCategory,
-        funnel,
+        revenueByMonth: canViewFinance ? revenueByMonth : [],
+        expensesByCategory: canViewFinance ? expensesByCategory : [],
+        funnel: canViewGrowth ? funnel : [],
         projectsByStatus,
         upcoming,
         recentActivity: recentActs,
@@ -184,6 +202,15 @@ export async function GET(
         automations: allAutos,
         quota: quotasRow[0] || null,
       });
+    }
+
+    // Team and role management (owner only via canAccess)
+    if (path === "team") {
+      const rows = await db
+        .select({ id: users.id, name: users.name, email: users.email, role: users.role, createdAt: users.createdAt })
+        .from(users)
+        .orderBy(users.createdAt);
+      return ok(rows);
     }
 
     // 2. Clients
@@ -426,6 +453,24 @@ export async function POST(
     const { slug } = await ctx.params;
     const path = slug.join("/");
     const body = await readBody<Record<string, any>>(req);
+    if (!canAccess(admin.role, path, true)) return bad("Your role cannot perform this action.", 403);
+
+    if (path === "settings") {
+      const pairs = body.pairs;
+      if (!pairs || typeof pairs !== "object" || Array.isArray(pairs)) return bad("Settings payload is invalid.");
+      const entries = Object.entries(pairs).filter(([key]) => !["__proto__", "constructor", "prototype", "cmsStore"].includes(key));
+      if (entries.length > 80) return bad("Too many settings in one update.");
+      const requiredCopy = ["siteTitle", "heroTitle", "heroHighlight", "heroSubtitle", "heroCta"];
+      const clean: Record<string, unknown> = {};
+      for (const [key, value] of entries) {
+        if (requiredCopy.includes(key) && !String(value ?? "").trim()) clean[key] = DEFAULT_SETTINGS[key];
+        else if (typeof value === "string") clean[key] = value.slice(0, 10000);
+        else clean[key] = value;
+      }
+      await setSettings(clean);
+      await db.insert(activity).values({ actor: admin.name, action: "Website settings published", details: `${entries.length} fields updated` });
+      return ok({ ok: true, settings: await getSettings() });
+    }
 
     // 1. Reset Demo System
     if (path === "system/reset") {
@@ -436,6 +481,20 @@ export async function POST(
         details: "Reseeded demo database with original dataset.",
       });
       return ok({ ok: true, message: "System reset successfully" });
+    }
+
+    if (path === "team") {
+      const name = String(body.name || "").trim().slice(0, 120);
+      const email = String(body.email || "").trim().toLowerCase().slice(0, 254);
+      const password = String(body.password || "");
+      const role = body.role === "accountant" ? "accountant" : "editor";
+      if (!name || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return bad("A valid name and email are required.");
+      if (password.length < 8 || password.length > 128) return bad("Password must be between 8 and 128 characters.");
+      const exists = await db.select({ id: users.id }).from(users).where(eq(users.email, email)).limit(1);
+      if (exists.length) return bad("A staff account already uses this email.", 409);
+      const [member] = await db.insert(users).values({ name, email, role, passwordHash: hashPassword(password) }).returning();
+      await db.insert(activity).values({ actor: admin.name, action: "Team member invited", details: `${name} added as ${role}` });
+      return ok({ id: member.id, name: member.name, email: member.email, role: member.role, createdAt: member.createdAt }, 201);
     }
 
     // 2. Clients
@@ -835,6 +894,8 @@ export async function PATCH(
     const admin = await getAdmin();
     const { slug } = await ctx.params;
     const body = await readBody<Record<string, any>>(req);
+    const path = slug.join("/");
+    if (!canAccess(admin.role, path, true)) return bad("Your role cannot perform this action.", 403);
 
     // 1. Quotas: PATCH /api/admin/quotas
     if (slug.length === 1 && slug[0] === "quotas") {
@@ -872,6 +933,27 @@ export async function PATCH(
 
       const [updated] = await db.update(webhooks).set(updateData).where(eq(webhooks.id, id)).returning();
       return ok(updated);
+    }
+
+    if (slug.length === 2 && slug[0] === "team") {
+      const id = Number(slug[1]);
+      if (!id) return bad("Invalid team member.");
+      const updateData: Record<string, any> = {};
+      if (body.name !== undefined) updateData.name = String(body.name).trim().slice(0, 120);
+      if (body.role !== undefined) {
+        if (id === admin.id) return bad("You cannot change your own owner role.");
+        if (!["admin", "editor", "accountant"].includes(body.role)) return bad("Invalid role.");
+        updateData.role = body.role;
+      }
+      if (body.password) {
+        const password = String(body.password);
+        if (password.length < 8 || password.length > 128) return bad("Password must be between 8 and 128 characters.");
+        updateData.passwordHash = hashPassword(password);
+      }
+      const [updated] = await db.update(users).set(updateData).where(eq(users.id, id)).returning();
+      if (!updated) return bad("Team member not found.", 404);
+      await db.insert(activity).values({ actor: admin.name, action: "Team role updated", details: `${updated.name} is now ${updated.role}` });
+      return ok({ id: updated.id, name: updated.name, email: updated.email, role: updated.role, createdAt: updated.createdAt });
     }
 
     // 4. Clients: PATCH /api/admin/clients/:id
@@ -988,14 +1070,28 @@ export async function DELETE(
   ctx: { params: Promise<{ slug: string[] }> }
 ) {
   try {
-    await getAdmin();
+    const admin = await getAdmin();
     const { slug } = await ctx.params;
+    const path = slug.join("/");
+    if (!canAccess(admin.role, path, true)) return bad("Your role cannot perform this action.", 403);
 
     if (slug.length === 2) {
       const [resource, idStr] = slug;
       const id = Number(idStr);
       if (!id) return bad("Invalid ID.");
 
+      if (resource === "team") {
+        if (id === admin.id) return bad("You cannot remove your own owner account.");
+        const target = (await db.select().from(users).where(eq(users.id, id)).limit(1))[0];
+        if (!target) return bad("Team member not found.", 404);
+        if (target.role === "admin") {
+          const admins = await db.select({ id: users.id }).from(users).where(eq(users.role, "admin"));
+          if (admins.length <= 1) return bad("The workspace must keep at least one owner.");
+        }
+        await db.delete(users).where(eq(users.id, id));
+        await db.insert(activity).values({ actor: admin.name, action: "Team member removed", details: target.email });
+        return ok({ ok: true, deleted: id });
+      }
       if (resource === "clients") {
         await db.delete(clients).where(eq(clients.id, id));
         return ok({ ok: true, deleted: id });
