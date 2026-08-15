@@ -14,6 +14,13 @@
 -- (CREATE ... IF NOT EXISTS / ON CONFLICT DO NOTHING). Existing data is
 -- never deleted or altered.
 --
+-- ALREADY HAVE TABLES FROM THE OLD VERSION OF THE APP?
+-- The pre-flight block below detects tables whose shape does not match the
+-- current app (e.g. "projects" with a TEXT id from the legacy app) and
+-- RENAMES them to legacy_<name> first — old data is preserved, nothing is
+-- dropped. You can delete the legacy_* tables later whenever you're sure
+-- you don't need them.
+--
 -- VERIFY AFTERWARDS (should return 22 rows):
 --   select tablename from pg_tables where schemaname = 'public'
 --   and tablename in ('users','clients','projects','updates','messages',
@@ -23,6 +30,76 @@
 -- ============================================================================
 
 begin;
+
+-- ----------------------------------------------------------------------------
+-- PRE-FLIGHT: move incompatible legacy tables out of the way (data preserved)
+-- ----------------------------------------------------------------------------
+do $$
+declare
+  tbl       text;
+  idx       record;
+  idtype    text;
+  new_shape boolean;
+  app_tables text[] := array[
+    'users', 'clients', 'projects', 'updates', 'messages', 'invoices',
+    'ratings', 'frame_annotations', 'deliverables', 'leads', 'portfolio',
+    'categories', 'posts', 'media', 'newsletter', 'automations', 'activity',
+    'ai_usage', 'expenses', 'quotas', 'webhooks', 'settings'
+  ];
+begin
+  foreach tbl in array app_tables loop
+    -- table does not exist at all -> nothing to move
+    if not exists (
+      select 1 from information_schema.tables
+      where table_schema = 'public' and table_name = tbl
+    ) then
+      continue;
+    end if;
+
+    -- Does the existing table already match the new app's shape?
+    if tbl = 'settings' then
+      -- new settings is key/value jsonb (no id column)
+      select exists (
+        select 1 from information_schema.columns
+        where table_schema = 'public' and table_name = 'settings'
+          and column_name = 'value' and data_type = 'jsonb'
+      ) into new_shape;
+    else
+      -- every other new table has an integer id primary key
+      select data_type into idtype
+      from information_schema.columns
+      where table_schema = 'public' and table_name = tbl and column_name = 'id';
+      new_shape := (idtype = 'integer');
+    end if;
+
+    if new_shape then
+      continue;  -- already correct -> leave it untouched
+    end if;
+
+    -- Wrong shape (legacy table). If a backup already exists from a prior
+    -- run, drop the old one (its data was already preserved); otherwise
+    -- rename it to legacy_<name> so the data stays available.
+    if exists (
+      select 1 from information_schema.tables
+      where table_schema = 'public' and table_name = 'legacy_' || tbl
+    ) then
+      execute format('drop table public.%I cascade', tbl);
+    else
+      execute format('alter table public.%I rename to %I', tbl, 'legacy_' || tbl);
+      -- Renaming a table does NOT rename its indexes/constraint indexes
+      -- (users_pkey, users_email_key, ...). Free those names so the new
+      -- tables can reuse them.
+      for idx in
+        select indexname from pg_indexes
+        where schemaname = 'public' and tablename = 'legacy_' || tbl
+      loop
+        if idx.indexname not like 'legacy\_%' escape '\' then
+          execute format('alter index public.%I rename to %I', idx.indexname, 'legacy_' || idx.indexname);
+        end if;
+      end loop;
+    end if;
+  end loop;
+end $$;
 
 -- ----------------------------------------------------------------------------
 -- Core auth / people
