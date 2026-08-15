@@ -67,7 +67,7 @@ export function ClientsGlobeSection() {
 
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(42, w / h, 0.1, 100);
-    camera.position.set(0, 0.1, 2.7);
+    camera.position.set(0, 0.1, 3.15);
 
     const renderer = new THREE.WebGLRenderer({ antialias: !isMobile, alpha: true, powerPreference: "high-performance" });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, isMobile ? 1.2 : 1.75));
@@ -87,9 +87,9 @@ export function ClientsGlobeSection() {
     // 1. Atmosphere Glow Shell
     const atmosGeo = new THREE.SphereGeometry(1.08, 48, 48);
     const atmosMat = new THREE.MeshBasicMaterial({
-      color: 0x7357ff,
+      color: 0xF4A62A,
       transparent: true,
-      opacity: 0.18,
+      opacity: 0.3,
       side: THREE.BackSide,
     });
     scene.add(new THREE.Mesh(atmosGeo, atmosMat));
@@ -110,26 +110,59 @@ export function ClientsGlobeSection() {
     earthNight.colorSpace = THREE.SRGBColorSpace;
 
     const earthMat = new THREE.MeshPhongMaterial({
+      color: 0x27405c,
       map: earthDay,
       bumpMap: earthDay,
-      bumpScale: 0.018,
-      specular: new THREE.Color(0x7357ff),
-      shininess: 24,
+      bumpScale: 0.02,
+      specular: new THREE.Color(0xfff2d8),
+      shininess: 26,
       emissiveMap: earthNight,
-      emissive: new THREE.Color(0x4a2bc7),
-      emissiveIntensity: 0.45,
+      emissive: new THREE.Color(0xc07a10),
+      emissiveIntensity: 0.5,
     });
     const earth = new THREE.Mesh(earthGeo, earthMat);
     scene.add(earth);
 
+    // Starfield backdrop so the globe always reads against something
+    {
+      const starCount = isMobile ? 220 : 420;
+      const starPos = new Float32Array(starCount * 3);
+      for (let i = 0; i < starCount; i++) {
+        const r = 6.5 + Math.random() * 4;
+        const theta = Math.random() * Math.PI * 2;
+        const phi = Math.acos(2 * Math.random() - 1);
+        starPos[i * 3] = r * Math.sin(phi) * Math.cos(theta);
+        starPos[i * 3 + 1] = r * Math.sin(phi) * Math.sin(theta);
+        starPos[i * 3 + 2] = r * Math.cos(phi);
+      }
+      const starGeo = new THREE.BufferGeometry();
+      starGeo.setAttribute("position", new THREE.BufferAttribute(starPos, 3));
+      const stars = new THREE.Points(
+        starGeo,
+        new THREE.PointsMaterial({
+          color: 0xF4A62A,
+          size: 0.022,
+          transparent: true,
+          opacity: 0.7,
+          blending: THREE.AdditiveBlending,
+          depthWrite: false,
+        })
+      );
+      scene.add(stars);
+      (scene.userData as any).stars = stars;
+    }
+
     // 3. Ambient & Directional Lights
-    scene.add(new THREE.AmbientLight(0xffffff, 0.65));
-    const keyLight = new THREE.DirectionalLight(0xf4a62a, 1.3);
+    scene.add(new THREE.AmbientLight(0xffffff, 0.85));
+    const keyLight = new THREE.DirectionalLight(0xffe6b8, 1.5);
     keyLight.position.set(4, 3, 3);
     scene.add(keyLight);
-    const rimLight = new THREE.DirectionalLight(0x7357ff, 0.8);
-    rimLight.position.set(-3, -1, -2);
+    const rimLight = new THREE.DirectionalLight(0xF4A62A, 1.2);
+    rimLight.position.set(-3, -1, -3);
     scene.add(rimLight);
+    const backLight = new THREE.DirectionalLight(0x8a5a10, 0.7);
+    backLight.position.set(0, 0, -4);
+    scene.add(backLight);
 
     // 4. Client Pins & Arcs
     const markers = new THREE.Group();
@@ -169,7 +202,7 @@ export function ClientsGlobeSection() {
       const pos = latLngToVec3(c.lat, c.lng, R);
       const dot = new THREE.Mesh(
         new THREE.SphereGeometry(0.018, 12, 12),
-        new THREE.MeshBasicMaterial({ color: 0xa78bfa })
+        new THREE.MeshBasicMaterial({ color: 0xF7C873 })
       );
       dot.position.copy(pos);
       dot.userData = { id: c.id };
@@ -179,7 +212,7 @@ export function ClientsGlobeSection() {
       const pts = curve.getPoints(60);
       const line = new THREE.Line(
         new THREE.BufferGeometry().setFromPoints(pts),
-        new THREE.LineBasicMaterial({ color: 0x7357ff, transparent: true, opacity: 0.45 })
+        new THREE.LineBasicMaterial({ color: 0xC98A2A, transparent: true, opacity: 0.5 })
       );
       line.userData = { id: c.id };
       arcs.add(line);
@@ -261,7 +294,7 @@ export function ClientsGlobeSection() {
         if (obj instanceof THREE.Line) {
           const mat = obj.material as THREE.LineBasicMaterial;
           const isActive = obj.userData.id === activeRef.current;
-          mat.color.setHex(isActive ? 0xf4a62a : 0x7357ff);
+          mat.color.setHex(isActive ? 0xF4A62A : 0xC98A2A);
           mat.opacity = isActive ? 0.95 : 0.3 + Math.sin(t * 2 + obj.userData.id) * 0.08;
         } else if (obj instanceof THREE.Mesh && obj.userData.curve) {
           const curve = obj.userData.curve as THREE.QuadraticBezierCurve3;
@@ -338,7 +371,7 @@ export function ClientsGlobeSection() {
 
         <div className="grid items-center gap-8 lg:grid-cols-[1.5fr_1fr]">
           {/* 3D Interactive Globe Canvas Viewport */}
-          <div className="relative aspect-square overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-b from-[#0e1326] to-black sm:aspect-[16/11] shadow-2xl">
+          <div className="relative aspect-square overflow-hidden rounded-3xl border border-brand-400/20 bg-gradient-to-b from-[#0a0a0b] via-[#131007] to-black sm:aspect-[16/11] shadow-2xl">
             <div ref={mountRef} className="absolute inset-0 z-10" />
             {!ready && (
               <div className="absolute inset-0 z-20 flex items-center justify-center text-xs uppercase tracking-[0.2em] text-slate-400">

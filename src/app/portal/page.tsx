@@ -18,6 +18,7 @@ import {
 import { fmtDate, fmtMoney, timeAgo } from "@/lib/utils";
 import {
   AlertCircle,
+  Activity,
   CheckCircle2,
   Clock,
   CreditCard,
@@ -64,7 +65,7 @@ type OverviewData = {
 export default function ClientPortalPage() {
   const [data, setData] = useState<OverviewData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState<"projects" | "messages" | "invoices" | "profile">("projects");
+  const [tab, setTab] = useState<"projects" | "messages" | "invoices" | "activity" | "profile">("projects");
 
   // Review Player State
   const [activeReviewProj, setActiveReviewProj] = useState<any | null>(null);
@@ -336,6 +337,7 @@ export default function ClientPortalPage() {
   const avgProgress = activeProjects.length
     ? Math.round(activeProjects.reduce((sum, project) => sum + Number(project.progress || 0), 0) / activeProjects.length)
     : 0;
+  const projectTitle = (id: number) => projects.find((project) => project.id === id)?.title || "";
 
   return (
     <div className="animate-page-in mx-auto max-w-6xl px-5 py-8 space-y-6">
@@ -390,6 +392,7 @@ export default function ClientPortalPage() {
           { id: "projects", label: "Projects & Review Player", Icon: Film, count: projects.length },
           { id: "messages", label: "Studio Chat", Icon: MessageSquare, count: data.unread > 0 ? data.unread : undefined },
           { id: "invoices", label: "Invoices & Receipts", Icon: CreditCard, count: invoices.length },
+          { id: "activity", label: "Activity", Icon: Activity },
           { id: "profile", label: "Settings", Icon: User },
         ].map((t) => (
           <button
@@ -680,7 +683,7 @@ export default function ClientPortalPage() {
       {/* 2. LIVE STUDIO CHAT TAB */}
       {tab === "messages" && (
         <Card
-          title="Direct Studio Chat with Aliasgar"
+          title="Direct Studio Chat"
           desc="Real-time communication for cuts, creative direction and file transfers"
         >
           <div className="flex h-[480px] flex-col justify-between rounded-2xl border border-white/8 bg-ink/50 p-4">
@@ -693,7 +696,7 @@ export default function ClientPortalPage() {
                     className={`flex flex-col ${isAdmin ? "items-start" : "items-end"}`}
                   >
                     <div className="flex items-center gap-1.5 text-[10px] text-slate-500 mb-1">
-                      <span className="font-semibold">{isAdmin ? "Aliasgar (VisionFold)" : client.name}</span>
+                      <span className="font-semibold">{isAdmin ? "VisionFold Studio" : client.name}</span>
                       <span>·</span>
                       <span>{timeAgo(msg.createdAt)}</span>
                     </div>
@@ -771,7 +774,62 @@ export default function ClientPortalPage() {
         </Card>
       )}
 
-      {/* 4. PROFILE & SETTINGS TAB */}
+      {/* 4. ACTIVITY FEED TAB */}
+      {tab === "activity" && (
+        <Card title="Studio activity" desc="A chronological feed of every update, deliverable and invoice on your account">
+          <div className="scrollbar-thin max-h-[520px] space-y-3 overflow-y-auto pr-1">
+            {[
+              ...updates.map((u) => ({
+                id: `u${u.id}`,
+                ts: u.createdAt,
+                tone: "amber" as const,
+                title: u.title,
+                detail: u.body,
+                meta: projectTitle(u.projectId),
+              })),
+              ...deliverables.map((d) => ({
+                id: `d${d.id}`,
+                ts: d.createdAt,
+                tone: "green" as const,
+                title: "New deliverable ready",
+                detail: d.name,
+                meta: `${d.format} · ${d.resolution}`,
+              })),
+              ...invoices.map((inv) => ({
+                id: `i${inv.id}`,
+                ts: inv.createdAt,
+                tone: (inv.status === "paid" ? "green" : "amber") as "green" | "amber",
+                title: inv.status === "paid" ? "Invoice paid" : "Invoice issued",
+                detail: `${inv.number} — ${fmtMoney(inv.amount)}`,
+                meta: inv.status === "paid" ? "Settled" : `Due ${inv.dueDate || "immediately"}`,
+              })),
+            ]
+              .sort((a, b) => String(b.ts).localeCompare(String(a.ts)))
+              .map((item) => (
+                <div key={item.id} className="glass flex items-start gap-3 rounded-2xl p-3.5">
+                  <span
+                    className={`mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full ${
+                      item.tone === "green" ? "bg-emerald-400 ring-4 ring-emerald-400/15" : "bg-amber-400 ring-4 ring-amber-400/15"
+                    }`}
+                  />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                      <p className="text-sm font-semibold text-white">{item.title}</p>
+                      {item.meta && <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">{item.meta}</span>}
+                    </div>
+                    <p className="mt-0.5 text-xs leading-relaxed text-slate-400">{item.detail}</p>
+                    <p className="mt-1 text-[10px] text-slate-600">{timeAgo(item.ts)}</p>
+                  </div>
+                </div>
+              ))}
+            {updates.length === 0 && deliverables.length === 0 && invoices.length === 0 && (
+              <p className="py-8 text-center text-xs text-slate-500">No activity yet. Your timeline will fill up as the studio ships.</p>
+            )}
+          </div>
+        </Card>
+      )}
+
+      {/* 5. PROFILE & SETTINGS TAB */}
       {tab === "profile" && (
         <div className="grid gap-6 md:grid-cols-2">
           <Card title="Account profile" desc="Keep your studio contact information current">

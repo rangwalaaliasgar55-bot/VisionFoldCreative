@@ -30,7 +30,7 @@
 <tr><td width="50%">
 
 ### 🎬 Public marketing site
-Cinematic dark-first design (true black · gold), Three.js hero with an interactive client globe, editorial blog, services & portfolio pages, CMS-driven custom pages at `/p/[slug]`, contact → lead pipeline, newsletter, and a WordPress-compatible API surface (`/api/wp/v2/*`) for SEO tooling.
+Cinematic dark-first design (true black · gold), Three.js hero with an interactive client globe (drag to rotate), scroll-triggered reveal animations + reading-progress bar, editorial blog, services & portfolio pages, CMS-driven custom pages at `/p/[slug]`, contact → lead pipeline, newsletter, and a WordPress-compatible API surface (`/api/wp/v2/*`) for SEO tooling. A brand-themed easter egg — **VisionFold Runner** (a dino-style mini game, bottom-left button) — keeps visitors engaged.
 
 </td><td width="50%">
 

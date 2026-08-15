@@ -26,7 +26,7 @@ export default function ThreeBackground({
     const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
     const scene = new THREE.Scene();
-    scene.fog = new THREE.FogExp2(0x0b1020, 0.0016);
+    scene.fog = new THREE.FogExp2(0x0a0a0b, 0.0016);
 
     const camera = new THREE.PerspectiveCamera(
       60,
@@ -53,7 +53,7 @@ export default function ThreeBackground({
     const colors = new Float32Array(particleCount * 3);
     const gold = new THREE.Color("#F4A62A");
     const accent = new THREE.Color("#F4A62A");
-    const cyan = new THREE.Color("#38BDF8");
+    const cyan = new THREE.Color("#F5D78A");
     const warmWhite = new THREE.Color("#F6F3EC");
 
     for (let i = 0; i < particleCount; i++) {
@@ -94,17 +94,17 @@ export default function ThreeBackground({
 
     const shapeDefs: [THREE.BufferGeometry, number, [number, number, number], number, number][] = [
       // Film Reel Outer Rim (Torus)
-      [new THREE.TorusGeometry(2.4, 0.35, 16, 64), 0x7357ff, [-11, 3.5, -8], 0.008, 0.012],
+      [new THREE.TorusGeometry(2.4, 0.35, 16, 64), 0xF4A62A, [-11, 3.5, -8], 0.008, 0.012],
       // Cinema Prism (Icosahedron)
       [new THREE.IcosahedronGeometry(2.0, 1), 0xf4a62a, [11, -3.0, -10], 0.01, 0.015],
       // Optical Lens Element (TorusKnot)
-      [new THREE.TorusKnotGeometry(1.2, 0.28, 80, 16), 0xa78bfa, [9, 5.0, -6], 0.007, 0.011],
+      [new THREE.TorusKnotGeometry(1.2, 0.28, 80, 16), 0xF7C873, [9, 5.0, -6], 0.007, 0.011],
       // Viewfinder Crystal (Octahedron)
       [new THREE.OctahedronGeometry(1.6, 0), 0xf4a62a, [-9, -4.5, -5], 0.012, 0.008],
       // Floating Shutter Frame (Box frame)
-      [new THREE.BoxGeometry(2.2, 2.2, 2.2), 0x7357ff, [0, 7.5, -14], 0.006, 0.009],
+      [new THREE.BoxGeometry(2.2, 2.2, 2.2), 0xF4A62A, [0, 7.5, -14], 0.006, 0.009],
       // Secondary Lens
-      [new THREE.IcosahedronGeometry(1.2, 0), 0x38bdf8, [15, 1.5, -12], 0.014, 0.006],
+      [new THREE.IcosahedronGeometry(1.2, 0), 0xF5D78A, [15, 1.5, -12], 0.014, 0.006],
     ];
 
     const meshes: { mesh: THREE.Mesh; rx: number; ry: number; origY: number; speed: number }[] = [];

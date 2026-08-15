@@ -178,7 +178,7 @@ export default function AdminLeadsPage() {
       setProposalText(res.text);
     } catch {
       setProposalText(
-        `Hi ${lead.name},\n\nThank you for reaching out to VisionFold Creative regarding your ${lead.service} project!\n\nWe've reviewed your brief: "${lead.message}". We would love to take on this cut and deliver studio-grade cinema color, sound design, and pacing.\n\nCould you share a Google Drive/Dropbox link to your raw footage and your target delivery deadline? We'll provide a milestone schedule within 24 hours.\n\nBest,\nAliasgar & VisionFold Studio Team`
+        `Hi ${lead.name},\n\nThank you for reaching out to VisionFold Creative regarding your ${lead.service} project!\n\nWe've reviewed your brief: "${lead.message}". We would love to take on this cut and deliver studio-grade cinema color, sound design, and pacing.\n\nCould you share a Google Drive/Dropbox link to your raw footage and your target delivery deadline? We'll provide a milestone schedule within 24 hours.\n\nBest,\nVisionFold Studio Team`
       );
     } finally {
       setGeneratingProposal(false);
@@ -355,7 +355,7 @@ export default function AdminLeadsPage() {
                   {cleanPhone && (
                     <a
                       href={`https://wa.me/${cleanPhone}?text=${encodeURIComponent(
-                        `Hi ${lead.name}, Aliasgar here from VisionFold Creative regarding your ${lead.service} inquiry!`
+                        `Hi ${lead.name}, this is the VisionFold Creative studio team regarding your ${lead.service} inquiry!`
                       )}`}
                       target="_blank"
                       rel="noopener noreferrer"

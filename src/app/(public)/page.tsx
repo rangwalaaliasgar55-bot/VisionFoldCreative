@@ -191,7 +191,7 @@ export default async function HomePage() {
 
       {/* Before / After Color Grade & VFX Interactive Split */}
       <section className="mx-auto max-w-7xl px-5 py-12 sm:px-8">
-        <Reveal>
+        <Reveal variant="scale">
           <div className="mb-8 text-center">
             <p className="text-xs font-semibold uppercase tracking-[0.3em] text-amber-300">Optical Standards</p>
             <h2 className="font-display mt-2 text-3xl font-bold text-white sm:text-5xl">
@@ -216,7 +216,7 @@ export default async function HomePage() {
           </Reveal>
           <div className="process-timeline relative z-10 mt-12 grid gap-5 md:grid-cols-2 lg:grid-cols-4">
             {PROCESS.map(({ Icon, step, title, desc }, i) => (
-              <Reveal key={step} delay={i * 90}>
+              <Reveal key={step} delay={i * 90} variant={i % 2 === 0 ? "left" : "right"}>
                 <div className="group relative h-full overflow-hidden rounded-3xl border border-white/8 bg-panel p-6 transition-colors hover:border-brand-400/40">
                   <span className="font-display absolute -right-2 -top-6 text-7xl font-bold text-white/4 transition-colors group-hover:text-brand-500/10">
                     {step}

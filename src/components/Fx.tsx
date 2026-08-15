@@ -13,10 +13,12 @@ import Link from "next/link";
 export function Reveal({
   children,
   delay = 0,
+  variant = "up",
   className = "",
 }: {
   children: ReactNode;
   delay?: number;
+  variant?: "up" | "left" | "right" | "scale" | "fade";
   className?: string;
 }) {
   const ref = useRef<HTMLDivElement>(null);
@@ -31,17 +33,29 @@ export function Reveal({
           io.disconnect();
         }
       },
-      { threshold: 0.1 }
+      { threshold: 0.12, rootMargin: "0px 0px -8% 0px" }
     );
     io.observe(el);
     return () => io.disconnect();
   }, []);
+
+  const hidden =
+    variant === "left"
+      ? "-translate-x-10 opacity-0"
+      : variant === "right"
+      ? "translate-x-10 opacity-0"
+      : variant === "scale"
+      ? "scale-95 opacity-0"
+      : variant === "fade"
+      ? "opacity-0"
+      : "translate-y-8 opacity-0";
+
   return (
     <div
       ref={ref}
       style={{ transitionDelay: `${delay}ms` }}
       className={`transition-all duration-700 ease-out will-change-transform ${
-        on ? "translate-y-0 opacity-100" : "translate-y-8 opacity-0"
+        on ? "translate-x-0 translate-y-0 scale-100 opacity-100" : hidden
       } ${className}`}
     >
       {children}
