@@ -1,0 +1,338 @@
+-- ============================================================================
+-- VisionFold Creative — COMPLETE SUPABASE SCHEMA
+-- ============================================================================
+-- This file matches the ACTIVE Next.js app (src/db/schema.ts / SCHEMA_SQL in
+-- src/db/index.ts) 1:1. The other SQL files in this folder belong to the old
+-- Vite/Express version of the app — you do NOT need them.
+--
+-- HOW TO RUN:
+--   1. Open Supabase Dashboard -> SQL Editor -> New query
+--   2. Paste this ENTIRE file
+--   3. Click "Run"
+--
+-- SAFE TO RUN MULTIPLE TIMES: every statement is idempotent
+-- (CREATE ... IF NOT EXISTS / ON CONFLICT DO NOTHING). Existing data is
+-- never deleted or altered.
+--
+-- VERIFY AFTERWARDS (should return 22 rows):
+--   select tablename from pg_tables where schemaname = 'public'
+--   and tablename in ('users','clients','projects','updates','messages',
+--   'leads','portfolio','invoices','expenses','ratings','categories','posts',
+--   'media','settings','automations','activity','ai_usage','newsletter',
+--   'quotas','frame_annotations','deliverables','webhooks');
+-- ============================================================================
+
+begin;
+
+-- ----------------------------------------------------------------------------
+-- Core auth / people
+-- ----------------------------------------------------------------------------
+
+-- Admin/staff logins for /admin
+create table if not exists public.users (
+  id            serial primary key,
+  email         text not null unique,
+  name          text not null default 'Admin',
+  password_hash text not null,
+  role          text not null default 'admin',
+  created_at    timestamptz default now()
+);
+
+-- Client-portal accounts
+create table if not exists public.clients (
+  id            serial primary key,
+  name          text not null,
+  email         text not null unique,
+  phone         text not null default '',
+  company       text not null default '',
+  password_hash text not null,
+  status        text not null default 'active',
+  notes         text not null default '',
+  created_at    timestamptz default now()
+);
+
+-- ----------------------------------------------------------------------------
+-- Client portal data
+-- ----------------------------------------------------------------------------
+
+create table if not exists public.projects (
+  id          serial primary key,
+  client_id   integer not null references public.clients(id) on delete cascade,
+  title       text not null,
+  service     text not null default 'Video Editing',
+  description text not null default '',
+  status      text not null default 'in_progress',
+  progress    integer not null default 0,
+  due_date    date,
+  budget      numeric(12, 2),
+  created_at  timestamptz default now(),
+  updated_at  timestamptz default now()
+);
+create index if not exists projects_client_idx on public.projects (client_id);
+create index if not exists projects_status_idx on public.projects (status);
+
+create table if not exists public.updates (
+  id         serial primary key,
+  project_id integer not null references public.projects(id) on delete cascade,
+  title      text not null,
+  body       text not null default '',
+  created_at timestamptz default now()
+);
+create index if not exists updates_project_idx on public.updates (project_id);
+
+create table if not exists public.messages (
+  id         serial primary key,
+  client_id  integer not null references public.clients(id) on delete cascade,
+  sender     text not null,
+  body       text not null,
+  read       boolean not null default false,
+  created_at timestamptz default now()
+);
+create index if not exists messages_client_idx on public.messages (client_id);
+
+create table if not exists public.invoices (
+  id         serial primary key,
+  client_id  integer not null references public.clients(id) on delete cascade,
+  project_id integer references public.projects(id) on delete set null,
+  number     text not null default '',
+  amount     numeric(12, 2) not null,
+  status     text not null default 'sent',
+  due_date   date,
+  notes      text not null default '',
+  created_at timestamptz default now()
+);
+create index if not exists invoices_client_idx on public.invoices (client_id);
+
+create table if not exists public.ratings (
+  id         serial primary key,
+  client_id  integer not null references public.clients(id) on delete cascade,
+  project_id integer references public.projects(id) on delete set null,
+  stars      integer not null default 5,
+  comment    text not null default '',
+  visible    boolean not null default true,
+  created_at timestamptz default now()
+);
+create index if not exists ratings_client_idx on public.ratings (client_id);
+
+create table if not exists public.frame_annotations (
+  id         serial primary key,
+  project_id integer not null references public.projects(id) on delete cascade,
+  client_id  integer references public.clients(id) on delete cascade,
+  "timestamp" text not null default '00:00',
+  comment    text not null,
+  author     text not null default 'Client',
+  resolved   boolean not null default false,
+  created_at timestamptz default now()
+);
+create index if not exists annotations_project_idx on public.frame_annotations (project_id);
+
+create table if not exists public.deliverables (
+  id           serial primary key,
+  project_id   integer not null references public.projects(id) on delete cascade,
+  name         text not null,
+  format       text not null default 'ProRes 422 HQ',
+  resolution   text not null default '4K UHD (3840x2160)',
+  size_bytes   numeric not null default 12400000000,
+  download_url text not null,
+  created_at   timestamptz default now()
+);
+create index if not exists deliverables_project_idx on public.deliverables (project_id);
+
+-- ----------------------------------------------------------------------------
+-- Marketing site: leads, portfolio, blog, media
+-- ----------------------------------------------------------------------------
+
+create table if not exists public.leads (
+  id         serial primary key,
+  name       text not null,
+  email      text not null,
+  phone      text not null default '',
+  service    text not null default 'Video Editing',
+  budget     text not null default '',
+  message    text not null default '',
+  notes      text not null default '',
+  status     text not null default 'new',
+  source     text not null default 'website',
+  created_at timestamptz default now()
+);
+create index if not exists leads_status_idx on public.leads (status);
+
+create table if not exists public.portfolio (
+  id            serial primary key,
+  title         text not null,
+  category      text not null default 'Brand Film',
+  description   text not null default '',
+  thumbnail_url text not null default '',
+  video_url     text not null default '',
+  year          text not null default '',
+  featured      boolean not null default false,
+  created_at    timestamptz default now()
+);
+
+create table if not exists public.categories (
+  id   serial primary key,
+  name text not null,
+  slug text not null unique
+);
+
+create table if not exists public.posts (
+  id              serial primary key,
+  title           text not null,
+  slug            text not null unique,
+  excerpt         text not null default '',
+  content         text not null default '',
+  status          text not null default 'draft',
+  category_id     integer references public.categories(id) on delete set null,
+  tags            text not null default '',
+  featured_image  text not null default '',
+  seo_title       text not null default '',
+  seo_description text not null default '',
+  views           integer not null default 0,
+  published_at    timestamptz,
+  created_at      timestamptz default now(),
+  updated_at      timestamptz default now()
+);
+create index if not exists posts_status_idx on public.posts (status);
+
+create table if not exists public.media (
+  id         serial primary key,
+  name       text not null,
+  url        text not null,
+  type       text not null default 'image',
+  size       integer not null default 0,
+  created_at timestamptz default now()
+);
+
+create table if not exists public.newsletter (
+  id         serial primary key,
+  email      text not null unique,
+  created_at timestamptz default now()
+);
+
+-- ----------------------------------------------------------------------------
+-- Platform internals
+-- ----------------------------------------------------------------------------
+
+-- Key-value store (site settings, CMS page store, automations config, ...)
+create table if not exists public.settings (
+  key        text primary key,
+  value      jsonb not null,
+  updated_at timestamptz default now()
+);
+
+create table if not exists public.automations (
+  id          serial primary key,
+  name        text not null,
+  trigger     text not null,
+  description text not null default '',
+  enabled     boolean not null default true,
+  config      jsonb not null default '{}',
+  last_run_at timestamptz
+);
+
+create table if not exists public.activity (
+  id         serial primary key,
+  actor      text not null default 'system',
+  action     text not null,
+  details    text not null default '',
+  created_at timestamptz default now()
+);
+create index if not exists activity_created_idx on public.activity (created_at);
+
+create table if not exists public.ai_usage (
+  id     serial primary key,
+  day    date not null unique,
+  tokens integer not null default 0
+);
+
+create table if not exists public.expenses (
+  id          serial primary key,
+  category    text not null default 'Software',
+  description text not null default '',
+  amount      numeric(12, 2) not null,
+  date        date,
+  created_at  timestamptz default now()
+);
+
+create table if not exists public.quotas (
+  id                      serial primary key,
+  storage_used_bytes      numeric not null default 45800000000,
+  storage_limit_bytes     numeric not null default 107374182400, -- 100 GB
+  ai_tokens_used          integer not null default 18500,
+  ai_tokens_limit         integer not null default 250000,
+  render_hours_used       numeric not null default 18.5,
+  render_hours_limit      numeric not null default 50.0,
+  active_projects_limit   integer not null default 20,
+  alert_threshold_percent integer not null default 80,
+  updated_at              timestamptz default now()
+);
+
+create table if not exists public.webhooks (
+  id                serial primary key,
+  name              text not null,
+  url               text not null,
+  events            text not null default 'project.completed,invoice.paid,lead.created',
+  secret            text not null default '',
+  active            boolean not null default true,
+  last_triggered_at timestamptz,
+  created_at        timestamptz default now()
+);
+
+-- ----------------------------------------------------------------------------
+-- Storage bucket used by the media library (src/lib/storage.ts)
+-- The app can also auto-create this at runtime with the service-role key,
+-- this insert just guarantees it exists.
+-- ----------------------------------------------------------------------------
+insert into storage.buckets (id, name, public)
+values ('visionfold-uploads', 'visionfold-uploads', true)
+on conflict (id) do nothing;
+
+-- ----------------------------------------------------------------------------
+-- Row Level Security — "safe" baseline.
+--
+-- The Next.js app talks to Postgres directly using the connection string
+-- (server-side only), which bypasses RLS, and uses the SERVICE ROLE key for
+-- Storage — which also bypasses RLS. So turning RLS ON with NO public
+-- policies locks the tables away from the anonymous/public API without
+-- affecting the app at all.
+--
+-- If you later want public read access via PostgREST (anon key), add
+-- per-table SELECT policies — e.g.:
+--   create policy "public read published posts" on public.posts
+--     for select using (status = 'published');
+-- ----------------------------------------------------------------------------
+alter table public.users             enable row level security;
+alter table public.clients           enable row level security;
+alter table public.projects          enable row level security;
+alter table public.updates           enable row level security;
+alter table public.messages          enable row level security;
+alter table public.invoices          enable row level security;
+alter table public.ratings           enable row level security;
+alter table public.frame_annotations enable row level security;
+alter table public.deliverables      enable row level security;
+alter table public.leads             enable row level security;
+alter table public.portfolio         enable row level security;
+alter table public.categories        enable row level security;
+alter table public.posts             enable row level security;
+alter table public.media             enable row level security;
+alter table public.newsletter        enable row level security;
+alter table public.settings          enable row level security;
+alter table public.automations       enable row level security;
+alter table public.activity          enable row level security;
+alter table public.ai_usage          enable row level security;
+alter table public.expenses          enable row level security;
+alter table public.quotas            enable row level security;
+alter table public.webhooks          enable row level security;
+
+commit;
+
+-- ============================================================================
+-- NEXT STEPS (not SQL):
+--   1. In Vercel project settings, set:
+--        DATABASE_URL = Supabase -> Project Settings -> Database ->
+--          "Connection string" (Transaction pooler, port 6543), e.g.
+--          postgresql://postgres.<ref>:<password>@aws-0-<region>.pooler.supabase.com:6543/postgres
+--        CRON_SECRET  = a long random string (protects /api/cron/run-scheduled)
+--   2. Redeploy. The admin login is bootstrapped automatically from
+--      ADMIN_EMAIL / ADMIN_PASSWORD on first use.
+-- ============================================================================
