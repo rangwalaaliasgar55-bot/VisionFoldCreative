@@ -12,6 +12,7 @@ import {
   LayoutTemplate,
   ExternalLink,
   AlertCircle,
+  Clock,
 } from 'lucide-react';
 import { adminApi } from '../../../lib/adminApi';
 import { BLOCK_CATALOG, type CmsPage, type CmsBlock, type CmsRevision } from '../../../lib/cmsTypes';
@@ -28,6 +29,7 @@ export const PageBuilder: React.FC = () => {
   const [msg, setMsg] = useState('');
   const [err, setErr] = useState('');
   const [preview, setPreview] = useState(false);
+  const [scheduleAt, setScheduleAt] = useState('');
   const blockCounter = useRef(0);
 
   const loadList = useCallback(async () => {
@@ -120,6 +122,33 @@ export const PageBuilder: React.FC = () => {
       await loadList();
     } catch (e: any) {
       setErr(e.message || 'Unpublish failed');
+    }
+  };
+
+  const schedule = async () => {
+    if (!page || !scheduleAt) return;
+    try {
+      await save();
+      const res = await adminApi.post<{ page: CmsPage }>(`/api/admin/cms/pages/${page.id}/schedule`, {
+        at: new Date(scheduleAt).toISOString(),
+      });
+      setPage(res.page);
+      setMsg(`Scheduled → goes live ${new Date(res.page.scheduledFor || '').toLocaleString()}`);
+      await loadList();
+    } catch (e: any) {
+      setErr(e.message || 'Schedule failed');
+    }
+  };
+
+  const unschedule = async () => {
+    if (!page) return;
+    try {
+      const res = await adminApi.post<{ page: CmsPage }>(`/api/admin/cms/pages/${page.id}/schedule`, { at: null });
+      setPage(res.page);
+      setMsg('Schedule cleared → draft');
+      await loadList();
+    } catch (e: any) {
+      setErr(e.message || 'Failed to clear schedule');
     }
   };
 
@@ -268,6 +297,24 @@ export const PageBuilder: React.FC = () => {
                     <Globe className="h-4 w-4" /> Publish
                   </GhostButton>
                 )}
+                {page.status === 'scheduled' && page.scheduledFor ? (
+                  <GhostButton type="button" onClick={() => void unschedule()}>
+                    <Clock className="h-4 w-4" /> Scheduled: {new Date(page.scheduledFor).toLocaleString()} — clear
+                  </GhostButton>
+                ) : page.status !== 'published' ? (
+                  <span className="inline-flex items-center gap-1">
+                    <input
+                      type="datetime-local"
+                      value={scheduleAt}
+                      onChange={(e) => setScheduleAt(e.target.value)}
+                      className="rounded-full border border-white/15 bg-transparent px-3 py-2 text-xs text-[#B8B3AA] [color-scheme:dark]"
+                      title="Pick a publish time"
+                    />
+                    <GhostButton type="button" onClick={() => void schedule()} disabled={!scheduleAt}>
+                      <Clock className="h-4 w-4" /> Schedule
+                    </GhostButton>
+                  </span>
+                ) : null}
                 <GhostButton type="button" onClick={() => setPreview((v) => !v)}>
                   {preview ? 'Edit blocks' : 'Live preview'}
                 </GhostButton>

@@ -29,7 +29,13 @@ let seedPromise: Promise<void> | null = null;
 
 export async function ensureSeed() {
   if (!seedPromise) {
+    // If seeding fails (e.g. DB briefly unreachable), clear the promise so the
+    // next request retries instead of being stuck with a rejected promise
+    // for the lifetime of this serverless instance.
     seedPromise = runSeed(false);
+    seedPromise.catch(() => {
+      seedPromise = null;
+    });
   }
   await seedPromise;
 }
@@ -48,6 +54,8 @@ async function runSeed(force: boolean) {
     }
 
     if (force) {
+      await db.delete(frameAnnotations);
+      await db.delete(deliverables);
       await db.delete(messages);
       await db.delete(updates);
       await db.delete(invoices);
@@ -64,6 +72,9 @@ async function runSeed(force: boolean) {
       await db.delete(activity);
       await db.delete(users);
       await db.delete(settings);
+      // quotas must be reset too, otherwise re-seeding leaves two rows and
+      // GET/PATCH (which read row #1) use stale limits.
+      await db.delete(quotas);
     }
 
     // 1. Settings
@@ -74,12 +85,21 @@ async function runSeed(force: boolean) {
       });
     }
 
-    // 2. Users (Admin)
-    const adminHash = hashPassword("demo1234");
+    // 2. Users (Admin) — credentials come from ADMIN_EMAIL / ADMIN_PASSWORD.
+    const isProd = process.env.NODE_ENV === "production" || Boolean(process.env.VERCEL);
+    const adminEmail = (process.env.ADMIN_EMAIL || "visionfoldcreative@gmail.com").toLowerCase();
+    const adminPassword = process.env.ADMIN_PASSWORD || "demo1234";
+    if (isProd && !process.env.ADMIN_PASSWORD) {
+      console.warn(
+        "[seed] WARNING: ADMIN_PASSWORD env var is not set — the well-known demo password is active. " +
+        "Set ADMIN_PASSWORD (and rotate it) in your deployment environment."
+      );
+    }
+    const adminHash = hashPassword(adminPassword);
     await db.insert(users).values([
       {
-        email: "visionfoldcreative@gmail.com",
-        name: "Aliasgar (VisionFold)",
+        email: adminEmail,
+        name: "VisionFold Owner",
         passwordHash: adminHash,
         role: "admin",
       },
@@ -91,8 +111,8 @@ async function runSeed(force: boolean) {
       },
     ]);
 
-    // 3. Clients
-    const clientHash = hashPassword("demo1234");
+    // 3. Clients (demo accounts — override-able via CLIENT_DEMO_PASSWORD)
+    const clientHash = hashPassword(process.env.CLIENT_DEMO_PASSWORD || "demo1234");
     const clientRows = await db
       .insert(clients)
       .values([

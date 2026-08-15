@@ -39,10 +39,10 @@ export default async function ContactPage() {
                 Start a project
               </p>
               <h1 className="font-display mt-3 text-4xl font-bold text-white sm:text-6xl">
-                Brief us. <span className="text-gradient">We'll do the rest.</span>
+                Brief us. <span className="text-gradient">We&rsquo;ll do the rest.</span>
               </h1>
               <p className="mt-5 max-w-md leading-relaxed text-slate-400">
-                Tell us what you're making, drop your budget and timeline, and we'll come back with a
+                Tell us what you&rsquo;re making, drop your budget and timeline, and we&rsquo;ll come back with a
                 plan and a quote within 24 hours — usually faster.
               </p>
             </Reveal>

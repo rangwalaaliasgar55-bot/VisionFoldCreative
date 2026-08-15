@@ -39,30 +39,34 @@ export function Donut({
   const total = Math.max(1, data.reduce((s, d) => s + d.value, 0));
   const r = 42;
   const c = 2 * Math.PI * r;
-  let offset = 0;
+  // Precompute segment offsets without mutating anything during render.
+  const segments = data.reduce<Array<{ d: (typeof data)[number]; i: number; len: number; offset: number }>>(
+    (acc, d, i) => {
+      const len = (d.value / total) * c;
+      const offset = acc.length ? acc[acc.length - 1].offset + acc[acc.length - 1].len : 0;
+      acc.push({ d, i, len, offset });
+      return acc;
+    },
+    []
+  );
   return (
     <div className="flex items-center gap-5">
       <svg width={size} height={size} viewBox="0 0 100 100" className="-rotate-90">
         <circle cx="50" cy="50" r={r} fill="none" stroke="rgba(148,163,184,0.12)" strokeWidth="11" />
-        {data.map((d, i) => {
-          const len = (d.value / total) * c;
-          const el = (
-            <circle
-              key={i}
-              cx="50"
-              cy="50"
-              r={r}
-              fill="none"
-              stroke={PALETTE[i % PALETTE.length]}
-              strokeWidth="11"
-              strokeDasharray={`${len} ${c - len}`}
-              strokeDashoffset={-offset}
-              strokeLinecap="round"
-            />
-          );
-          offset += len;
-          return el;
-        })}
+        {segments.map(({ i, len, offset }) => (
+          <circle
+            key={i}
+            cx="50"
+            cy="50"
+            r={r}
+            fill="none"
+            stroke={PALETTE[i % PALETTE.length]}
+            strokeWidth="11"
+            strokeDasharray={`${len} ${c - len}`}
+            strokeDashoffset={-offset}
+            strokeLinecap="round"
+          />
+        ))}
         <text
           x="50"
           y="50"

@@ -1,7 +1,7 @@
 import { db } from "@/db";
 import { automations, leads, newsletter } from "@/db/schema";
 import { eq } from "drizzle-orm";
-import { bad, ok, readBody } from "@/lib/auth";
+import { bad, loginThrottled, ok, readBody, requestIp } from "@/lib/auth";
 import { automationsEnabled } from "@/lib/settings";
 
 export const dynamic = "force-dynamic";
@@ -15,10 +15,14 @@ export async function POST(
   const { action } = await ctx.params;
 
   if (action === "contact") {
+    // Basic spam protection: 12 submissions / 15 min / IP.
+    if (loginThrottled(`contact:${requestIp(req)}`)) {
+      return bad("Too many submissions. Please try again later.", 429);
+    }
     const body = await readBody<Record<string, any>>(req);
-    const name = String(body.name || "").trim();
-    const email = String(body.email || "").trim().toLowerCase();
-    const message = String(body.message || "").trim();
+    const name = String(body.name || "").trim().slice(0, 120);
+    const email = String(body.email || "").trim().toLowerCase().slice(0, 254);
+    const message = String(body.message || "").trim().slice(0, 5000);
     if (!name || !EMAIL_RE.test(email) || !message) {
       return bad("Please fill in your name, a valid email and a short brief.");
     }
@@ -29,9 +33,9 @@ export async function POST(
       .values({
         name,
         email,
-        phone: String(body.phone || "").trim(),
-        service: String(body.service || "Video Editing"),
-        budget: String(body.budget || ""),
+        phone: String(body.phone || "").trim().slice(0, 40),
+        service: String(body.service || "Video Editing").slice(0, 80),
+        budget: String(body.budget || "").slice(0, 80),
         message,
         status: "new",
         source: "website",
@@ -50,8 +54,11 @@ export async function POST(
   }
 
   if (action === "newsletter") {
+    if (loginThrottled(`newsletter:${requestIp(req)}`)) {
+      return bad("Too many attempts. Please try again later.", 429);
+    }
     const body = await readBody<{ email?: string }>(req);
-    const email = String(body.email || "").trim().toLowerCase();
+    const email = String(body.email || "").trim().toLowerCase().slice(0, 254);
     if (!EMAIL_RE.test(email)) return bad("Please enter a valid email.");
     await db
       .insert(newsletter)

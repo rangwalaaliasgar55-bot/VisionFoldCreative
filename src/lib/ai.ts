@@ -9,16 +9,50 @@ import {
 } from "@/db/schema";
 import { and, desc, eq, gte, lt, sql } from "drizzle-orm";
 
+export type AiProvider = "nvidia" | "gemini" | "none";
+
 export type AiStatus = {
   configured: boolean;
-  provider: "gemini" | "none";
+  provider: AiProvider;
   model: string;
   phase: string;
   dailyBudget: number;
   usedToday: number;
 };
 
-const ENDPOINT = "https://generativelanguage.googleapis.com/v1beta/models";
+/**
+ * AI providers, in preference order:
+ *   1. NVIDIA NIM (free tier) — NVIDIA_API_KEY, OpenAI-compatible endpoint
+ *   2. Google Gemini          — GEMINI_API_KEY
+ * Budget: AI_DAILY_TOKEN_BUDGET (fallback: GEMINI_DAILY_TOKEN_BUDGET for
+ * backwards compatibility with older env setups).
+ */
+const GEMINI_ENDPOINT = "https://generativelanguage.googleapis.com/v1beta/models";
+const NIM_ENDPOINT = "https://integrate.api.nvidia.com/v1/chat/completions";
+
+export function dailyTokenBudget(): number {
+  return Number(
+    process.env.AI_DAILY_TOKEN_BUDGET ||
+      process.env.GEMINI_DAILY_TOKEN_BUDGET ||
+      250_000
+  );
+}
+
+export function activeProvider(): { provider: AiProvider; model: string } {
+  if (process.env.NVIDIA_API_KEY) {
+    return {
+      provider: "nvidia",
+      model: process.env.NVIDIA_MODEL || "meta/llama-3.1-8b-instruct",
+    };
+  }
+  if (process.env.GEMINI_API_KEY) {
+    return {
+      provider: "gemini",
+      model: process.env.GEMINI_MODEL || "gemini-2.0-flash",
+    };
+  }
+  return { provider: "none", model: "none" };
+}
 
 export async function todayTokens(): Promise<number> {
   const day = new Date().toISOString().slice(0, 10);
@@ -27,13 +61,13 @@ export async function todayTokens(): Promise<number> {
 }
 
 export async function getAiStatus(): Promise<AiStatus> {
-  const configured = Boolean(process.env.GEMINI_API_KEY);
+  const { provider, model } = activeProvider();
   return {
-    configured,
-    provider: configured ? "gemini" : "none",
-    model: process.env.GEMINI_MODEL || "gemini-2.0-flash",
+    configured: provider !== "none",
+    provider,
+    model,
     phase: "D",
-    dailyBudget: Number(process.env.GEMINI_DAILY_TOKEN_BUDGET || 250_000),
+    dailyBudget: dailyTokenBudget(),
     usedToday: await todayTokens(),
   };
 }
@@ -49,15 +83,12 @@ async function trackTokens(tokens: number) {
     });
 }
 
-export async function gemini(prompt: string, system?: string): Promise<string | null> {
+async function callGemini(prompt: string, system?: string): Promise<string | null> {
   const key = process.env.GEMINI_API_KEY;
   if (!key) return null;
   const model = process.env.GEMINI_MODEL || "gemini-2.0-flash";
-  const budget = Number(process.env.GEMINI_DAILY_TOKEN_BUDGET || 250_000);
-  const used = await todayTokens();
-  if (used > budget) return null;
   try {
-    const res = await fetch(`${ENDPOINT}/${model}:generateContent?key=${key}`, {
+    const res = await fetch(`${GEMINI_ENDPOINT}/${model}:generateContent?key=${key}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -78,6 +109,56 @@ export async function gemini(prompt: string, system?: string): Promise<string | 
   } catch {
     return null;
   }
+}
+
+async function callNvidia(prompt: string, system?: string): Promise<string | null> {
+  const key = process.env.NVIDIA_API_KEY;
+  if (!key) return null;
+  const model = process.env.NVIDIA_MODEL || "meta/llama-3.1-8b-instruct";
+  try {
+    const res = await fetch(NIM_ENDPOINT, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${key}`,
+      },
+      body: JSON.stringify({
+        model,
+        messages: [
+          ...(system ? [{ role: "system", content: system }] : []),
+          { role: "user", content: prompt },
+        ],
+        temperature: 0.7,
+        max_tokens: 1024,
+        stream: false,
+      }),
+      signal: AbortSignal.timeout(20_000),
+    });
+    if (!res.ok) return null;
+    const json: any = await res.json();
+    const text: string = json?.choices?.[0]?.message?.content ?? "";
+    const tokens: number = json?.usage?.total_tokens ?? 400;
+    if (text) await trackTokens(tokens);
+    return text || null;
+  } catch {
+    return null;
+  }
+}
+
+export async function generate(prompt: string, system?: string): Promise<string | null> {
+  const used = await todayTokens();
+  if (used > dailyTokenBudget()) return null;
+
+  const { provider } = activeProvider();
+  if (provider === "nvidia") {
+    const text = await callNvidia(prompt, system);
+    if (text) return text;
+    // Fall through to Gemini if NIM fails but a Gemini key exists.
+    if (process.env.GEMINI_API_KEY) return callGemini(prompt, system);
+    return null;
+  }
+  if (provider === "gemini") return callGemini(prompt, system);
+  return null;
 }
 
 async function gatherStats() {
@@ -122,11 +203,11 @@ export async function rulesInsights(): Promise<string[]> {
   return items.slice(0, 4);
 }
 
-export async function getInsights(): Promise<{ source: "gemini" | "rules"; items: string[] }> {
-  if (process.env.GEMINI_API_KEY) {
+export async function getInsights(): Promise<{ source: "ai" | "rules"; items: string[] }> {
+  if (activeProvider().provider !== "none") {
     try {
       const stats = await gatherStats();
-      const text = await gemini(
+      const text = await generate(
         `Studio data: ${JSON.stringify(stats)}. Return exactly 4 short actionable insights for a video editing studio owner, each max 14 words, as a JSON array of strings only.`,
         "You are the operations brain of a premium video editing studio. Be specific and punchy."
       );
@@ -135,7 +216,7 @@ export async function getInsights(): Promise<{ source: "gemini" | "rules"; items
         if (match) {
           const parsed = JSON.parse(match[0]);
           if (Array.isArray(parsed) && parsed.every((x) => typeof x === "string")) {
-            return { source: "gemini", items: parsed.slice(0, 4) };
+            return { source: "ai", items: parsed.slice(0, 4) };
           }
         }
       }
@@ -150,36 +231,39 @@ const TEMPLATES: Record<string, (input: string) => string> = {
   reply_lead: (i) =>
     `Hi there — thanks so much for reaching out about ${i || "your project"}! We'd love to learn more about your footage, timeline and goals. Could you share a few details (duration, style references, deadline)? We'll come back with a plan and a quote within 24 hours. — The VisionFold team`,
   update_copy: (i) =>
-    `Great news — ${i || "your project"} just moved forward! Here's what changed in this pass:\n\n• New edit direction applied\n• Color grade and sound pass updated\n• Review link refreshed in your portal\n\nNext up: your feedback round. Watch the latest cut and drop us notes — we iterate fast.`,
+    `Great news — ${i || "your project"} just moved forward! Here's what changed in this pass:\\n\\n• New edit direction applied\\n• Color grade and sound pass updated\\n• Review link refreshed in your portal\\n\\nNext up: your feedback round. Watch the latest cut and drop us notes — we iterate fast.`,
   email_subject: (i) =>
     `${i || "Your project"} — fresh cut ready for review 🎬`,
   seo_keywords: (i) =>
-    `Keyword ideas for "${i || "video editing"}":\n1. ${i || "video editing"} services\n2. hire a ${i || "video"} editor\n3. ${i || "video editing"} agency\n4. best ${i || "video"} editors for YouTube\n5. ${i || "video editing"} pricing\n6. professional ${i || "video"} post-production\n7. ${i || "video editing"} studio near me\n8. turnkey ${i || "video"} editing for brands`,
+    `Keyword ideas for "${i || "video editing"}":\\n1. ${i || "video editing"} services\\n2. hire a ${i || "video"} editor\\n3. ${i || "video editing"} agency\\n4. best ${i || "video"} editors for YouTube\\n5. ${i || "video editing"} pricing\\n6. professional ${i || "video"} post-production\\n7. ${i || "video editing"} studio near me\\n8. turnkey ${i || "video"} editing for brands`,
   social_caption: (i) =>
     `${i || "Every frame earns its place."} No fluff, no dead air — just edits that keep people watching. #videoediting #postproduction #brandfilm`,
   content_idea: (i) =>
-    `Content ideas about "${i || "video editing"}":\n1. "5 signs your edit needs a story pass"\n2. Before/after timeline breakdown of a real client project\n3. "What a $500 vs $5,000 edit actually changes"\n4. Round-up of tools we use in the suite this month\n5. Client interview: how we cut their launch film in 10 days`,
+    `Content ideas about "${i || "video editing"}":\\n1. "5 signs your edit needs a story pass"\\n2. Before/after timeline breakdown of a real client project\\n3. "What a $500 vs $5,000 edit actually changes"\\n4. Round-up of tools we use in the suite this month\\n5. Client interview: how we cut their launch film in 10 days`,
 };
+
+const MAX_ASSIST_INPUT = 4_000;
 
 export async function assist(
   kind: string,
   input: string
-): Promise<{ source: "gemini" | "template"; text: string }> {
+): Promise<{ source: "ai" | "template"; text: string }> {
+  const safeInput = String(input || "").slice(0, MAX_ASSIST_INPUT);
   const template = TEMPLATES[kind];
-  const fallback = template ? template(input) : `No template for "${kind}".`;
-  if (process.env.GEMINI_API_KEY) {
+  const fallback = template ? template(safeInput) : `No template for "${kind}".`;
+  if (activeProvider().provider !== "none") {
     const prompts: Record<string, string> = {
-      reply_lead: `Draft a warm, professional reply to this lead inquiry for a premium video editing studio. Keep it under 90 words, ask for footage details, timeline and style references: "${input}"`,
-      update_copy: `Write a short client-facing project progress update for a video editing studio. Friendly, concrete, bullet points. Topic: "${input}"`,
-      email_subject: `Write 3 catchy email subject lines for: "${input}". Return them newline separated.`,
-      seo_keywords: `Suggest 8 SEO keywords for a video editing studio page about: "${input}". Return one per line.`,
-      social_caption: `Write a punchy Instagram caption for a video editing studio about: "${input}". Max 25 words plus 4 hashtags.`,
-      content_idea: `Suggest 5 blog post titles for a video editing studio about: "${input}". Return one per line.`,
+      reply_lead: `Draft a warm, professional reply to this lead inquiry for a premium video editing studio. Keep it under 90 words, ask for footage details, timeline and style references: "${safeInput}"`,
+      update_copy: `Write a short client-facing project progress update for a video editing studio. Friendly, concrete, bullet points. Topic: "${safeInput}"`,
+      email_subject: `Write 3 catchy email subject lines for: "${safeInput}". Return them newline separated.`,
+      seo_keywords: `Suggest 8 SEO keywords for a video editing studio page about: "${safeInput}". Return one per line.`,
+      social_caption: `Write a punchy Instagram caption for a video editing studio about: "${safeInput}". Max 25 words plus 4 hashtags.`,
+      content_idea: `Suggest 5 blog post titles for a video editing studio about: "${safeInput}". Return one per line.`,
     };
     const prompt = prompts[kind];
     if (prompt) {
-      const text = await gemini(prompt);
-      if (text) return { source: "gemini", text: text.trim() };
+      const text = await generate(prompt);
+      if (text) return { source: "ai", text: text.trim() };
     }
   }
   return { source: "template", text: fallback };

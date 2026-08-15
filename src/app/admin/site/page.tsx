@@ -66,13 +66,14 @@ export default function AdminSitePage() {
 
   const [mediaForm, setMediaForm] = useState({ name: "", url: "", type: "image" });
 
-  // Quotas Edit State
-  const [quotaForm, setQuotaForm] = useState<Partial<QuotaRow>>({});
-  useEffect(() => {
-    if (quotasData) {
-      setQuotaForm(quotasData);
-    }
-  }, [quotasData]);
+  // Quotas Edit State — derive the editable form directly; reset when the
+  // fetched quotas change identity (initial load / reload after save).
+  const [quotaForm, setQuotaForm] = useState<Partial<QuotaRow>>(quotasData ?? {});
+  const [quotaSource, setQuotaSource] = useState(quotasData);
+  if (quotasData && quotasData !== quotaSource) {
+    setQuotaSource(quotasData);
+    setQuotaForm(quotasData);
+  }
 
   async function saveHero() {
     if (!hero) return;
@@ -567,7 +568,9 @@ export default function AdminSitePage() {
                 Update password
               </Button>
               <p className="text-xs text-slate-600">
-                Bootstrap admin credentials: <code>visionfoldcreative@gmail.com</code> / <code>demo1234</code>
+                The bootstrap admin is created from the <code>ADMIN_EMAIL</code> / <code>ADMIN_PASSWORD</code>
+                environment variables on first run. Set them before the first deploy and rotate the password
+                here afterwards.
               </p>
             </div>
           </Card>

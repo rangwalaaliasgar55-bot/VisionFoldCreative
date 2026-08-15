@@ -186,7 +186,7 @@ export default async function ServicesPage() {
         <Reveal>
           <div className="glass rounded-3xl p-8 text-center">
             <p className="text-sm text-slate-400">
-              Not sure which service fits? Send the footage — we'll tell you honestly.
+              Not sure which service fits? Send the footage — we&rsquo;ll tell you honestly.
             </p>
             <p className="mt-2 text-sm font-semibold text-white">
               {settings.email} · {settings.phone}

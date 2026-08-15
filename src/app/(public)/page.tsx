@@ -354,7 +354,7 @@ export default async function HomePage() {
             <div className="animate-floaty2 pointer-events-none absolute -left-10 top-8 h-40 w-40 rounded-full bg-brand-600/25 blur-3xl" />
             <div className="animate-floaty pointer-events-none absolute -right-10 bottom-8 h-40 w-40 rounded-full bg-cyan-400/20 blur-3xl" />
             <h2 className="font-display relative text-3xl font-bold text-white sm:text-5xl">
-              Got footage? <span className="text-gradient">Let's make it move.</span>
+              Got footage? <span className="text-gradient">Let&rsquo;s make it move.</span>
             </h2>
             <p className="relative mx-auto mt-4 max-w-xl text-slate-400">
               Send a brief today and get a plan, a timeline and a quote back within 24 hours. No calls required.
