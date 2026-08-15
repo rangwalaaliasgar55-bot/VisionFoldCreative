@@ -1,8 +1,7 @@
 import { db } from "@/db";
-import { invoices, messages, projects, ratings, updates } from "@/db/schema";
-import { eq, sql } from "drizzle-orm";
+import { deliverables, invoices, messages, projects, ratings, updates } from "@/db/schema";
+import { eq, inArray, sql } from "drizzle-orm";
 import { bad, hashPassword, ok, readBody, requireClient, verifyPassword } from "@/lib/auth";
-import { money } from "@/lib/utils";
 import { clients } from "@/db/schema";
 
 export const dynamic = "force-dynamic";
@@ -28,13 +27,19 @@ export async function GET(
     const { action } = await ctx.params;
 
     if (action === "overview") {
-      const [clientProjects, clientMessages, clientInvoices, clientRatings, updateRows] = await Promise.all([
+      const [clientProjects, clientMessages, clientInvoices, clientRatings] = await Promise.all([
         db.select().from(projects).where(eq(projects.clientId, client.id)).orderBy(sql`${projects.status} = 'completed'`),
         db.select().from(messages).where(eq(messages.clientId, client.id)).orderBy(messages.createdAt),
         db.select().from(invoices).where(eq(invoices.clientId, client.id)).orderBy(sql`${invoices.createdAt} desc`),
         db.select().from(ratings).where(eq(ratings.clientId, client.id)).orderBy(sql`${ratings.createdAt} desc`),
-        db.select().from(updates),
       ]);
+      const projectIds = clientProjects.map((project) => project.id);
+      const [updateRows, deliverableRows] = projectIds.length
+        ? await Promise.all([
+            db.select().from(updates).where(inArray(updates.projectId, projectIds)).orderBy(sql`${updates.createdAt} desc`),
+            db.select().from(deliverables).where(inArray(deliverables.projectId, projectIds)).orderBy(sql`${deliverables.createdAt} desc`),
+          ])
+        : [[], []];
       const unread = clientMessages.filter((m) => m.sender === "admin" && !m.read).length;
       return ok({
         client: {
@@ -47,7 +52,8 @@ export async function GET(
           createdAt: client.createdAt,
         },
         projects: clientProjects,
-        updates: updateRows.filter((u) => clientProjects.some((p) => p.id === u.projectId)),
+        updates: updateRows,
+        deliverables: deliverableRows,
         messages: clientMessages,
         invoices: clientInvoices,
         ratings: clientRatings,
@@ -82,6 +88,7 @@ export async function POST(
     if (action === "message") {
       const text = String(body.body || "").trim();
       if (!text) return bad("Message is empty.");
+      if (text.length > 5000) return bad("Message is too long (maximum 5,000 characters).");
       const row = await db
         .insert(messages)
         .values({ clientId: client.id, sender: "client", body: text, read: false })
@@ -99,8 +106,16 @@ export async function POST(
 
     if (action === "rating") {
       const stars = Math.max(1, Math.min(5, Number(body.stars ?? 0)));
-      const comment = String(body.comment || "").trim();
+      const comment = String(body.comment || "").trim().slice(0, 2000);
       const projectId = body.projectId ? Number(body.projectId) : null;
+      if (projectId) {
+        const ownedProject = await db
+          .select({ id: projects.id })
+          .from(projects)
+          .where(sql`${projects.id} = ${projectId} and ${projects.clientId} = ${client.id}`)
+          .limit(1);
+        if (!ownedProject.length) return bad("Project not found.", 404);
+      }
       const existing = await db
         .select()
         .from(ratings)
@@ -125,14 +140,14 @@ export async function POST(
     }
 
     if (action === "profile") {
-      const name = String(body.name || client.name).trim();
+      const name = String(body.name || client.name).trim().slice(0, 120);
       if (!name) return bad("Name is required.");
       await db
         .update(clients)
         .set({
           name,
-          company: String(body.company || ""),
-          phone: String(body.phone || ""),
+          company: String(body.company || "").trim().slice(0, 160),
+          phone: String(body.phone || "").trim().slice(0, 40),
         })
         .where(eq(clients.id, client.id));
       return ok({ ok: true, name });
@@ -143,7 +158,8 @@ export async function POST(
         return bad("Current password is incorrect.");
       }
       const next = String(body.next || "");
-      if (next.length < 6) return bad("New password must be at least 6 characters.");
+      if (next.length < 8) return bad("New password must be at least 8 characters.");
+      if (next.length > 128) return bad("New password is too long.");
       await db
         .update(clients)
         .set({ passwordHash: hashPassword(next) })
@@ -162,14 +178,19 @@ export async function POST(
       )[0];
       if (!inv) return bad("Invoice not found.", 404);
       if (inv.status === "paid") return bad("Already paid.");
-      await db.update(invoices).set({ status: "paid" }).where(eq(invoices.id, inv.id));
-      await db.insert(messages).values({
-        clientId: client.id,
-        sender: "admin",
-        body: `Payment received for ${inv.number} ($${money(inv.amount)}) — thank you! Receipt generated.`,
-        read: false,
-      });
-      return ok({ ok: true });
+
+      // Never mark an invoice paid from a browser click. A verified payment
+      // provider webhook must perform that state transition. Until a provider
+      // is connected, direct the client to a configured hosted checkout.
+      const checkoutBase = process.env.PAYMENT_CHECKOUT_URL?.trim();
+      if (!checkoutBase) {
+        return bad("Online payment is not configured. Please contact the studio for payment instructions.", 503);
+      }
+      const checkout = new URL(checkoutBase);
+      checkout.searchParams.set("invoice", inv.number);
+      checkout.searchParams.set("amount", String(inv.amount));
+      checkout.searchParams.set("client", String(client.id));
+      return ok({ ok: true, checkoutUrl: checkout.toString() });
     }
 
     if (action === "request-project") {
@@ -214,6 +235,14 @@ export async function POST(
       const feedback = String(body.feedback || "").trim();
       const approved = Boolean(body.approved);
       if (!projectId) return bad("Project ID is required.");
+      const ownedProject = await db
+        .select({ id: projects.id })
+        .from(projects)
+        .where(sql`${projects.id} = ${projectId} and ${projects.clientId} = ${client.id}`)
+        .limit(1);
+      if (!ownedProject.length) return bad("Project not found.", 404);
+      if (!approved && !feedback) return bad("Revision feedback is required.");
+      if (feedback.length > 5000) return bad("Feedback is too long (maximum 5,000 characters).");
 
       if (approved) {
         await db.update(projects).set({ status: "completed", progress: 100 }).where(eq(projects.id, projectId));

@@ -1,4 +1,4 @@
-import { bad, ok, readBody, requireAdmin } from "@/lib/auth";
+import { bad, ok, readBody, requireStaff } from "@/lib/auth";
 import { assist, getAiStatus, getInsights } from "@/lib/ai";
 
 export const dynamic = "force-dynamic";
@@ -12,7 +12,7 @@ export async function POST(
   req: Request,
   ctx: { params: Promise<{ action: string }> }
 ) {
-  const admin = await requireAdmin();
+  const admin = await requireStaff(["admin", "editor"]);
   if (!admin) return bad("Unauthorized", 401);
   const { action } = await ctx.params;
   const body = await readBody<Record<string, any>>(req);

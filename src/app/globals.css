@@ -102,6 +102,21 @@ body {
   animation: shimmer 2.4s linear infinite;
 }
 
+.skeleton {
+  position: relative;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.055);
+}
+.skeleton::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.075), transparent);
+  animation: skeleton-sweep 1.6s ease-in-out infinite;
+}
+@keyframes skeleton-sweep { to { transform: translateX(100%); } }
+
 .process-timeline {
   position: relative;
 }
@@ -232,6 +247,45 @@ select:focus-visible {
   outline-offset: 2px;
 }
 
+@keyframes cms-block-in {
+  from { opacity: 0; transform: translate3d(0, 18px, 0) rotateX(2deg); }
+  to { opacity: 1; transform: translate3d(0, 0, 0) rotateX(0); }
+}
+.cms-block-reveal {
+  animation: cms-block-in 0.7s cubic-bezier(0.16, 1, 0.3, 1) both;
+  transform-origin: 50% 0;
+}
+
+.auth-3d-card {
+  transform: perspective(1100px) rotateX(0deg) translateZ(0);
+  transform-style: preserve-3d;
+  transition: transform 0.55s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.55s ease;
+}
+.auth-3d-card:hover {
+  transform: perspective(1100px) rotateX(1.5deg) translateY(-3px) translateZ(8px);
+  box-shadow: 0 35px 90px -35px rgba(115, 87, 255, 0.55);
+}
+.auth-3d-card > * { transform: translateZ(18px); }
+
+/* Admin application surface */
+.admin-surface {
+  background:
+    radial-gradient(55rem 30rem at 88% -8%, rgba(115, 87, 255, 0.09), transparent 62%),
+    #0B1020;
+}
+.admin-surface section,
+.admin-surface article {
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.015);
+}
+.admin-surface input[type="date"]::-webkit-calendar-picker-indicator {
+  filter: invert(0.7);
+  opacity: 0.65;
+}
+.admin-surface kbd {
+  font-family: var(--font-sans);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
   .animate-marquee,
@@ -242,11 +296,16 @@ select:focus-visible {
   .animate-pulseglow,
   .animate-scrollcue,
   .animate-spin-slow,
+  .cms-block-reveal,
+  .skeleton::after,
   .shimmer {
     animation: none !important;
   }
   .card-glow:hover,
-  .fold-card:hover {
+  .fold-card:hover,
+  .auth-3d-card,
+  .auth-3d-card:hover {
     transform: none !important;
+    transition: none !important;
   }
 }

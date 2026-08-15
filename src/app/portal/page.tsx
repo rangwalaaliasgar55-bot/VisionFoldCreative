@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Badge,
   Button,
@@ -10,7 +10,7 @@ import {
   Modal,
   ProgressBar,
   Select,
-  Spinner,
+  PortalSkeleton,
   StatusBadge,
   Textarea,
   toast,
@@ -52,6 +52,7 @@ type OverviewData = {
   };
   projects: any[];
   updates: any[];
+  deliverables: any[];
   messages: any[];
   invoices: any[];
   ratings: any[];
@@ -97,14 +98,14 @@ export default function ClientPortalPage() {
   const [payingInvoice, setPayingInvoice] = useState<any | null>(null);
   const [processingPay, setProcessingPay] = useState(false);
 
-  async function loadData() {
+  const loadData = useCallback(async () => {
     try {
       const res = await fetch("/api/portal/overview");
       if (res.ok) {
         const d = await res.json();
         setData(d);
-        if (d.projects?.length && !activeReviewProj) {
-          setActiveReviewProj(d.projects[0]);
+        if (d.projects?.length) {
+          setActiveReviewProj((current: any) => current || d.projects[0]);
         }
       }
     } catch {
@@ -112,19 +113,27 @@ export default function ClientPortalPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, []);
 
   useEffect(() => {
-    loadData();
-    const interval = setInterval(loadData, 8000);
-    return () => clearInterval(interval);
-  }, []);
+    const initial = window.setTimeout(() => void loadData(), 0);
+    const interval = window.setInterval(() => void loadData(), 8000);
+    return () => {
+      window.clearTimeout(initial);
+      window.clearInterval(interval);
+    };
+  }, [loadData]);
 
   useEffect(() => {
     if (chatScrollRef.current) {
       chatScrollRef.current.scrollTop = chatScrollRef.current.scrollHeight;
     }
-  }, [data?.messages, tab]);
+    if (tab === "messages" && data?.unread) {
+      void fetch("/api/portal/read", { method: "POST" }).then((response) => {
+        if (response.ok) setData((current) => current ? { ...current, unread: 0 } : current);
+      });
+    }
+  }, [data?.messages, data?.unread, tab]);
 
   async function handleSendMessage(e: React.FormEvent) {
     e.preventDefault();
@@ -228,18 +237,50 @@ export default function ClientPortalPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ invoiceId }),
       });
-      if (res.ok) {
-        toast("Payment processed successfully! Receipt generated.");
-        setPayingInvoice(null);
-        await loadData();
+      const result = await res.json().catch(() => ({}));
+      if (res.ok && result.checkoutUrl) {
+        toast("Opening secure checkout…");
+        window.location.assign(result.checkoutUrl);
       } else {
-        toast("Payment failed", "err");
+        toast(result.error || "Secure payment is not available yet", "err");
       }
     } catch {
       toast("Payment network error", "err");
     } finally {
       setProcessingPay(false);
     }
+  }
+
+  async function handleProfileSave(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const form = new FormData(e.currentTarget);
+    const res = await fetch("/api/portal/profile", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: form.get("name"), company: form.get("company"), phone: form.get("phone") }),
+    });
+    const result = await res.json().catch(() => ({}));
+    if (!res.ok) return toast(result.error || "Could not update profile", "err");
+    toast("Profile updated");
+    await loadData();
+  }
+
+  async function handlePasswordChange(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const element = e.currentTarget;
+    const form = new FormData(element);
+    const next = String(form.get("next") || "");
+    const confirm = String(form.get("confirm") || "");
+    if (next !== confirm) return toast("New passwords do not match", "err");
+    const res = await fetch("/api/portal/password", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ current: form.get("current"), next }),
+    });
+    const result = await res.json().catch(() => ({}));
+    if (!res.ok) return toast(result.error || "Could not change password", "err");
+    element.reset();
+    toast("Password changed securely");
   }
 
   async function handleRatingSubmit(e: React.FormEvent) {
@@ -263,19 +304,19 @@ export default function ClientPortalPage() {
     }
   }
 
-  if (loading || !data) {
-    return (
-      <div className="flex min-h-[60vh] items-center justify-center">
-        <Spinner />
-      </div>
-    );
-  }
+  if (loading || !data) return <PortalSkeleton />;
 
   const client = data.client;
   const projects = data.projects || [];
   const updates = data.updates || [];
   const messages = data.messages || [];
   const invoices = data.invoices || [];
+  const deliverables = data.deliverables || [];
+  const activeProjects = projects.filter((project) => project.status !== "completed");
+  const outstandingInvoices = invoices.filter((invoice) => invoice.status !== "paid");
+  const nextDue = [...activeProjects]
+    .filter((project) => project.dueDate)
+    .sort((a, b) => String(a.dueDate).localeCompare(String(b.dueDate)))[0];
 
   return (
     <div className="mx-auto max-w-6xl px-5 py-8 space-y-6">
@@ -304,6 +345,22 @@ export default function ClientPortalPage() {
             <Plus size={15} /> Request New Cut
           </Button>
         </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        {[
+          { label: "Active projects", value: activeProjects.length, detail: `${projects.length} total`, Icon: FolderKanban, tone: "text-brand-300 bg-brand-500/10" },
+          { label: "Ready files", value: deliverables.length, detail: "secure downloads", Icon: Download, tone: "text-cyan-300 bg-cyan-500/10" },
+          { label: "Open invoices", value: outstandingInvoices.length, detail: outstandingInvoices.length ? fmtMoney(outstandingInvoices.reduce((sum, invoice) => sum + Number(invoice.amount || 0), 0)) : "all settled", Icon: CreditCard, tone: "text-amber-300 bg-amber-500/10" },
+          { label: "Next deadline", value: nextDue?.dueDate || "Flexible", detail: nextDue?.title || "No deadline set", Icon: Clock, tone: "text-emerald-300 bg-emerald-500/10" },
+        ].map(({ label, value, detail, Icon, tone }) => (
+          <div key={label} className="rounded-2xl border border-white/[0.07] bg-panel/70 p-4 transition hover:border-white/15">
+            <div className={`mb-3 grid h-8 w-8 place-items-center rounded-lg ${tone}`}><Icon size={15} /></div>
+            <p className="truncate font-display text-xl font-bold text-white">{value}</p>
+            <p className="mt-0.5 text-[10px] font-semibold uppercase tracking-wider text-slate-500">{label}</p>
+            <p className="mt-1 truncate text-[10px] text-slate-600">{detail}</p>
+          </div>
+        ))}
       </div>
 
       {/* Navigation Tabs */}
@@ -377,6 +434,15 @@ export default function ClientPortalPage() {
               );
             })}
           </div>
+          {projects.length === 0 && (
+            <div className="relative overflow-hidden rounded-3xl border border-dashed border-brand-400/25 bg-brand-500/[0.04] px-6 py-14 text-center">
+              <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_120%,rgba(115,87,255,.18),transparent_55%)]" />
+              <Film size={34} className="relative mx-auto text-brand-300" />
+              <h3 className="relative mt-4 font-display text-xl font-bold text-white">Your first production starts here</h3>
+              <p className="relative mx-auto mt-2 max-w-md text-sm leading-relaxed text-slate-500">Send the studio your brief, footage link, goals and budget. We will review it and turn this empty workspace into a live production timeline.</p>
+              <Button className="relative mt-5" onClick={() => setShowIntake(true)}><Plus size={14} /> Submit your first brief</Button>
+            </div>
+          )}
 
           {/* 4K DELIVERABLE REVIEW PLAYER */}
           {activeReviewProj && (
@@ -543,15 +609,23 @@ export default function ClientPortalPage() {
                         </Button>
                       </div>
 
-                      <a
-                        href="https://assets.mixkit.co/videos/preview/mixkit-cyberpunk-city-at-night-with-neon-lights-42541-large.mp4"
-                        download
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1.5 text-xs font-semibold text-cyan-300 hover:underline"
-                      >
-                        <Download size={13} /> Download Master ProRes 422 ↗
-                      </a>
+                      <div className="space-y-2">
+                        {deliverables.filter((file) => file.projectId === activeReviewProj.id).map((file) => (
+                          <a
+                            key={file.id}
+                            href={file.downloadUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center justify-between gap-3 rounded-xl border border-cyan-400/15 bg-cyan-500/[0.05] px-3 py-2 text-xs transition hover:border-cyan-400/35 hover:bg-cyan-500/10"
+                          >
+                            <span className="flex min-w-0 items-center gap-2 text-cyan-200"><Download size={13} /><span className="truncate font-semibold">{file.name}</span></span>
+                            <span className="shrink-0 text-[9px] uppercase tracking-wider text-slate-500">{file.format} · {file.resolution}</span>
+                          </a>
+                        ))}
+                        {!deliverables.some((file) => file.projectId === activeReviewProj.id) && (
+                          <p className="text-[11px] text-slate-500">Final downloads will appear here when the studio publishes a deliverable.</p>
+                        )}
+                      </div>
                     </div>
                   </div>
 
@@ -679,39 +753,24 @@ export default function ClientPortalPage() {
       {/* 4. PROFILE & SETTINGS TAB */}
       {tab === "profile" && (
         <div className="grid gap-6 md:grid-cols-2">
-          <Card title="Account Profile" desc="Your studio contact information">
-            <div className="space-y-3 text-xs">
-              <div className="rounded-xl border border-white/8 p-3">
-                <p className="text-slate-500 uppercase tracking-widest text-[10px]">Client Name</p>
-                <p className="mt-1 font-semibold text-white">{client.name}</p>
-              </div>
-              <div className="rounded-xl border border-white/8 p-3">
-                <p className="text-slate-500 uppercase tracking-widest text-[10px]">Email Address</p>
-                <p className="mt-1 font-semibold text-white">{client.email}</p>
-              </div>
-              <div className="rounded-xl border border-white/8 p-3">
-                <p className="text-slate-500 uppercase tracking-widest text-[10px]">Company / Brand</p>
-                <p className="mt-1 font-semibold text-white">{client.company || "Independent Creator"}</p>
-              </div>
-              <div className="rounded-xl border border-white/8 p-3">
-                <p className="text-slate-500 uppercase tracking-widest text-[10px]">Phone</p>
-                <p className="mt-1 font-semibold text-white">{client.phone || "Not set"}</p>
-              </div>
-            </div>
+          <Card title="Account profile" desc="Keep your studio contact information current">
+            <form onSubmit={handleProfileSave} className="space-y-3">
+              <Field label="Client name"><Input name="name" required defaultValue={client.name} maxLength={120} /></Field>
+              <Field label="Email address" hint="Contact the studio to change your sign-in email."><Input value={client.email} disabled /></Field>
+              <Field label="Company / brand"><Input name="company" defaultValue={client.company || ""} maxLength={160} placeholder="Independent creator" /></Field>
+              <Field label="Phone"><Input name="phone" defaultValue={client.phone || ""} maxLength={40} placeholder="Add a contact number" /></Field>
+              <div className="flex justify-end pt-2"><Button type="submit">Save profile</Button></div>
+            </form>
           </Card>
 
-          <Card title="Security & Authentication" desc="Studio portal access">
-            <p className="text-xs text-slate-400 mb-4">
-              Your account is authenticated via encrypted session tokens. If you need to update your password or invite team members, contact Aliasgar.
-            </p>
-            <Button
-              variant="outline"
-              onClick={() => {
-                toast("Password reset instructions sent to your email");
-              }}
-            >
-              Request Password Reset Email
-            </Button>
+          <Card title="Security & authentication" desc="Change your portal password securely">
+            <form onSubmit={handlePasswordChange} className="space-y-3">
+              <Field label="Current password"><Input name="current" type="password" required autoComplete="current-password" /></Field>
+              <Field label="New password" hint="Use at least 8 characters."><Input name="next" type="password" required minLength={8} autoComplete="new-password" /></Field>
+              <Field label="Confirm new password"><Input name="confirm" type="password" required minLength={8} autoComplete="new-password" /></Field>
+              <div className="rounded-xl border border-emerald-400/15 bg-emerald-400/[0.04] p-3 text-[11px] leading-relaxed text-slate-400">Your session is encrypted and the password is stored as a one-way hash. VisionFold staff cannot view it.</div>
+              <div className="flex justify-end pt-2"><Button type="submit" variant="outline">Change password</Button></div>
+            </form>
           </Card>
         </div>
       )}

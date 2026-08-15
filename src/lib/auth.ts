@@ -8,12 +8,21 @@ import { eq } from "drizzle-orm";
 export const SESSION_COOKIE = "vf_session";
 const MAX_AGE_SECONDS = 60 * 60 * 24 * 7; // 7 days
 
+export type StaffRole = "admin" | "editor" | "accountant";
+export type AppRole = StaffRole | "client";
+
 export type SessionPayload = {
   sub: number;
-  role: "admin" | "client";
+  role: AppRole;
   email: string;
   name: string;
 };
+
+export const STAFF_ROLES: StaffRole[] = ["admin", "editor", "accountant"];
+
+export function isStaffRole(role: unknown): role is StaffRole {
+  return STAFF_ROLES.includes(role as StaffRole);
+}
 
 function secretKey() {
   return new TextEncoder().encode(
@@ -76,11 +85,17 @@ export async function clearSession() {
   store.delete(SESSION_COOKIE);
 }
 
-export async function requireAdmin() {
+export async function requireStaff(roles: StaffRole[] = STAFF_ROLES) {
   const session = await readSession();
-  if (!session || session.role !== "admin") return null;
+  if (!session || !isStaffRole(session.role) || !roles.includes(session.role)) return null;
   const rows = await db.select().from(users).where(eq(users.id, session.sub)).limit(1);
-  return rows[0] ?? null;
+  const user = rows[0];
+  if (!user || !isStaffRole(user.role) || !roles.includes(user.role)) return null;
+  return user;
+}
+
+export async function requireAdmin() {
+  return requireStaff(["admin"]);
 }
 
 export async function requireClient() {
