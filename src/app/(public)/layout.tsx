@@ -47,7 +47,7 @@ export default async function PublicLayout({ children }: { children: ReactNode }
   return (
     <>
       <SiteHeader title={String(settings.siteTitle)} />
-      <main className="min-h-screen pt-16">{children}</main>
+      <main className="animate-page-in min-h-screen pt-16">{children}</main>
       <SiteFooter settings={settings} />
     </>
   );

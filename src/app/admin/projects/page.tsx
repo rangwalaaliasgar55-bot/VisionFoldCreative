@@ -206,7 +206,9 @@ export default function AdminProjectsPage() {
     }
   }
 
+  const [statusTab, setStatusTab] = useState("all");
   const statusFilter = (s: string) => projects?.filter((p) => p.status === s) ?? [];
+  const visibleProjects = statusTab === "all" ? (projects ?? []) : statusFilter(statusTab);
 
   return (
     <div className="space-y-6">
@@ -226,20 +228,34 @@ export default function AdminProjectsPage() {
         <Empty title="No projects yet" desc="Create the first project for a client to unlock the delivery pipeline." />
       ) : (
         <>
-          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+            <button
+              onClick={() => setStatusTab("all")}
+              className={`glass hover-lift rounded-2xl p-4 text-left ${statusTab === "all" ? "border-brand-400/60 ring-1 ring-brand-400/40" : ""}`}
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold uppercase tracking-wider text-white">All</span>
+                <span className="font-display text-xl font-bold text-white">{projects.length}</span>
+              </div>
+              <p className="mt-1 text-[11px] text-slate-500">total projects</p>
+            </button>
             {["in_progress", "review", "revision", "completed"].map((s) => (
-              <div key={s} className="glass rounded-2xl p-4">
+              <button
+                key={s}
+                onClick={() => setStatusTab(s)}
+                className={`glass hover-lift rounded-2xl p-4 text-left ${statusTab === s ? "border-brand-400/60 ring-1 ring-brand-400/40" : ""}`}
+              >
                 <div className="flex items-center justify-between">
                   <StatusBadge status={s} />
                   <span className="font-display text-xl font-bold text-white">{statusFilter(s).length}</span>
                 </div>
                 <p className="mt-1 text-[11px] text-slate-500">{s.replace("_", " ")} projects</p>
-              </div>
+              </button>
             ))}
           </div>
 
           <div className="space-y-3">
-            {projects.map((p) => (
+            {visibleProjects.map((p) => (
               <div key={p.id} className="glass card-glow rounded-2xl p-5">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div className="min-w-0 flex-1">

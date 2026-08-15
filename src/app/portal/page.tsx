@@ -94,7 +94,18 @@ export default function ClientPortalPage() {
   // Rating Modal
   const [ratingStars, setRatingStars] = useState(5);
   const [ratingComment, setRatingComment] = useState("");
+  const [ratingProject, setRatingProject] = useState("");
   const [showRatingModal, setShowRatingModal] = useState(false);
+
+  const existingRating = (data?.ratings || [])[0] as { id?: number; stars?: number; comment?: string; visible?: boolean } | undefined;
+
+  function openRatingModal() {
+    if (existingRating) {
+      setRatingStars(existingRating.stars || 5);
+      setRatingComment(existingRating.comment || "");
+    }
+    setShowRatingModal(true);
+  }
 
   // Pay Modal
   const [payingInvoice, setPayingInvoice] = useState<any | null>(null);
@@ -294,10 +305,11 @@ export default function ClientPortalPage() {
         body: JSON.stringify({
           stars: ratingStars,
           comment: ratingComment,
+          projectId: ratingProject || undefined,
         }),
       });
       if (res.ok) {
-        toast("Thank you for your rating!");
+        toast(existingRating ? "Your review was updated!" : "Thank you for your rating!");
         setShowRatingModal(false);
         await loadData();
       }
@@ -326,7 +338,7 @@ export default function ClientPortalPage() {
     : 0;
 
   return (
-    <div className="mx-auto max-w-6xl px-5 py-8 space-y-6">
+    <div className="animate-page-in mx-auto max-w-6xl px-5 py-8 space-y-6">
       {/* Welcome Banner */}
       <div className="glass card-glow flex flex-wrap items-center justify-between gap-4 rounded-3xl p-6">
         <div className="flex items-center gap-4">
@@ -345,8 +357,8 @@ export default function ClientPortalPage() {
         </div>
 
         <div className="flex flex-wrap gap-2">
-          <Button variant="outline" onClick={() => setShowRatingModal(true)}>
-            <Star size={14} className="text-amber-300" /> Leave a Review
+          <Button variant="outline" onClick={openRatingModal}>
+            <Star size={14} className="text-amber-300" /> {existingRating ? "Update Review" : "Leave a Review"}
           </Button>
           <Button onClick={() => setShowIntake(true)}>
             <Plus size={15} /> Request New Cut
@@ -363,7 +375,7 @@ export default function ClientPortalPage() {
           { label: "Open invoices", value: outstandingInvoices.length, detail: outstandingInvoices.length ? fmtMoney(outstandingInvoices.reduce((sum, invoice) => sum + Number(invoice.amount || 0), 0)) : "all settled", Icon: CreditCard, tone: "text-amber-300 bg-amber-500/10" },
           { label: "Next deadline", value: nextDue?.dueDate || "Flexible", detail: nextDue?.title || "No deadline set", Icon: Clock, tone: "text-emerald-300 bg-emerald-500/10" },
         ].map(({ label, value, detail, Icon, tone }) => (
-          <div key={label} className="rounded-2xl border border-white/[0.07] bg-panel/70 p-4 transition hover:border-white/15">
+          <div key={label} className="hover-lift rounded-2xl border border-white/[0.07] bg-panel/70 p-4">
             <div className={`mb-3 grid h-8 w-8 place-items-center rounded-lg ${tone}`}><Icon size={15} /></div>
             <p className="truncate font-display text-xl font-bold text-white">{value}</p>
             <p className="mt-0.5 text-[10px] font-semibold uppercase tracking-wider text-slate-500">{label}</p>
@@ -781,6 +793,29 @@ export default function ClientPortalPage() {
               <div className="flex justify-end pt-2"><Button type="submit" variant="outline">Change password</Button></div>
             </form>
           </Card>
+
+          <div className="md:col-span-2">
+            <Card title="My public review" desc={existingRating?.visible === false ? "Submitted — waiting for studio approval before it goes live." : "This is what visitors see on the studio website."}>
+              {existingRating ? (
+                <div className="flex items-start gap-4 rounded-2xl border border-white/8 bg-white/[0.03] p-4">
+                  <div className="flex gap-0.5 pt-0.5">
+                    {[1, 2, 3, 4, 5].map((s) => (
+                      <Star key={s} size={16} className={s <= (existingRating.stars || 5) ? "fill-amber-400 text-amber-400" : "text-slate-700"} />
+                    ))}
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm leading-relaxed text-slate-200">“{existingRating.comment}”</p>
+                    <button onClick={openRatingModal} className="mt-2 text-xs font-semibold text-brand-300 transition-colors hover:text-white">Edit review →</button>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-dashed border-white/15 p-4">
+                  <p className="text-sm text-slate-400">Haven&rsquo;t left a review yet. Your testimonial appears on the homepage and builds trust with future clients.</p>
+                  <Button variant="outline" onClick={openRatingModal}><Star size={14} className="text-amber-300" /> Write a review</Button>
+                </div>
+              )}
+            </Card>
+          </div>
         </div>
       )}
 
@@ -887,7 +922,7 @@ export default function ClientPortalPage() {
 
       {/* Leave a Review Modal */}
       {showRatingModal && (
-        <Modal open={showRatingModal} onClose={() => setShowRatingModal(false)} title="Rate Your Experience with VisionFold">
+        <Modal open={showRatingModal} onClose={() => setShowRatingModal(false)} title={existingRating ? "Update Your Review" : "Rate Your Experience with VisionFold"}>
           <form onSubmit={handleRatingSubmit} className="space-y-4">
             <div className="flex justify-center gap-2 py-2">
               {[1, 2, 3, 4, 5].map((star) => (
@@ -895,7 +930,7 @@ export default function ClientPortalPage() {
                   type="button"
                   key={star}
                   onClick={() => setRatingStars(star)}
-                  className="p-1 text-2xl transition-transform hover:scale-125"
+                  className="p-1 text-2xl transition-transform duration-150 hover:scale-125"
                 >
                   <Star
                     size={28}
@@ -904,6 +939,15 @@ export default function ClientPortalPage() {
                 </button>
               ))}
             </div>
+
+            <Field label="Which project is this for? (optional)">
+              <Select value={ratingProject} onChange={(e) => setRatingProject(e.target.value)}>
+                <option value="">General studio experience</option>
+                {projects.map((project: any) => (
+                  <option key={project.id} value={project.id}>{project.title}</option>
+                ))}
+              </Select>
+            </Field>
 
             <Field label="Your Testimonial Review">
               <Textarea
@@ -919,7 +963,7 @@ export default function ClientPortalPage() {
               <Button variant="ghost" onClick={() => setShowRatingModal(false)}>
                 Cancel
               </Button>
-              <Button type="submit">Submit 5★ Review</Button>
+              <Button type="submit">Submit {ratingStars}★ Review</Button>
             </div>
           </form>
         </Modal>

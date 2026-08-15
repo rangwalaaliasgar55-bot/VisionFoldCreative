@@ -247,6 +247,28 @@ select:focus-visible {
   outline-offset: 2px;
 }
 
+@keyframes page-in {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-page-in { animation: page-in 0.55s cubic-bezier(0.16, 1, 0.3, 1) both; }
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.animate-fade-in { animation: fade-in 0.4s ease both; }
+
+/* Smooth state transitions on interactive surfaces */
+.hover-lift {
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.3s ease, border-color 0.3s ease, background-color 0.3s ease;
+}
+.hover-lift:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 18px 40px -24px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(244, 166, 42, 0.14) inset;
+  border-color: rgba(244, 166, 42, 0.32);
+}
+
 @keyframes cms-block-in {
   from { opacity: 0; transform: translate3d(0, 18px, 0) rotateX(2deg); }
   to { opacity: 1; transform: translate3d(0, 0, 0) rotateX(0); }

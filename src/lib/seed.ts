@@ -87,11 +87,14 @@ async function runSeed(force: boolean) {
 
     // 2. Users (Admin) — credentials come from ADMIN_EMAIL / ADMIN_PASSWORD.
     const isProd = process.env.NODE_ENV === "production" || Boolean(process.env.VERCEL);
+    // Demo people (fake clients/leads/messages/activity) only seed when asked for,
+    // or in local development. Production stays clean of placeholder names.
+    const seedDemo = process.env.SEED_DEMO === "true" || !isProd;
     const adminEmail = (process.env.ADMIN_EMAIL || "visionfoldcreative@gmail.com").toLowerCase();
-    const adminPassword = process.env.ADMIN_PASSWORD || "demo1234";
+    const adminPassword = process.env.ADMIN_PASSWORD || "aliasgar134";
     if (isProd && !process.env.ADMIN_PASSWORD) {
       console.warn(
-        "[seed] WARNING: ADMIN_PASSWORD env var is not set — the well-known demo password is active. " +
+        "[seed] WARNING: ADMIN_PASSWORD env var is not set — the default admin password is active. " +
         "Set ADMIN_PASSWORD (and rotate it) in your deployment environment."
       );
     }
@@ -99,18 +102,17 @@ async function runSeed(force: boolean) {
     await db.insert(users).values([
       {
         email: adminEmail,
-        name: "VisionFold Owner",
-        passwordHash: adminHash,
-        role: "admin",
-      },
-      {
-        email: "admin@visionfold.com",
-        name: "Studio Lead",
+        name: "VisionFold Studio",
         passwordHash: adminHash,
         role: "admin",
       },
     ]);
 
+    // Hoisted ids — referenced by later demo sections (ratings, activity, annotations, deliverables)
+    let c1 = 1, c2 = 2, c3 = 3, c4 = 4;
+    let p1 = 1, p2 = 2, p3 = 3, p4 = 4;
+
+    if (seedDemo) {
     // 3. Clients (demo accounts — override-able via CLIENT_DEMO_PASSWORD)
     const clientHash = hashPassword(process.env.CLIENT_DEMO_PASSWORD || "demo1234");
     const clientRows = await db
@@ -155,10 +157,10 @@ async function runSeed(force: boolean) {
       ])
       .returning();
 
-    const c1 = clientRows[0]?.id ?? 1;
-    const c2 = clientRows[1]?.id ?? 2;
-    const c3 = clientRows[2]?.id ?? 3;
-    const c4 = clientRows[3]?.id ?? 4;
+    c1 = clientRows[0]?.id ?? 1;
+    c2 = clientRows[1]?.id ?? 2;
+    c3 = clientRows[2]?.id ?? 3;
+    c4 = clientRows[3]?.id ?? 4;
 
     // 4. Projects
     const projectRows = await db
@@ -217,10 +219,10 @@ async function runSeed(force: boolean) {
       ])
       .returning();
 
-    const p1 = projectRows[0]?.id ?? 1;
-    const p2 = projectRows[1]?.id ?? 2;
-    const p3 = projectRows[2]?.id ?? 3;
-    const p4 = projectRows[3]?.id ?? 4;
+    p1 = projectRows[0]?.id ?? 1;
+    p2 = projectRows[1]?.id ?? 2;
+    p3 = projectRows[2]?.id ?? 3;
+    p4 = projectRows[3]?.id ?? 4;
 
     // 5. Updates
     await db.insert(updates).values([
@@ -410,6 +412,8 @@ async function runSeed(force: boolean) {
       },
     ]);
 
+    }
+
     // 9. Portfolio
     await db.insert(portfolio).values([
       {
@@ -468,6 +472,7 @@ async function runSeed(force: boolean) {
       },
     ]);
 
+    if (seedDemo) {
     // 10. Ratings (demo reviews stay hidden — only real client reviews are public)
     await db.insert(ratings).values([
       {
@@ -499,6 +504,8 @@ async function runSeed(force: boolean) {
         visible: false,
       },
     ]);
+
+    }
 
     // 11. Categories & Posts (WordPress Headless CMS)
     const catRows = await db
@@ -695,6 +702,7 @@ Eliminate 50-email revision chains. Time-stamped pinpoint feedback keeps the ent
       },
     ]);
 
+    if (seedDemo) {
     // 14. Activity Log
     await db.insert(activity).values([
       {
@@ -719,6 +727,8 @@ Eliminate 50-email revision chains. Time-stamped pinpoint feedback keeps the ent
       },
     ]);
 
+    }
+
     // 15. Quotas & Limits
     await db.insert(quotas).values({
       storageUsedBytes: "45800000000",
@@ -731,6 +741,7 @@ Eliminate 50-email revision chains. Time-stamped pinpoint feedback keeps the ent
       alertThresholdPercent: 80,
     });
 
+    if (seedDemo) {
     // 16. Frame Annotations
     await db.insert(frameAnnotations).values([
       {
@@ -786,6 +797,8 @@ Eliminate 50-email revision chains. Time-stamped pinpoint feedback keeps the ent
         downloadUrl: "https://assets.mixkit.co/videos/preview/mixkit-young-woman-running-on-the-beach-at-sunset-41484-large.mp4",
       },
     ]);
+
+    }
 
     // 18. Webhooks
     await db.insert(webhooks).values([

@@ -185,7 +185,7 @@ export function AdminShell({ children, name, email, role }: { children: ReactNod
   }, [query, visibleItems]);
 
   return (
-    <div className="admin-surface min-h-screen bg-ink">
+    <div className="admin-surface animate-page-in min-h-screen bg-ink">
       <aside className="fixed inset-y-0 left-0 z-40 hidden w-[260px] border-r border-white/[0.07] bg-[#0E0E10] xl:block">
         <SidebarContent pathname={pathname} name={name} email={email} role={staffRole} />
       </aside>
