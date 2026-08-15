@@ -230,6 +230,8 @@ export async function getInsights(): Promise<{ source: "ai" | "rules"; items: st
 const TEMPLATES: Record<string, (input: string) => string> = {
   reply_lead: (i) =>
     `Hi there — thanks so much for reaching out about ${i || "your project"}! We'd love to learn more about your footage, timeline and goals. Could you share a few details (duration, style references, deadline)? We'll come back with a plan and a quote within 24 hours. — The VisionFold team`,
+  cold_email: (i) =>
+    `Hi there — I came across your work and thought a quick note was worth it. We're VisionFold Creative, a video editing studio; we cut brand films, YouTube episodes and Shorts (₹700 flat) for teams who want edits that hold attention. If you have footage sitting around or a channel that could use a sharper edit, I'd be happy to show you what we'd do with one sample — no commitment. — VisionFold Studio`,
   update_copy: (i) =>
     `Great news — ${i || "your project"} just moved forward! Here's what changed in this pass:\\n\\n• New edit direction applied\\n• Color grade and sound pass updated\\n• Review link refreshed in your portal\\n\\nNext up: your feedback round. Watch the latest cut and drop us notes — we iterate fast.`,
   email_subject: (i) =>
@@ -253,7 +255,8 @@ export async function assist(
   const fallback = template ? template(safeInput) : `No template for "${kind}".`;
   if (activeProvider().provider !== "none") {
     const prompts: Record<string, string> = {
-      reply_lead: `Draft a warm, professional reply to this lead inquiry for a premium video editing studio. Keep it under 90 words, ask for footage details, timeline and style references: "${safeInput}"`,
+      reply_lead: `You are a senior producer at VisionFold Creative, a premium video editing studio (Shorts ₹700 flat, brand films, YouTube editing; based in Indore, India). Write ONE email reply to this lead's inquiry. Rules: sound like a real, experienced human (no corporate fluff, no "leverage/synergy"), be warm and specific, reference their actual service/budget/brief, ask 1–2 concrete questions (footage length, deadline, style references), keep it under 110 words, and end with a clear next step. Do NOT use emojis or bullet spam. Lead context: "${safeInput}"`,
+      cold_email: `You are a senior producer at VisionFold Creative, a premium video editing studio. Write a short COLD outreach email (not a reply) to this prospect. Rules: authentic and human (as if written by a real editor, not a template), first line references something about THEM, one honest value point (attention-holding edits, ₹700 Shorts, fast turnaround), zero hype or spam words, under 80 words, close with one soft question. Prospect context: "${safeInput}"`,
       update_copy: `Write a short client-facing project progress update for a video editing studio. Friendly, concrete, bullet points. Topic: "${safeInput}"`,
       email_subject: `Write 3 catchy email subject lines for: "${safeInput}". Return them newline separated.`,
       seo_keywords: `Suggest 8 SEO keywords for a video editing studio page about: "${safeInput}". Return one per line.`,

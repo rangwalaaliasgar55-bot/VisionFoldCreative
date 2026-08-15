@@ -401,6 +401,34 @@ alter table public.expenses          enable row level security;
 alter table public.quotas            enable row level security;
 alter table public.webhooks          enable row level security;
 
+-- ============================================================================
+-- Live visitor tracking + WhatsApp automation inbox
+-- ============================================================================
+create table if not exists public.visitors (
+  id text primary key,
+  path text not null default '/',
+  first_seen timestamptz default now(),
+  last_seen timestamptz default now(),
+  page_views integer not null default 1
+);
+create index if not exists visitors_last_seen_idx on public.visitors (last_seen);
+
+create table if not exists public.wa_messages (
+  id serial primary key,
+  "from" text not null,
+  "to" text not null default '',
+  direction text not null default 'inbound',
+  body text not null default '',
+  status text not null default 'received',
+  auto_replied boolean not null default false,
+  created_at timestamptz default now()
+);
+create index if not exists wa_messages_from_idx on public.wa_messages ("from");
+create index if not exists wa_messages_created_idx on public.wa_messages (created_at);
+
+alter table public.visitors    enable row level security;
+alter table public.wa_messages enable row level security;
+
 commit;
 
 -- ============================================================================

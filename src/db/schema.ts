@@ -306,6 +306,33 @@ export const webhooks = pgTable("webhooks", {
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
 });
 
+export const visitors = pgTable(
+  "visitors",
+  {
+    id: text("id").primaryKey(), // anonymous session id (localStorage)
+    path: text("path").notNull().default("/"),
+    firstSeen: timestamp("first_seen", { withTimezone: true }).defaultNow(),
+    lastSeen: timestamp("last_seen", { withTimezone: true }).defaultNow(),
+    pageViews: integer("page_views").notNull().default(1),
+  },
+  (t) => [index("visitors_last_seen_idx").on(t.lastSeen)]
+);
+
+export const waMessages = pgTable(
+  "wa_messages",
+  {
+    id: serial("id").primaryKey(),
+    from: text("from").notNull(), // WhatsApp phone number (E.164)
+    to: text("to").notNull().default(""), // our number
+    direction: text("direction").notNull().default("inbound"), // inbound | outbound
+    body: text("body").notNull().default(""),
+    status: text("status").notNull().default("received"), // received | sent | delivered | read | failed
+    autoReplied: boolean("auto_replied").notNull().default(false),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  },
+  (t) => [index("wa_messages_from_idx").on(t.from), index("wa_messages_created_idx").on(t.createdAt)]
+);
+
 export type User = typeof users.$inferSelect;
 export type Client = typeof clients.$inferSelect;
 export type Project = typeof projects.$inferSelect;
@@ -325,3 +352,5 @@ export type Quota = typeof quotas.$inferSelect;
 export type FrameAnnotation = typeof frameAnnotations.$inferSelect;
 export type Deliverable = typeof deliverables.$inferSelect;
 export type Webhook = typeof webhooks.$inferSelect;
+export type Visitor = typeof visitors.$inferSelect;
+export type WaMessage = typeof waMessages.$inferSelect;

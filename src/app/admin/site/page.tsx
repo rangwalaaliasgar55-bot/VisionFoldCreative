@@ -54,15 +54,35 @@ export default function AdminSitePage() {
   const [pw, setPw] = useState({ current: "", next: "" });
 
   const [hero, setHero] = useState<Settings | null>(null);
-  if (settings && !hero) setHero({ ...settings });
+  const [heroSource, setHeroSource] = useState<Settings | null>(null);
+  if (settings && settings !== heroSource) {
+    setHeroSource(settings);
+    setHero({ ...settings });
+  }
 
   const [maintenance, setMaintenance] = useState<Settings | null>(null);
-  if (settings && !maintenance)
+  const [maintenanceSource, setMaintenanceSource] = useState<Settings | null>(null);
+  if (settings && settings !== maintenanceSource) {
+    setMaintenanceSource(settings);
     setMaintenance({
       maintenanceOn: settings.maintenanceOn,
       maintenanceMessage: settings.maintenanceMessage,
       maintenanceEndsAt: settings.maintenanceEndsAt,
     });
+  }
+
+  const [memoryMode, setMemoryMode] = useState(false);
+
+  // Warn when the app runs on in-memory storage (no DATABASE_URL) — edits would not persist.
+  useEffect(() => {
+    const initial = window.setTimeout(() => {
+      fetch("/api/health")
+        .then((res) => (res.ok ? res.json() : null))
+        .then((h: any) => setMemoryMode(h?.storage === "memory"))
+        .catch(() => {});
+    }, 0);
+    return () => clearTimeout(initial);
+  }, []);
 
   const [mediaForm, setMediaForm] = useState({ name: "", url: "", type: "image" });
 
@@ -179,6 +199,17 @@ export default function AdminSitePage() {
         <h1 className="font-display text-2xl font-bold text-white">Site · Live Editor & System Limits</h1>
         <p className="text-sm text-slate-500">Edit content live, configure plan quotas, manage media, and customize branding</p>
       </div>
+
+      {memoryMode && (
+        <div className="rounded-2xl border border-amber-400/30 bg-amber-500/10 p-4 text-xs leading-relaxed text-amber-200">
+          <p className="font-semibold">⚠️ Running on in-memory storage — your edits will not persist.</p>
+          <p className="mt-1 text-amber-200/80">
+            <code className="font-mono">DATABASE_URL</code> is not set in Vercel, so the site falls back to temporary memory and
+            resets on every deploy/cold start. That&rsquo;s why changes you publish here don&rsquo;t stick on the live site.
+            Set <code className="font-mono">DATABASE_URL</code> to your Supabase connection string (port 6543), then redeploy.
+          </p>
+        </div>
+      )}
 
       <Tabs
         tabs={["Live Editor", "Plan & Quotas", "Maintenance", "Media Library", "Account & Data"]}

@@ -16,7 +16,9 @@ import {
   Globe,
   Image as ImageIcon,
   LayoutDashboard,
+  MapPin,
   Menu,
+  MessageCircle,
   Newspaper,
   Plus,
   Receipt,
@@ -42,6 +44,8 @@ const NAV: NavGroup[] = [
     items: [
       { href: "/admin", label: "Dashboard", description: "Studio overview and activity", Icon: LayoutDashboard },
       { href: "/admin/leads", label: "Leads", description: "Pipeline, proposals and follow-ups", Icon: Target, roles: ["admin", "editor"] },
+      { href: "/admin/prospects", label: "Find businesses", description: "Google Maps prospecting", Icon: MapPin, roles: ["admin", "editor"] },
+      { href: "/admin/whatsapp", label: "WhatsApp", description: "Automation, inbox and bot", Icon: MessageCircle, roles: ["admin", "editor"] },
       { href: "/admin/clients", label: "Clients", description: "People and portal access", Icon: Users },
       { href: "/admin/projects", label: "Projects", description: "Production, reviews and delivery", Icon: FolderKanban },
       { href: "/admin/invoices", label: "Finance", description: "Invoices, payments and expenses", Icon: Receipt, roles: ["admin", "accountant"] },
@@ -154,9 +158,33 @@ export function AdminShell({ children, name, email, role }: { children: ReactNod
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [quickOpen, setQuickOpen] = useState(false);
   const [query, setQuery] = useState("");
+  const [liveCount, setLiveCount] = useState(0);
   const searchRef = useRef<HTMLInputElement>(null);
   const visibleItems = useMemo(() => ALL_ITEMS.filter((item) => canSee(item, staffRole)), [staffRole]);
   const current = visibleItems.find((item) => isActive(pathname, item.href)) || visibleItems[0];
+
+  // Live visitor count (admin-only, polled)
+  useEffect(() => {
+    if (staffRole !== "admin") return;
+    let cancelled = false;
+    const poll = async () => {
+      try {
+        const res = await fetch("/api/admin/visitors", { credentials: "same-origin" });
+        if (res.ok && !cancelled) {
+          const data = (await res.json()) as { active?: number };
+          setLiveCount(data.active ?? 0);
+        }
+      } catch {
+        /* ignore */
+      }
+    };
+    poll();
+    const id = setInterval(poll, 30000);
+    return () => {
+      cancelled = true;
+      clearInterval(id);
+    };
+  }, [staffRole]);
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -235,6 +263,18 @@ export function AdminShell({ children, name, email, role }: { children: ReactNod
             )}
           </div>
           <Link href="/admin/automations" aria-label="AI assistant" className="grid h-9 w-9 place-items-center rounded-xl border border-white/[0.08] text-slate-400 hover:bg-white/5 hover:text-brand-300"><Bot size={17} /></Link>
+          {staffRole === "admin" && (
+            <div
+              className="flex items-center gap-1.5 rounded-xl border border-emerald-400/20 bg-emerald-500/5 px-2.5 py-1.5 text-[11px] font-semibold text-emerald-300"
+              title="Visitors on the public site in the last 2 minutes"
+            >
+              <span className="relative flex h-2 w-2">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-60" />
+                <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-400" />
+              </span>
+              {liveCount} live
+            </div>
+          )}
           <button aria-label="Notifications" className="relative grid h-9 w-9 place-items-center rounded-xl border border-white/[0.08] text-slate-400 hover:bg-white/5 hover:text-white"><Bell size={17} /><span className="absolute right-2 top-2 h-1.5 w-1.5 rounded-full bg-amber ring-2 ring-ink" /></button>
         </header>
 

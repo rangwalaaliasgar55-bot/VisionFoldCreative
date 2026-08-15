@@ -36,16 +36,32 @@ export const DEFAULT_SETTINGS: Record<string, unknown> = {
 };
 
 type Cache = { at: number; map: Record<string, unknown> };
-let cache: Cache | null = null;
-const TTL_MS = 20_000;
+
+// The cache must live on globalThis — in Next.js production each route is a
+// separate bundled module with its own module scope. A module-local cache would
+// mean the admin's write invalidates one copy while the public pages keep
+// serving their own stale copy ("I changed it but nothing happened").
+const globalForSettings = globalThis as typeof globalThis & {
+  __vfSettingsCache?: Cache | null;
+};
+
+function readCache(): Cache | null {
+  return globalForSettings.__vfSettingsCache ?? null;
+}
+function writeCache(c: Cache | null) {
+  globalForSettings.__vfSettingsCache = c;
+}
+
+const TTL_MS = 5_000;
 
 export async function getSettings(): Promise<Record<string, any>> {
   const now = Date.now();
+  const cache = readCache();
   if (cache && now - cache.at < TTL_MS) return { ...DEFAULT_SETTINGS, ...cache.map };
   const rows = await db.select().from(settings);
   const map: Record<string, unknown> = {};
   for (const row of rows) map[row.key] = row.value;
-  cache = { at: now, map };
+  writeCache({ at: now, map });
   return { ...DEFAULT_SETTINGS, ...map };
 }
 
@@ -59,7 +75,11 @@ export async function setSetting(key: string, value: unknown) {
     .insert(settings)
     .values({ key, value, updatedAt: new Date() })
     .onConflictDoUpdate({ target: settings.key, set: { value, updatedAt: new Date() } });
-  cache = null;
+  // Invalidate the shared cache, then warm it with the fresh value so every
+  // route in this process (public + admin) reflects the change immediately.
+  const current = readCache()?.map ?? {};
+  current[key] = value;
+  writeCache({ at: Date.now(), map: current });
 }
 
 export async function setSettings(pairs: Record<string, unknown>) {
@@ -69,7 +89,9 @@ export async function setSettings(pairs: Record<string, unknown>) {
       .values({ key, value, updatedAt: new Date() })
       .onConflictDoUpdate({ target: settings.key, set: { value, updatedAt: new Date() } });
   }
-  cache = null;
+  const current = readCache()?.map ?? {};
+  Object.assign(current, pairs);
+  writeCache({ at: Date.now(), map: current });
 }
 
 export async function isMaintenanceOn(): Promise<boolean> {

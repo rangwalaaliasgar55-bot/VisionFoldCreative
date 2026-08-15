@@ -19,6 +19,8 @@ import {
   settings,
   updates,
   users,
+  visitors,
+  waMessages,
   webhooks,
 } from "@/db/schema";
 import { and, desc, eq, gte, lt, sql } from "drizzle-orm";
@@ -31,6 +33,9 @@ import {
 } from "@/lib/auth";
 import { ensureSeed, resetSeed } from "@/lib/seed";
 import { DEFAULT_SETTINGS, getSettings, setSettings } from "@/lib/settings";
+import { parseCsv } from "@/lib/utils";
+import { searchBusinesses } from "@/lib/prospect";
+import { listWaMessages, sendWhatsAppText, whatsappConfig, whatsappConnected } from "@/lib/whatsapp";
 import { randomBytes } from "crypto";
 
 export const dynamic = "force-dynamic";
@@ -442,6 +447,43 @@ export async function GET(
       return ok(rows);
     }
 
+    // 15. Live visitors
+    if (path === "visitors") {
+      const cutoff = new Date(Date.now() - 2 * 60 * 1000); // online = seen in last 2 min
+      const [active, today] = await Promise.all([
+        db.select().from(visitors).where(gte(visitors.lastSeen, cutoff)),
+        db
+          .select({ total: sql<number>`count(*)::int` })
+          .from(visitors)
+          .where(gte(visitors.firstSeen, new Date(new Date().setHours(0, 0, 0, 0)))),
+      ]);
+      return ok({
+        active: active.length,
+        today: today[0]?.total ?? 0,
+        activePaths: active.map((v) => v.path).slice(0, 20),
+      });
+    }
+
+    // 16. WhatsApp inbox + connection status
+    if (path === "whatsapp") {
+      const cfg = whatsappConfig();
+      const rows = await listWaMessages(100);
+      return ok({
+        connected: whatsappConnected(),
+        autoReply: cfg.autoReply,
+        businessNumber: cfg.businessNumber,
+        messages: rows,
+      });
+    }
+
+    // 17. Business prospecting (Google Places)
+    if (path === "prospects") {
+      const query = String(url.searchParams.get("query") || "");
+      const location = String(url.searchParams.get("location") || "");
+      const data = await searchBusinesses(query, location);
+      return ok(data);
+    }
+
     return bad("Not found", 404);
   } catch (err) {
     return handleErr(err);
@@ -730,15 +772,19 @@ export async function POST(
 
     if (path === "leads") {
       const name = String(body.name || "").trim();
-      const email = String(body.email || "").trim().toLowerCase();
-      if (!name || !email) return bad("Name and email are required.");
+      let email = String(body.email || "").trim().toLowerCase();
+      const phone = String(body.phone || "").trim();
+      // Prospects from the maps tool may only have a phone number — derive a
+      // stable placeholder email so the row stays valid and dedupe-able.
+      if (!email && phone) email = `wa${phone.replace(/[^\d]/g, "")}@prospect.local`;
+      if (!name || (!email && !phone)) return bad("A name and an email or phone are required.");
 
       const [newLead] = await db
         .insert(leads)
         .values({
           name,
           email,
-          phone: String(body.phone || "").trim(),
+          phone,
           service: String(body.service || "Video Editing"),
           budget: String(body.budget || ""),
           message: String(body.message || "").trim(),
@@ -749,6 +795,82 @@ export async function POST(
         .returning();
 
       return ok(newLead);
+    }
+
+    // Bulk lead import from spreadsheet (CSV) or JSON array. No small row cap —
+    // rows are validated + deduped and inserted in chunks.
+    if (path === "leads/import") {
+      const raw = typeof body.csv === "string" ? body.csv : "";
+      const jsonRows = Array.isArray(body.rows) ? body.rows : null;
+      let rows: Record<string, unknown>[] = [];
+      if (jsonRows) {
+        rows = jsonRows;
+      } else if (raw.trim()) {
+        const parsed = parseCsv(raw);
+        if (parsed.length < 2) return bad("CSV needs a header row plus at least one data row.");
+        const [header, ...dataRows] = parsed;
+        const norm = header.map((h) => h.toLowerCase().replace(/[^a-z0-9]/g, ""));
+        rows = dataRows.map((r) => {
+          const obj: Record<string, unknown> = {};
+          norm.forEach((h, i) => {
+            obj[h] = (r[i] || "").trim();
+          });
+          return obj;
+        });
+      } else {
+        return bad("Send a CSV string or a JSON rows array.");
+      }
+
+      const maxRows = 10000;
+      if (rows.length > maxRows) return bad(`Too many rows at once (${rows.length}). Split the file into chunks of ${maxRows} or fewer.`);
+
+      // Normalise + validate; dedupe by email (or phone).
+      const seen = new Set<string>();
+      const cleanRows: typeof leads.$inferInsert[] = [];
+      let skipped = 0;
+      for (const r of rows) {
+        const name = String(r.name || r.fullname || r.full_name || "").trim();
+        const email = String(r.email || r.emailaddress || r.email_address || "").trim().toLowerCase();
+        const phone = String(r.phone || r.phonenumber || r.phone_number || r.mobile || r.contact || "").trim();
+        if (!name) { skipped++; continue; }
+        const key = (email || `phone:${phone.replace(/[^\d]/g, "")}`).toLowerCase();
+        if (seen.has(key)) { skipped++; continue; }
+        seen.add(key);
+        cleanRows.push({
+          name: name.slice(0, 160),
+          email: email || (phone ? `wa${phone.replace(/[^\d]/g, "")}@prospect.local` : ""),
+          phone: phone.slice(0, 40),
+          service: String(r.service || "Video Editing").slice(0, 80),
+          budget: String(r.budget || "").slice(0, 80),
+          message: String(r.message || r.notes0 || r.brief || "").slice(0, 4000),
+          notes: String(r.notes || "").slice(0, 2000),
+          status: "new",
+          source: "import",
+        });
+      }
+
+      let inserted = 0;
+      // Insert in chunks so a huge sheet doesn't exceed statement limits.
+      for (let i = 0; i < cleanRows.length; i += 500) {
+        const chunk = cleanRows.slice(i, i + 500);
+        const result = await db.insert(leads).values(chunk).returning({ id: leads.id });
+        inserted += result.length;
+      }
+      await db.insert(activity).values({ actor: admin.name, action: "Lead import", details: `Imported ${inserted} leads${skipped ? ` (${skipped} skipped)` : ""}` });
+      return ok({ ok: true, inserted, skipped });
+    }
+
+    // WhatsApp automation: send a text message
+    if (path === "whatsapp/send") {
+      const to = String(body.to || "").replace(/[^\d]/g, "");
+      const text = String(body.text || "").trim();
+      if (!to || !text) return bad("A phone number and message are required.");
+      const result = await sendWhatsAppText(to, text);
+      if (!result.ok && result.error) {
+        return ok({ ok: false, error: result.error, fallback: result.fallback });
+      }
+      await db.insert(activity).values({ actor: admin.name, action: "WhatsApp message sent", details: `To ${to}` });
+      return ok({ ok: true, id: result.id, fallback: result.fallback });
     }
 
     // Convert Lead to Client

@@ -6,6 +6,7 @@ import { Logo, SiteFooter, SiteHeader } from "@/components/SiteChrome";
 import ScrollProgress from "@/components/ScrollProgress";
 import VisionRunner from "@/components/VisionRunner";
 import FloatingWhatsApp from "@/components/FloatingWhatsApp";
+import LiveTracker from "@/components/LiveTracker";
 
 export const dynamic = "force-dynamic";
 
@@ -55,6 +56,7 @@ export default async function PublicLayout({ children }: { children: ReactNode }
       <SiteFooter settings={settings} />
       <VisionRunner />
       <FloatingWhatsApp number={String(settings.whatsapp || "")} />
+      <LiveTracker />
     </>
   );
 }
