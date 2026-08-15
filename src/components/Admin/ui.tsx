@@ -51,10 +51,10 @@ export const StatCard: React.FC<{
 };
 
 const statusStyles: Record<string, string> = {
-  new: 'bg-blue-400/10 text-blue-400',
+  new: 'bg-amber-400/10 text-amber-400',
   contacted: 'bg-amber-400/10 text-amber-400',
   closed: 'bg-[#888891]/10 text-[#888891]',
-  in_progress: 'bg-blue-400/10 text-blue-400',
+  in_progress: 'bg-amber-400/10 text-amber-400',
   in_review: 'bg-amber-400/10 text-amber-400',
   delivered: 'bg-emerald-400/10 text-emerald-400',
   paid: 'bg-emerald-400/10 text-emerald-400',

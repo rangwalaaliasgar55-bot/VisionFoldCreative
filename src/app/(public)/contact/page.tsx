@@ -35,7 +35,7 @@ export default async function ContactPage() {
         <div className="grid gap-12 lg:grid-cols-[1fr_1.2fr]">
           <div>
             <Reveal>
-              <p className="text-xs font-semibold uppercase tracking-[0.3em] text-cyan-300">
+              <p className="text-xs font-semibold uppercase tracking-[0.3em] text-amber-300">
                 Start a project
               </p>
               <h1 className="font-display mt-3 text-4xl font-bold text-white sm:text-6xl">
@@ -56,7 +56,7 @@ export default async function ContactPage() {
                   { Icon: Clock, label: "Response time", value: "Within 24 hours, 7 days a week" },
                 ].map(({ Icon, label, value }) => (
                   <div key={label} className="glass flex items-center gap-4 rounded-2xl p-4">
-                    <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-[#7357FF]/30 to-[#F4A62A]/15 text-brand-300">
+                    <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-[#F4A62A]/30 to-[#F4A62A]/15 text-brand-300">
                       <Icon size={18} />
                     </div>
                     <div>

@@ -32,20 +32,15 @@ function XIcon({ size = 16 }: { size?: number }) {
   );
 }
 
-export function Logo({ className = "h-9 w-9" }: { className?: string }) {
+export function Logo({ className = "h-9" }: { className?: string }) {
   return (
-    <svg viewBox="0 0 36 36" className={className} fill="none" aria-hidden>
-      <defs>
-        <linearGradient id="vfg" x1="0" y1="0" x2="36" y2="36">
-          <stop offset="0" stopColor="#F6F3EC" />
-          <stop offset="0.45" stopColor="#F4A62A" />
-          <stop offset="1" stopColor="#7357FF" />
-        </linearGradient>
-      </defs>
-      <path d="M6 4 L30 4 L18 16 Z" fill="url(#vfg)" opacity="0.95" />
-      <path d="M6 4 L18 16 L18 32 L6 32 Z" fill="url(#vfg)" opacity="0.55" />
-      <path d="M30 4 L30 18 L18 16 Z" fill="#e2e8f0" opacity="0.18" />
-    </svg>
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src="/brand/vf-mark-white.png"
+      alt="VisionFold Creative"
+      style={{ width: "auto" }}
+      className={`h-9 object-contain ${className}`}
+    />
   );
 }
 
@@ -71,7 +66,7 @@ export function SiteHeader({ title }: { title: string }) {
   return (
     <header
       className={`fixed inset-x-0 top-0 z-50 transition-all duration-300 ${
-        scrolled ? "border-b border-white/10 bg-[#0B1020]/90 py-2.5 backdrop-blur-2xl shadow-[0_8px_40px_-12px_rgba(0,0,0,0.7)]" : "py-5"
+        scrolled ? "border-b border-white/10 bg-ink/90 py-2.5 backdrop-blur-2xl shadow-[0_8px_40px_-12px_rgba(0,0,0,0.7)]" : "py-5"
       }`}
     >
       <div className="mx-auto flex max-w-7xl items-center justify-between px-5 sm:px-8">
@@ -89,10 +84,10 @@ export function SiteHeader({ title }: { title: string }) {
         </nav>
 
         <div className="hidden items-center gap-2 lg:flex">
-          <Link href="/portal" className="rounded-full border border-white/15 bg-white/5 px-4 py-2 text-xs font-bold uppercase tracking-wider text-[#98A1B3] transition hover:border-[#7357FF]/50 hover:text-white">
+          <Link href="/portal" className="rounded-full border border-white/15 bg-white/5 px-4 py-2 text-xs font-bold uppercase tracking-wider text-[#98A1B3] transition hover:border-[#F4A62A]/50 hover:text-white">
             Client Portal
           </Link>
-          <Link href="/contact" className="rounded-full bg-[#7357FF] px-5 py-2.5 text-xs font-black uppercase tracking-wider text-white shadow-lg shadow-[#7357FF]/30 transition hover:bg-[#6346E8] hover:scale-[1.02]">
+          <Link href="/contact" className="rounded-full bg-[#F4A62A] px-5 py-2.5 text-xs font-black uppercase tracking-wider text-black shadow-lg shadow-[#F4A62A]/30 transition hover:bg-[#D98E0C] hover:scale-[1.02]">
             Book a Call
           </Link>
         </div>
@@ -103,7 +98,7 @@ export function SiteHeader({ title }: { title: string }) {
       </div>
 
       {open && (
-        <div className="glass mx-4 mt-3 rounded-2xl border border-white/10 bg-[#0B1020]/95 p-4 lg:hidden">
+        <div className="glass mx-4 mt-3 rounded-2xl border border-white/10 bg-ink/95 p-4 lg:hidden">
           <nav className="flex flex-col">
             {NAV.map((n) => (
               <Link key={n.href} href={n.href} onClick={() => setOpen(false)} className="rounded-xl px-4 py-3 text-sm font-medium text-slate-200 hover:bg-white/5">
@@ -114,7 +109,7 @@ export function SiteHeader({ title }: { title: string }) {
               <Link href="/portal" onClick={() => setOpen(false)} className="rounded-xl border border-white/10 bg-white/5 py-3 text-center text-sm font-bold uppercase tracking-wider text-[#F6F3EC]">
                 Client Portal
               </Link>
-              <Link href="/contact" onClick={() => setOpen(false)} className="rounded-full bg-[#7357FF] py-3 text-center text-sm font-black uppercase tracking-wider text-white shadow-lg shadow-[#7357FF]/25">
+              <Link href="/contact" onClick={() => setOpen(false)} className="rounded-full bg-[#F4A62A] py-3 text-center text-sm font-black uppercase tracking-wider text-black shadow-lg shadow-[#F4A62A]/25">
                 Book a Call
               </Link>
             </div>

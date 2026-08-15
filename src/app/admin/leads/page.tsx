@@ -215,7 +215,7 @@ export default function AdminLeadsPage() {
           <p className="mt-1 text-[11px] uppercase tracking-wider text-slate-500">Total Leads</p>
         </div>
         <div className="glass rounded-2xl p-4">
-          <p className="font-display text-2xl font-bold text-cyan-300">{stats.new}</p>
+          <p className="font-display text-2xl font-bold text-amber-300">{stats.new}</p>
           <p className="mt-1 text-[11px] uppercase tracking-wider text-slate-500">New / Uncontacted</p>
         </div>
         <div className="glass rounded-2xl p-4">
@@ -241,7 +241,7 @@ export default function AdminLeadsPage() {
               onClick={() => setFilter(st)}
               className={`rounded-full px-3.5 py-1.5 text-xs font-semibold uppercase tracking-wider transition-all ${
                 filter === st
-                  ? "bg-brand-600 text-white shadow-[0_0_16px_-4px_rgba(115,87,255,0.8)]"
+                  ? "bg-brand-600 text-white shadow-[0_0_16px_-4px_rgba(244,166,42,0.8)]"
                   : "bg-white/5 text-slate-400 hover:bg-white/10 hover:text-white"
               }`}
             >
@@ -293,7 +293,7 @@ export default function AdminLeadsPage() {
                     </span>
                     {lead.phone && (
                       <span className="flex items-center gap-1 text-slate-300">
-                        <Phone size={13} className="text-cyan-300" /> {lead.phone}
+                        <Phone size={13} className="text-amber-300" /> {lead.phone}
                       </span>
                     )}
                     <span className="font-semibold text-amber-300">Service: {lead.service}</span>
@@ -336,7 +336,7 @@ export default function AdminLeadsPage() {
                     onClick={() => handleGenerateProposal(lead)}
                     title="Generate tailored AI proposal reply"
                   >
-                    <Sparkles size={13} className="text-cyan-300" /> Draft Reply
+                    <Sparkles size={13} className="text-amber-300" /> Draft Reply
                   </Button>
 
                   {/* Convert to Client */}
@@ -508,8 +508,8 @@ export default function AdminLeadsPage() {
           wide
         >
           <div className="space-y-4">
-            <div className="rounded-xl border border-cyan-400/20 bg-cyan-500/5 p-3 text-xs text-slate-300">
-              <p className="font-semibold text-cyan-300">Lead Context</p>
+            <div className="rounded-xl border border-amber-400/20 bg-amber-500/5 p-3 text-xs text-slate-300">
+              <p className="font-semibold text-amber-300">Lead Context</p>
               <p className="mt-0.5">
                 Service: <strong>{aiProposalLead.service}</strong> · Budget: <strong>{aiProposalLead.budget || "Not specified"}</strong>
               </p>

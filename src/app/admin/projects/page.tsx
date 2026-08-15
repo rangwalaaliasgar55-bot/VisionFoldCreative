@@ -248,12 +248,12 @@ export default function AdminProjectsPage() {
                       <StatusBadge status={p.status} />
                     </div>
                     <p className="mt-1 text-xs text-slate-400">
-                      Client: <strong className="text-slate-200">{p.clientName}</strong> · Service: <strong className="text-cyan-300">{p.service}</strong> · Budget: <strong className="text-emerald-300">{fmtMoney(p.budget)}</strong>
+                      Client: <strong className="text-slate-200">{p.clientName}</strong> · Service: <strong className="text-amber-300">{p.service}</strong> · Budget: <strong className="text-emerald-300">{fmtMoney(p.budget)}</strong>
                     </p>
                   </div>
                   <div className="flex items-center gap-1.5">
                     <Button size="sm" variant="outline" onClick={() => openInspector(p)}>
-                      <Film size={13} className="text-cyan-300" /> Review Suite
+                      <Film size={13} className="text-amber-300" /> Review Suite
                     </Button>
                     <Button
                       size="sm"
@@ -311,7 +311,7 @@ export default function AdminProjectsPage() {
           <div className="space-y-6">
             <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/8 bg-ink/60 p-4">
               <div>
-                <span className="text-[10px] font-bold uppercase tracking-wider text-cyan-300">{inspectingProj.service}</span>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-amber-300">{inspectingProj.service}</span>
                 <h2 className="font-display text-lg font-bold text-white">{inspectingProj.title}</h2>
                 <p className="text-xs text-slate-400">{inspectingProj.clientName} · Due {fmtDate(inspectingProj.dueDate)}</p>
               </div>
@@ -322,7 +322,7 @@ export default function AdminProjectsPage() {
             <Card
               title={
                 <div className="flex items-center gap-2">
-                  <MessageSquare size={16} className="text-cyan-300" />
+                  <MessageSquare size={16} className="text-amber-300" />
                   <span>Timecode Revision Notes ({annotations.length})</span>
                 </div>
               }
@@ -337,7 +337,7 @@ export default function AdminProjectsPage() {
                     }`}
                   >
                     <div className="flex items-start gap-3 min-w-0">
-                      <span className="font-mono text-xs font-bold text-cyan-300 px-2 py-0.5 rounded bg-black/50 shrink-0">
+                      <span className="font-mono text-xs font-bold text-amber-300 px-2 py-0.5 rounded bg-black/50 shrink-0">
                         {a.timestamp}
                       </span>
                       <div>
@@ -379,7 +379,7 @@ export default function AdminProjectsPage() {
                         href={d.downloadUrl}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1 text-cyan-300 hover:underline font-semibold"
+                        className="inline-flex items-center gap-1 text-amber-300 hover:underline font-semibold"
                       >
                         <Download size={13} /> Download ↗
                       </a>

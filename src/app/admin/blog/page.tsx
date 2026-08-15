@@ -334,7 +334,7 @@ export default function AdminBlogPage() {
               onClick={() => setTab(t.id as any)}
               className={`flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition-all ${
                 tab === t.id
-                  ? "bg-brand-600 text-white shadow-[0_0_20px_-6px_rgba(115,87,255,0.9)]"
+                  ? "bg-brand-600 text-white shadow-[0_0_20px_-6px_rgba(244,166,42,0.9)]"
                   : "bg-white/5 text-slate-400 hover:bg-white/10 hover:text-white"
               }`}
             >
@@ -347,7 +347,7 @@ export default function AdminBlogPage() {
           href="/api/wp/v2/posts"
           target="_blank"
           rel="noopener noreferrer"
-          className="inline-flex items-center gap-1.5 text-xs font-semibold text-cyan-300 hover:underline"
+          className="inline-flex items-center gap-1.5 text-xs font-semibold text-amber-300 hover:underline"
         >
           <LinkIcon size={13} /> Live WP REST Endpoint: <code>/api/wp/v2/posts</code> ↗
         </a>
@@ -431,7 +431,7 @@ export default function AdminBlogPage() {
                         <Badge tone={post.status === "published" ? "published" : "draft"}>
                           {post.status}
                         </Badge>
-                        <span className="text-[10px] font-semibold uppercase tracking-wider text-cyan-300">
+                        <span className="text-[10px] font-semibold uppercase tracking-wider text-amber-300">
                           {categoryMap.get(post.categoryId || 0) || "General"}
                         </span>
                         <span className="text-[11px] text-slate-500">· {fmtDate(post.publishedAt || post.createdAt)}</span>
@@ -556,19 +556,19 @@ export default function AdminBlogPage() {
           >
             <div className="space-y-3 text-xs">
               <div className="rounded-xl border border-white/8 bg-ink/50 p-3">
-                <p className="font-semibold text-cyan-300">Public WP REST Endpoint</p>
+                <p className="font-semibold text-amber-300">Public WP REST Endpoint</p>
                 <code className="mt-1 block text-slate-200">
                   GET https://visionfoldcreative.vercel.app/api/wp/v2/posts
                 </code>
               </div>
               <div className="rounded-xl border border-white/8 bg-ink/50 p-3">
-                <p className="font-semibold text-cyan-300">Single Post by Slug Endpoint</p>
+                <p className="font-semibold text-amber-300">Single Post by Slug Endpoint</p>
                 <code className="mt-1 block text-slate-200">
                   GET https://visionfoldcreative.vercel.app/api/wp/v2/posts/retention-first-youtube-video-editing-secrets
                 </code>
               </div>
               <div className="rounded-xl border border-white/8 bg-ink/50 p-3">
-                <p className="font-semibold text-cyan-300">Categories Endpoint</p>
+                <p className="font-semibold text-amber-300">Categories Endpoint</p>
                 <code className="mt-1 block text-slate-200">
                   GET https://visionfoldcreative.vercel.app/api/wp/v2/categories
                 </code>
@@ -592,15 +592,15 @@ export default function AdminBlogPage() {
 
             <div className="grid gap-3 sm:grid-cols-3 text-xs">
               <div className="glass rounded-xl p-3">
-                <p className="font-semibold text-cyan-300">Schema.org Types</p>
+                <p className="font-semibold text-amber-300">Schema.org Types</p>
                 <p className="mt-1 text-slate-400">Organization, WebSite, ProfessionalService, BlogPosting</p>
               </div>
               <div className="glass rounded-xl p-3">
-                <p className="font-semibold text-cyan-300">Meta Tags</p>
+                <p className="font-semibold text-amber-300">Meta Tags</p>
                 <p className="mt-1 text-slate-400">OpenGraph, Twitter Cards, Canonical URLs, Meta Robots</p>
               </div>
               <div className="glass rounded-xl p-3">
-                <p className="font-semibold text-cyan-300">Fast Indexing</p>
+                <p className="font-semibold text-amber-300">Fast Indexing</p>
                 <p className="mt-1 text-slate-400">SSR HTML rendered with zero client-side layout shifts</p>
               </div>
             </div>
@@ -645,7 +645,7 @@ export default function AdminBlogPage() {
                 onClick={handleAiGeneratePost}
                 disabled={aiGenerating}
               >
-                <Sparkles size={13} className="text-cyan-300" />
+                <Sparkles size={13} className="text-amber-300" />
                 {aiGenerating ? "Drafting with AI…" : "Draft Article with AI"}
               </Button>
             </div>
@@ -742,7 +742,7 @@ export default function AdminBlogPage() {
             <div className="rounded-2xl border border-white/8 bg-ink/80 p-4 space-y-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <Search size={15} className="text-cyan-300" />
+                  <Search size={15} className="text-amber-300" />
                   <span className="font-display text-sm font-bold text-white">SEO Score: {seoAnalysis.score} / 100</span>
                 </div>
                 <div className="flex items-center gap-2">

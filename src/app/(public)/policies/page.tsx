@@ -85,7 +85,7 @@ export default async function PoliciesPage() {
       <section className="mx-auto max-w-4xl px-5 pb-24 pt-20 sm:px-8">
         <Reveal>
           <div className="text-center">
-            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-cyan-300">Policies</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-amber-300">Policies</p>
             <h1 className="font-display mt-3 text-4xl font-bold text-white sm:text-5xl">
               The fine print, <span className="text-gradient">edited for clarity</span>
             </h1>
@@ -101,7 +101,7 @@ export default async function PoliciesPage() {
             <Reveal key={s.title} delay={i * 80}>
               <section className="glass rounded-3xl p-7 sm:p-9">
                 <h2 className="font-display flex items-center gap-3 text-2xl font-bold text-white">
-                  <span className="grid h-10 w-10 place-items-center rounded-xl bg-gradient-to-br from-[#7357FF]/30 to-[#F4A62A]/15 text-lg">
+                  <span className="grid h-10 w-10 place-items-center rounded-xl bg-gradient-to-br from-[#F4A62A]/30 to-[#F4A62A]/15 text-lg">
                     {s.icon}
                   </span>
                   {s.title}

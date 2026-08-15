@@ -1,6 +1,9 @@
 <div align="center">
 
-<img src=".github/assets/banner.svg" alt="VisionFold Creative — We fold stories into motion" width="100%" />
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset=".github/assets/vf-logo-dark.png" />
+  <img src=".github/assets/vf-logo-light.png" alt="VisionFold Creative — Edit · Create · Inspire" width="560" />
+</picture>
 
 <br/>
 
@@ -27,7 +30,7 @@
 <tr><td width="50%">
 
 ### 🎬 Public marketing site
-Cinematic dark-first design (ink · violet · amber), Three.js hero with an interactive client globe, editorial blog, services & portfolio pages, CMS-driven custom pages at `/p/[slug]`, contact → lead pipeline, newsletter, and a WordPress-compatible API surface (`/api/wp/v2/*`) for SEO tooling.
+Cinematic dark-first design (true black · gold), Three.js hero with an interactive client globe, editorial blog, services & portfolio pages, CMS-driven custom pages at `/p/[slug]`, contact → lead pipeline, newsletter, and a WordPress-compatible API surface (`/api/wp/v2/*`) for SEO tooling.
 
 </td><td width="50%">
 
@@ -129,10 +132,10 @@ curl -X POST https://<app>/api/cron/run-scheduled \
 
 | Token | Value |
 |---|---|
-| Ink (background) | `#0B1020` |
-| Violet (primary) | `#7357FF` |
-| Amber (accent) | `#F4A62A` |
+| Ink (background) | `#0A0A0B` |
+| Gold (primary) | `#F4A62A` |
 | Warm white (text) | `#F6F3EC` |
+| Muted (secondary text) | `#A3A09A` |
 | Fonts | Space Grotesk (display) · Inter (body) |
 
 ---

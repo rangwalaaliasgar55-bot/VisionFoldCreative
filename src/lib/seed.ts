@@ -172,7 +172,7 @@ async function runSeed(force: boolean) {
           status: "review",
           progress: 85,
           dueDate: "2026-08-25",
-          budget: "2800.00",
+          budget: "230000.00",
         },
         {
           clientId: c2,
@@ -182,7 +182,7 @@ async function runSeed(force: boolean) {
           status: "in_progress",
           progress: 60,
           dueDate: "2026-09-02",
-          budget: "4500.00",
+          budget: "375000.00",
         },
         {
           clientId: c3,
@@ -192,7 +192,7 @@ async function runSeed(force: boolean) {
           status: "revision",
           progress: 90,
           dueDate: "2026-08-20",
-          budget: "1650.00",
+          budget: "135000.00",
         },
         {
           clientId: c4,
@@ -202,7 +202,7 @@ async function runSeed(force: boolean) {
           status: "completed",
           progress: 100,
           dueDate: "2026-08-10",
-          budget: "850.00",
+          budget: "70000.00",
         },
         {
           clientId: c1,
@@ -212,7 +212,7 @@ async function runSeed(force: boolean) {
           status: "intake",
           progress: 20,
           dueDate: "2026-09-15",
-          budget: "2200.00",
+          budget: "180000.00",
         },
       ])
       .returning();
@@ -284,7 +284,7 @@ async function runSeed(force: boolean) {
       {
         clientId: c2,
         sender: "client",
-        body: "Hi Aliasgar, we just uploaded the additional 8K B-roll clips for the robotic arm demo.",
+        body: "Hi VisionFold team, we just uploaded the additional 8K B-roll clips for the robotic arm demo.",
         read: true,
       },
       {
@@ -369,7 +369,7 @@ async function runSeed(force: boolean) {
         email: "david@vertexgames.com",
         phone: "+1 (555) 620-1192",
         service: "Commercials & Ads",
-        budget: "$3,000 - $5,000",
+        budget: "₹2,50,000 - ₹4,00,000",
         message: "We need a cinematic gameplay trailer for our upcoming Unreal Engine 5 sci-fi RPG launch.",
         notes: "High potential. Sent preliminary brief questionnaire.",
         status: "contacted",
@@ -380,7 +380,7 @@ async function runSeed(force: boolean) {
         email: "amara@soundscapemedia.co",
         phone: "+1 (555) 819-4402",
         service: "Music Video",
-        budget: "$2,000 - $3,500",
+        budget: "₹1,60,000 - ₹2,80,000",
         message: "Shooting a high-fashion Afro-fusion music video in London next month. Looking for rhythmic editing and film color.",
         notes: "Followed up with showreel link.",
         status: "new",
@@ -391,7 +391,7 @@ async function runSeed(force: boolean) {
         email: "liam@techstackpod.io",
         phone: "+1 (555) 304-9912",
         service: "Podcast Editing",
-        budget: "$1,500 / month",
+        budget: "₹1,20,000 / month",
         message: "Need 4 full podcast episodes per month plus 20 viral Shorts/Reels extracted with burned-in subtitles.",
         notes: "Quote accepted, converting to client soon.",
         status: "won",
@@ -402,7 +402,7 @@ async function runSeed(force: boolean) {
         email: "chloe@luxemaison.fr",
         phone: "+33 6 12 34 56 78",
         service: "Brand Films",
-        budget: "$6,000+",
+        budget: "₹5,00,000+",
         message: "Paris Fashion Week recap film and 10 social teasers for luxury perfume brand.",
         notes: "Call scheduled for Thursday.",
         status: "contacted",
@@ -468,35 +468,35 @@ async function runSeed(force: boolean) {
       },
     ]);
 
-    // 10. Ratings
+    // 10. Ratings (demo reviews stay hidden — only real client reviews are public)
     await db.insert(ratings).values([
       {
         clientId: c1,
         projectId: p1,
         stars: 5,
-        comment: "Aliasgar and the VisionFold team elevated our music video beyond expectations. The sound design and color grading are pure Hollywood quality.",
-        visible: true,
+        comment: "The VisionFold team elevated our music video beyond expectations. The sound design and color grading are pure Hollywood quality.",
+        visible: false,
       },
       {
         clientId: c2,
         projectId: p2,
         stars: 5,
         comment: "Flawless communication and lightning-fast revision rounds. Our hardware launch film got 1.4M views in the first 48 hours.",
-        visible: true,
+        visible: false,
       },
       {
         clientId: c3,
         projectId: p3,
         stars: 5,
         comment: "The hook pacing and kinetic text generated a 3.8x ROAS on our Meta ad spend. VisionFold is our secret weapon.",
-        visible: true,
+        visible: false,
       },
       {
         clientId: c4,
         projectId: p4,
         stars: 5,
         comment: "Average watch-time on our YouTube channel jumped from 38% to 64% after switching to VisionFold edits. Highly recommend!",
-        visible: true,
+        visible: false,
       },
     ]);
 
@@ -698,7 +698,7 @@ Eliminate 50-email revision chains. Time-stamped pinpoint feedback keeps the ent
     // 14. Activity Log
     await db.insert(activity).values([
       {
-        actor: "Aliasgar",
+        actor: "Studio",
         action: "Exported Render",
         details: "Rendered 4K ProRes master for Cyberpunk Neon Beat (v2).",
       },
@@ -715,7 +715,7 @@ Eliminate 50-email revision chains. Time-stamped pinpoint feedback keeps the ent
       {
         actor: "System",
         action: "Invoice Paid",
-        details: "Invoice VF-2026-003 marked paid ($1,650.00).",
+        details: "Invoice VF-2026-003 marked paid (₹1,35,000).",
       },
     ]);
 

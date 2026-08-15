@@ -116,7 +116,7 @@ export default function AdminPortfolioPage() {
                 </button>
               </div>
               <div className="p-4">
-                <p className="text-[10px] font-semibold uppercase tracking-widest text-cyan-300">{it.category}</p>
+                <p className="text-[10px] font-semibold uppercase tracking-widest text-amber-300">{it.category}</p>
                 <h3 className="mt-1 truncate text-sm font-semibold text-white">{it.title}</h3>
                 <p className="mt-1 line-clamp-2 text-xs text-slate-500">{it.description}</p>
                 <div className="mt-3 flex items-center justify-between">
@@ -158,7 +158,7 @@ export default function AdminPortfolioPage() {
               <Input value={form.year} onChange={(e) => setForm((f) => ({ ...f, year: e.target.value }))} />
             </Field>
             <label className="flex items-center gap-2 pt-6 text-sm text-slate-300">
-              <input type="checkbox" checked={form.featured} onChange={(e) => setForm((f) => ({ ...f, featured: e.target.checked }))} className="accent-violet-500" />
+              <input type="checkbox" checked={form.featured} onChange={(e) => setForm((f) => ({ ...f, featured: e.target.checked }))} className="accent-amber-500" />
               Featured (homepage reel)
             </label>
           </div>

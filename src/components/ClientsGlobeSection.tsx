@@ -310,7 +310,7 @@ export function ClientsGlobeSection() {
       <div className="mx-auto max-w-7xl">
         <div className="mb-12 text-center">
           <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-brand-400/30 bg-brand-500/10 px-4 py-1.5 text-xs font-semibold text-brand-300">
-            <Globe2 className="h-4 w-4 text-cyan-300 animate-spin-slow" />
+            <Globe2 className="h-4 w-4 text-amber-300 animate-spin-slow" />
             <span>Worldwide Creative Footprint</span>
           </div>
           <h2 className="font-display text-4xl font-bold text-white sm:text-5xl">
@@ -331,7 +331,7 @@ export function ClientsGlobeSection() {
           ].map((s) => (
             <div key={s.label} className="glass rounded-2xl p-4 text-center">
               <p className="font-display text-xl font-bold text-white">{s.label}</p>
-              <p className="mt-0.5 text-[10px] uppercase tracking-wider text-cyan-300 font-semibold">{s.sub}</p>
+              <p className="mt-0.5 text-[10px] uppercase tracking-wider text-amber-300 font-semibold">{s.sub}</p>
             </div>
           ))}
         </div>
@@ -349,7 +349,7 @@ export function ClientsGlobeSection() {
             {/* Active Client Location Info Box */}
             <div className="pointer-events-none absolute bottom-4 left-4 right-4 z-20 rounded-2xl border border-white/10 bg-black/80 p-4 backdrop-blur-xl sm:left-auto sm:right-4 sm:w-64">
               <div className="flex gap-2.5">
-                <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-cyan-300" />
+                <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-amber-300" />
                 <div>
                   <p className="font-display font-bold text-white">{activeClient.city}</p>
                   <p className="text-xs text-slate-400">{activeClient.country}</p>
@@ -383,7 +383,7 @@ export function ClientsGlobeSection() {
                       c.city === "Indore"
                         ? "bg-amber-400 ring-4 ring-amber-400/20"
                         : active === c.id
-                        ? "bg-cyan-300 ring-4 ring-cyan-300/20"
+                        ? "bg-amber-300 ring-4 ring-amber-300/20"
                         : "bg-white/30"
                     }`}
                   />

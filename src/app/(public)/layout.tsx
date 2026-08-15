@@ -16,10 +16,10 @@ export default async function PublicLayout({ children }: { children: ReactNode }
       <div className="bg-aurora relative flex min-h-screen items-center justify-center px-6">
         <div className="grid-bg pointer-events-none absolute inset-0" />
         <div className="relative w-full max-w-xl text-center">
-          <div className="animate-floaty mx-auto mb-8 grid h-20 w-20 place-items-center rounded-3xl bg-gradient-to-br from-[#7357FF] to-[#5B3FD4] shadow-[0_0_80px_-20px_rgba(115,87,255,0.9)]">
+          <div className="animate-floaty mx-auto mb-8 grid h-20 w-20 place-items-center rounded-3xl bg-gradient-to-br from-[#F4A62A] to-[#C97A12] shadow-[0_0_80px_-20px_rgba(244,166,42,0.9)]">
             <Logo className="h-10 w-10" />
           </div>
-          <p className="text-xs font-semibold uppercase tracking-[0.3em] text-cyan-300">
+          <p className="text-xs font-semibold uppercase tracking-[0.3em] text-amber-300">
             {settings.siteTitle} · Maintenance
           </p>
           <h1 className="font-display mt-4 text-4xl font-bold text-white sm:text-5xl">

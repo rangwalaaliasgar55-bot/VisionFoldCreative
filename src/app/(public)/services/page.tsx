@@ -23,48 +23,48 @@ const SERVICES = [
   {
     Icon: Clapperboard,
     title: "Brand Films",
-    price: "$2,400+",
-    unit: "per film",
+    price: "from ₹2,00,000",
+    unit: "custom · per film",
     desc: "Launch films, about films and founder stories cut to cinema standard.",
     perks: ["Story-first beat sheet", "Motion graphics included", "Film-grade color", "2 revision rounds", "All aspect ratios"],
   },
   {
     Icon: MonitorPlay,
     title: "YouTube Editing",
-    price: "$350+",
-    unit: "per video",
+    price: "Custom quote",
+    unit: "per video · long-form",
     desc: "Long-form edits engineered for retention, plus a monthly retainer option.",
     perks: ["Retention pacing & hooks", "Sound design & music", "Chapter cards & end screens", "48h–72h turnaround", "Monthly retainer discounts"],
   },
   {
     Icon: Music,
     title: "Music Videos",
-    price: "$1,800+",
-    unit: "per video",
+    price: "from ₹1,50,000",
+    unit: "custom · per video",
     desc: "Rhythm cuts and cinematic grade that make the song feel bigger.",
     perks: ["Beat-synced cutting", "VFX cleanup", "Lyric video option", "Premiere teaser cut", "Vertical edits included"],
   },
   {
     Icon: Megaphone,
     title: "Commercials & Ads",
-    price: "$1,500+",
-    unit: "per campaign",
+    price: "from ₹1,25,000",
+    unit: "custom · per campaign",
     desc: "Platform-ready ad packs delivered in days, optimized to convert.",
     perks: ["16:9 + 9:16 + 1:1", "Subtitle pass", "Hook variations", "3-day delivery", "Platform QC"],
   },
   {
     Icon: Heart,
     title: "Wedding Cinema",
-    price: "$1,200+",
-    unit: "per film",
+    price: "from ₹1,00,000",
+    unit: "custom · per film",
     desc: "Ceremony films and teasers edited into stories worth rewatching.",
     perks: ["Ceremony + highlight film", "Cinematic grade", "Licensed music", "Teaser in 7 days", "USB + cloud delivery"],
   },
   {
     Icon: Mic,
     title: "Podcast Editing",
-    price: "$450+",
-    unit: "per episode",
+    price: "from ₹40,000",
+    unit: "custom · per episode",
     desc: "Full episode cleanup plus a clip engine for Shorts and Reels.",
     perks: ["Audio repair & mixing", "Multicam switching", "Clip engine (3+ clips)", "Caption files", "Weekly scheduling"],
   },
@@ -85,7 +85,7 @@ const FAQ = [
   },
   {
     q: "Do you work with remote clients?",
-    a: "Everywhere. Roughly 80% of our clients are outside California. Timezone is never an excuse — we work async with a 24h response promise.",
+    a: "Everywhere. We serve clients across 12 countries. Timezone is never an excuse — we work async with a 24h response promise.",
   },
   {
     q: "What if I don't like the first cut?",
@@ -104,7 +104,7 @@ export default async function ServicesPage() {
       <section className="mx-auto max-w-7xl px-5 pb-24 pt-20 sm:px-8 space-y-20">
         <Reveal>
           <div className="mx-auto max-w-2xl text-center">
-            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-cyan-300">Services & pricing</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-amber-300">Services & pricing</p>
             <h1 className="font-display mt-3 text-4xl font-bold text-white sm:text-6xl">
               Transparent pricing, <span className="text-gradient">cinema-grade output</span>
             </h1>
@@ -115,6 +115,35 @@ export default async function ServicesPage() {
           </div>
         </Reveal>
 
+        {/* Shorts — flat rate highlight */}
+        <Reveal>
+          <div className="glass card-glow relative mx-auto max-w-3xl overflow-hidden rounded-3xl p-7 sm:p-9">
+            <div className="absolute right-0 top-0 rounded-bl-2xl bg-brand-500/15 px-4 py-1.5 text-xs font-bold uppercase tracking-widest text-brand-300">
+              Most popular
+            </div>
+            <div className="flex flex-col items-start gap-5 sm:flex-row sm:items-center">
+              <div className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-[#F4A62A]/35 to-[#F4A62A]/10 text-brand-300">
+                <Clapperboard size={26} />
+              </div>
+              <div className="flex-1">
+                <h3 className="font-display text-xl font-bold text-white sm:text-2xl">
+                  Shorts &amp; Reels — <span className="text-gradient">₹700 flat</span>
+                </h3>
+                <p className="mt-1 text-sm text-slate-400">
+                  Vertical edits for Instagram, YouTube Shorts and TikTok. Delivered in 24 hours — hook, captions,
+                  sound design and platform-safe export included.
+                </p>
+              </div>
+              <Link
+                href="/contact"
+                className="shrink-0 rounded-xl bg-brand-500 px-6 py-3 text-sm font-bold text-black transition-all hover:bg-brand-400"
+              >
+                Order a Short
+              </Link>
+            </div>
+          </div>
+        </Reveal>
+
         {/* Pricing Cards */}
         <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
           {SERVICES.map(({ Icon, title, price, unit, desc, perks }, i) => (
@@ -122,7 +151,7 @@ export default async function ServicesPage() {
               <Tilt max={6} className="h-full">
                 <div className="glass card-glow flex h-full flex-col rounded-3xl p-6">
                   <div className="flex items-start justify-between">
-                    <div className="grid h-12 w-12 place-items-center rounded-2xl bg-gradient-to-br from-[#7357FF]/30 to-[#F4A62A]/15 text-brand-300">
+                    <div className="grid h-12 w-12 place-items-center rounded-2xl bg-gradient-to-br from-[#F4A62A]/30 to-[#F4A62A]/10 text-brand-300">
                       <Icon size={22} />
                     </div>
                     <div className="text-right">
@@ -152,6 +181,15 @@ export default async function ServicesPage() {
           ))}
         </div>
 
+        {/* Long-form custom-rate note */}
+        <Reveal>
+          <p className="mx-auto max-w-3xl text-center text-sm leading-relaxed text-slate-400">
+            <span className="font-semibold text-white">Long-form rates are custom.</span> Every film, episode and
+            campaign is quoted individually — the final price depends on the footage length, complexity, revision
+            rounds and turnaround. Shorts &amp; Reels are a flat <span className="font-semibold text-brand-300">₹700 each</span>.
+          </p>
+        </Reveal>
+
         {/* Interactive Rates & Investment Estimator */}
         <Reveal>
           <RatesCalculator />
@@ -160,7 +198,7 @@ export default async function ServicesPage() {
         {/* Before / After Color Grade & VFX Split Comparison */}
         <Reveal>
           <div className="space-y-4 text-center">
-            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-cyan-300">Post-Production Polish</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-amber-300">Post-Production Polish</p>
             <h2 className="font-display text-3xl font-bold text-white sm:text-4xl">
               From Raw Sensor Log to <span className="text-gradient">Cinematic Master</span>
             </h2>
@@ -172,7 +210,7 @@ export default async function ServicesPage() {
         <div className="mx-auto max-w-3xl">
           <Reveal>
             <div className="text-center">
-              <p className="text-xs font-semibold uppercase tracking-[0.3em] text-cyan-300">FAQ</p>
+              <p className="text-xs font-semibold uppercase tracking-[0.3em] text-amber-300">FAQ</p>
               <h2 className="font-display mt-3 text-3xl font-bold text-white sm:text-4xl">
                 Before you <span className="text-gradient">press record</span>
               </h2>

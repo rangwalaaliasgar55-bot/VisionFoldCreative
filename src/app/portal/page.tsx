@@ -23,6 +23,8 @@ import {
   CreditCard,
   DollarSign,
   Download,
+  TrendingUp,
+  Wallet,
   Eye,
   Film,
   FolderKanban,
@@ -317,6 +319,11 @@ export default function ClientPortalPage() {
   const nextDue = [...activeProjects]
     .filter((project) => project.dueDate)
     .sort((a, b) => String(a.dueDate).localeCompare(String(b.dueDate)))[0];
+  const paidInvoices = invoices.filter((invoice) => invoice.status === "paid");
+  const totalInvested = paidInvoices.reduce((sum, invoice) => sum + Number(invoice.amount || 0), 0);
+  const avgProgress = activeProjects.length
+    ? Math.round(activeProjects.reduce((sum, project) => sum + Number(project.progress || 0), 0) / activeProjects.length)
+    : 0;
 
   return (
     <div className="mx-auto max-w-6xl px-5 py-8 space-y-6">
@@ -347,10 +354,12 @@ export default function ClientPortalPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
         {[
           { label: "Active projects", value: activeProjects.length, detail: `${projects.length} total`, Icon: FolderKanban, tone: "text-brand-300 bg-brand-500/10" },
-          { label: "Ready files", value: deliverables.length, detail: "secure downloads", Icon: Download, tone: "text-cyan-300 bg-cyan-500/10" },
+          { label: "Ready files", value: deliverables.length, detail: "secure downloads", Icon: Download, tone: "text-amber-300 bg-amber-500/10" },
+          { label: "Total invested", value: fmtMoney(totalInvested), detail: `${paidInvoices.length} paid`, Icon: Wallet, tone: "text-emerald-300 bg-emerald-500/10" },
+          { label: "Avg progress", value: `${avgProgress}%`, detail: "across active cuts", Icon: TrendingUp, tone: "text-brand-300 bg-brand-500/10" },
           { label: "Open invoices", value: outstandingInvoices.length, detail: outstandingInvoices.length ? fmtMoney(outstandingInvoices.reduce((sum, invoice) => sum + Number(invoice.amount || 0), 0)) : "all settled", Icon: CreditCard, tone: "text-amber-300 bg-amber-500/10" },
           { label: "Next deadline", value: nextDue?.dueDate || "Flexible", detail: nextDue?.title || "No deadline set", Icon: Clock, tone: "text-emerald-300 bg-emerald-500/10" },
         ].map(({ label, value, detail, Icon, tone }) => (
@@ -376,7 +385,7 @@ export default function ClientPortalPage() {
             onClick={() => setTab(t.id as any)}
             className={`flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition-all ${
               tab === t.id
-                ? "bg-brand-600 text-white shadow-[0_0_20px_-6px_rgba(115,87,255,0.9)]"
+                ? "bg-brand-600 text-white shadow-[0_0_20px_-6px_rgba(244,166,42,0.9)]"
                 : "bg-white/5 text-slate-400 hover:bg-white/10 hover:text-white"
             }`}
           >
@@ -405,12 +414,12 @@ export default function ClientPortalPage() {
                   key={proj.id}
                   onClick={() => setActiveReviewProj(proj)}
                   className={`glass card-glow cursor-pointer rounded-2xl p-5 transition-all ${
-                    isSelected ? "border-brand-500 shadow-[0_0_30px_-8px_rgba(115,87,255,0.6)]" : "hover:border-white/20"
+                    isSelected ? "border-brand-500 shadow-[0_0_30px_-8px_rgba(244,166,42,0.6)]" : "hover:border-white/20"
                   }`}
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div>
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-cyan-300">{proj.service}</span>
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-amber-300">{proj.service}</span>
                       <h3 className="font-display mt-1 text-lg font-bold text-white">{proj.title}</h3>
                     </div>
                     <StatusBadge status={proj.status} />
@@ -436,7 +445,7 @@ export default function ClientPortalPage() {
           </div>
           {projects.length === 0 && (
             <div className="relative overflow-hidden rounded-3xl border border-dashed border-brand-400/25 bg-brand-500/[0.04] px-6 py-14 text-center">
-              <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_120%,rgba(115,87,255,.18),transparent_55%)]" />
+              <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_120%,rgba(244,166,42,.18),transparent_55%)]" />
               <Film size={34} className="relative mx-auto text-brand-300" />
               <h3 className="relative mt-4 font-display text-xl font-bold text-white">Your first production starts here</h3>
               <p className="relative mx-auto mt-2 max-w-md text-sm leading-relaxed text-slate-500">Send the studio your brief, footage link, goals and budget. We will review it and turn this empty workspace into a live production timeline.</p>
@@ -466,7 +475,7 @@ export default function ClientPortalPage() {
                     className="absolute inset-0 h-full w-full object-cover"
                     style={{
                       filter: showColorSplit
-                        ? "contrast(1.15) saturate(1.25) drop-shadow(0 0 10px rgba(115,87,255,0.4))"
+                        ? "contrast(1.15) saturate(1.25) drop-shadow(0 0 10px rgba(244,166,42,0.4))"
                         : "none",
                     }}
                   />
@@ -474,7 +483,7 @@ export default function ClientPortalPage() {
                   {/* Right Side: RAW Log Footage Split (if enabled) */}
                   {showColorSplit && (
                     <div
-                      className="absolute inset-y-0 right-0 overflow-hidden border-l-2 border-cyan-400"
+                      className="absolute inset-y-0 right-0 overflow-hidden border-l-2 border-amber-400"
                       style={{ width: `${100 - splitPosition}%` }}
                     >
                       <img
@@ -495,7 +504,7 @@ export default function ClientPortalPage() {
                   )}
 
                   {showColorSplit && (
-                    <div className="absolute top-3 left-3 rounded-lg bg-black/80 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-cyan-300 backdrop-blur-md">
+                    <div className="absolute top-3 left-3 rounded-lg bg-black/80 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-amber-300 backdrop-blur-md">
                       Cinema Grade & VFX
                     </div>
                   )}
@@ -548,7 +557,7 @@ export default function ClientPortalPage() {
                       <button
                         onClick={() => setShowColorSplit(!showColorSplit)}
                         className={`rounded-xl px-3 py-2 text-xs font-semibold transition-all ${
-                          showColorSplit ? "bg-cyan-500/20 text-cyan-300 border border-cyan-400/30" : "bg-white/10 text-slate-400"
+                          showColorSplit ? "bg-amber-500/20 text-amber-300 border border-amber-400/30" : "bg-white/10 text-slate-400"
                         }`}
                         title="Toggle RAW Log vs Cinema Grade Split Comparison"
                       >
@@ -565,7 +574,7 @@ export default function ClientPortalPage() {
                           max="95"
                           value={splitPosition}
                           onChange={(e) => setSplitPosition(Number(e.target.value))}
-                          className="h-1 w-36 cursor-pointer rounded-full bg-white/20 accent-cyan-400"
+                          className="h-1 w-36 cursor-pointer rounded-full bg-white/20 accent-amber-400"
                         />
                       </div>
                     )}
@@ -616,9 +625,9 @@ export default function ClientPortalPage() {
                             href={file.downloadUrl}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="flex items-center justify-between gap-3 rounded-xl border border-cyan-400/15 bg-cyan-500/[0.05] px-3 py-2 text-xs transition hover:border-cyan-400/35 hover:bg-cyan-500/10"
+                            className="flex items-center justify-between gap-3 rounded-xl border border-amber-400/15 bg-amber-500/[0.05] px-3 py-2 text-xs transition hover:border-amber-400/35 hover:bg-amber-500/10"
                           >
-                            <span className="flex min-w-0 items-center gap-2 text-cyan-200"><Download size={13} /><span className="truncate font-semibold">{file.name}</span></span>
+                            <span className="flex min-w-0 items-center gap-2 text-amber-200"><Download size={13} /><span className="truncate font-semibold">{file.name}</span></span>
                             <span className="shrink-0 text-[9px] uppercase tracking-wider text-slate-500">{file.format} · {file.resolution}</span>
                           </a>
                         ))}

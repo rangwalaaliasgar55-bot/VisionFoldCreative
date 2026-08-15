@@ -246,8 +246,8 @@ export default function AdminSitePage() {
           <div className="sticky top-6 h-fit">
             <Card title="Live preview" desc="This mirrors the homepage hero">
               <div className="bg-aurora relative overflow-hidden rounded-2xl border border-white/8 p-8 text-center">
-                <div className="glass mx-auto inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-xs font-medium text-cyan-300">
-                  <span className="animate-pulseglow h-1.5 w-1.5 rounded-full bg-cyan-400" />
+                <div className="glass mx-auto inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-xs font-medium text-amber-300">
+                  <span className="animate-pulseglow h-1.5 w-1.5 rounded-full bg-amber-400" />
                   Premium video editing studio
                 </div>
                 <h2 className="font-display mt-5 text-3xl font-bold leading-tight text-white sm:text-4xl">
@@ -300,7 +300,7 @@ export default function AdminSitePage() {
             {/* AI Tokens Budget */}
             <div className="glass card-glow rounded-2xl p-5 space-y-2.5">
               <div className="flex items-center justify-between">
-                <div className="grid h-9 w-9 place-items-center rounded-xl bg-cyan-500/15 text-cyan-300">
+                <div className="grid h-9 w-9 place-items-center rounded-xl bg-amber-500/15 text-amber-300">
                   <Cpu size={18} />
                 </div>
                 <Badge tone="published">{aiPct}% used</Badge>

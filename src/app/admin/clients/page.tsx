@@ -263,7 +263,7 @@ export default function AdminClientsPage() {
         {reset && (
           <div className="text-sm">
             <p className="text-slate-400">Temporary password for <span className="font-semibold text-white">{reset.name}</span>:</p>
-            <div className="mt-3 rounded-xl border border-cyan-400/20 bg-cyan-500/5 p-4 text-center font-mono text-lg text-cyan-200">
+            <div className="mt-3 rounded-xl border border-amber-400/20 bg-amber-500/5 p-4 text-center font-mono text-lg text-amber-200">
               {reset.password}
             </div>
           </div>

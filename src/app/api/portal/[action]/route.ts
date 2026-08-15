@@ -1,6 +1,6 @@
 import { db } from "@/db";
 import { deliverables, invoices, messages, projects, ratings, updates } from "@/db/schema";
-import { eq, inArray, sql } from "drizzle-orm";
+import { and, eq, inArray, isNull, sql } from "drizzle-orm";
 import { bad, hashPassword, ok, readBody, requireClient, verifyPassword } from "@/lib/auth";
 import { clients } from "@/db/schema";
 
@@ -119,7 +119,12 @@ export async function POST(
       const existing = await db
         .select()
         .from(ratings)
-        .where(sql`${ratings.clientId} = ${client.id} and ${ratings.projectId} is not distinct from ${projectId}`)
+        .where(
+          and(
+            eq(ratings.clientId, client.id),
+            projectId ? eq(ratings.projectId, projectId) : isNull(ratings.projectId)
+          )
+        )
         .limit(1);
       let row;
       if (existing.length) {

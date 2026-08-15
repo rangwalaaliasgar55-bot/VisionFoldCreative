@@ -189,7 +189,7 @@ export function IconBtn({
 }
 
 const TONES: Record<string, string> = {
-  new: "bg-cyan-500/15 text-cyan-300 border-cyan-400/25",
+  new: "bg-amber-500/15 text-amber-300 border-amber-400/25",
   contacted: "bg-amber-500/15 text-amber-300 border-amber-400/25",
   won: "bg-emerald-500/15 text-emerald-300 border-emerald-400/25",
   lost: "bg-slate-500/15 text-slate-400 border-slate-400/25",
@@ -200,7 +200,7 @@ const TONES: Record<string, string> = {
   published: "bg-emerald-500/15 text-emerald-300 border-emerald-400/25",
   intake: "bg-slate-500/15 text-slate-400 border-slate-400/25",
   in_progress: "bg-brand-500/15 text-brand-300 border-brand-400/25",
-  review: "bg-cyan-500/15 text-cyan-300 border-cyan-400/25",
+  review: "bg-amber-500/15 text-amber-300 border-amber-400/25",
   revision: "bg-amber-500/15 text-amber-300 border-amber-400/25",
   completed: "bg-emerald-500/15 text-emerald-300 border-emerald-400/25",
   active: "bg-emerald-500/15 text-emerald-300 border-emerald-400/25",

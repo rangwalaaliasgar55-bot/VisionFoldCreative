@@ -5,7 +5,7 @@ import * as THREE from "three";
 
 /**
  * Premium 3D studio background:
- * - Animated golden & violet particle galaxy with mouse depth parallax
+ * - Animated golden particle galaxy with mouse depth parallax
  * - Wireframe Cinema Camera & Film Reel Torus geometry
  * - Audio-wave dynamic grid undulating at the bottom
  * - Smooth inertia damping and low-power safety checks
@@ -52,7 +52,7 @@ export default function ThreeBackground({
     const positions = new Float32Array(particleCount * 3);
     const colors = new Float32Array(particleCount * 3);
     const gold = new THREE.Color("#F4A62A");
-    const violet = new THREE.Color("#7357FF");
+    const accent = new THREE.Color("#F4A62A");
     const cyan = new THREE.Color("#38BDF8");
     const warmWhite = new THREE.Color("#F6F3EC");
 
@@ -67,7 +67,7 @@ export default function ThreeBackground({
       positions[i * 3 + 2] = Math.sin(angle) * radius + (Math.random() - 0.5) * 2.5;
 
       const pick = Math.random();
-      const c = pick < 0.4 ? gold : pick < 0.75 ? violet : pick < 0.9 ? cyan : warmWhite;
+      const c = pick < 0.4 ? gold : pick < 0.75 ? accent : pick < 0.9 ? cyan : warmWhite;
       colors[i * 3] = c.r;
       colors[i * 3 + 1] = c.g;
       colors[i * 3 + 2] = c.b;
@@ -136,9 +136,9 @@ export default function ThreeBackground({
     goldPoint.position.set(10, 10, 10);
     scene.add(goldPoint);
 
-    const violetPoint = new THREE.PointLight(0x7357ff, 2.5, 50);
-    violetPoint.position.set(-10, -10, 10);
-    scene.add(violetPoint);
+    const amberPoint = new THREE.PointLight(0xF4A62A, 2.5, 50);
+    amberPoint.position.set(-10, -10, 10);
+    scene.add(amberPoint);
 
     // Mouse & Scroll Parallax
     const mouse = { x: 0, y: 0 };
