@@ -102,6 +102,21 @@ body {
   animation: shimmer 2.4s linear infinite;
 }
 
+.skeleton {
+  position: relative;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.055);
+}
+.skeleton::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.075), transparent);
+  animation: skeleton-sweep 1.6s ease-in-out infinite;
+}
+@keyframes skeleton-sweep { to { transform: translateX(100%); } }
+
 .process-timeline {
   position: relative;
 }
@@ -271,6 +286,7 @@ select:focus-visible {
   .animate-scrollcue,
   .animate-spin-slow,
   .cms-block-reveal,
+  .skeleton::after,
   .shimmer {
     animation: none !important;
   }

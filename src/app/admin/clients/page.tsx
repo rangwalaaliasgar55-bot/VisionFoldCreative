@@ -49,6 +49,7 @@ export default function AdminClientsPage() {
   useEffect(() => {
     if (!chatClient) return;
     api<Msg[]>(`/api/admin/messages?clientId=${chatClient.id}`).then(setMessages).catch(() => {});
+    api("/api/admin/messages/read", { json: { clientId: chatClient.id } }).catch(() => {});
     const id = setInterval(() => {
       api<Msg[]>(`/api/admin/messages?clientId=${chatClient.id}`).then(setMessages).catch(() => {});
     }, 7000);

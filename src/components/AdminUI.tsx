@@ -73,7 +73,8 @@ export function useApi<T>(path: string | null) {
     }
   }, [path]);
   useEffect(() => {
-    reload();
+    const task = window.setTimeout(() => void reload(), 0);
+    return () => window.clearTimeout(task);
   }, [reload]);
   return { data, loading, error, reload };
 }
@@ -304,8 +305,38 @@ export function Select(props: React.SelectHTMLAttributes<HTMLSelectElement>) {
 
 export function Spinner() {
   return (
-    <div className="flex justify-center py-10">
+    <div className="flex justify-center py-10" role="status" aria-label="Loading">
       <Loader2 className="animate-spin text-brand-400" size={22} />
+    </div>
+  );
+}
+
+export function PageSkeleton({ cards = 6, rows = 4 }: { cards?: number; rows?: number }) {
+  return (
+    <div className="space-y-6" role="status" aria-label="Loading page">
+      <span className="sr-only">Loading…</span>
+      <div className="flex items-end justify-between gap-4">
+        <div className="space-y-2"><div className="skeleton h-7 w-48 rounded-lg" /><div className="skeleton h-3 w-72 max-w-[70vw] rounded" /></div>
+        <div className="skeleton h-9 w-28 rounded-xl" />
+      </div>
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
+        {Array.from({ length: cards }, (_, i) => <div key={i} className="rounded-2xl border border-white/[0.06] bg-panel p-4"><div className="skeleton h-9 w-9 rounded-xl" /><div className="skeleton mt-4 h-6 w-20 rounded" /><div className="skeleton mt-2 h-3 w-24 rounded" /></div>)}
+      </div>
+      <div className="grid gap-5 lg:grid-cols-3">
+        <div className="rounded-2xl border border-white/[0.06] bg-panel p-5 lg:col-span-2"><div className="skeleton h-4 w-40 rounded" /><div className="mt-8 flex h-44 items-end gap-3">{Array.from({ length: 6 }, (_, i) => <div key={i} className="skeleton flex-1 rounded-t-lg" style={{ height: `${35 + ((i * 17) % 60)}%` }} />)}</div></div>
+        <div className="rounded-2xl border border-white/[0.06] bg-panel p-5"><div className="skeleton h-4 w-32 rounded" /><div className="mt-5 space-y-3">{Array.from({ length: rows }, (_, i) => <div key={i} className="skeleton h-12 rounded-xl" />)}</div></div>
+      </div>
+    </div>
+  );
+}
+
+export function PortalSkeleton() {
+  return (
+    <div className="mx-auto max-w-6xl space-y-6 px-5 py-8" role="status" aria-label="Loading client workspace">
+      <span className="sr-only">Loading your workspace…</span>
+      <div className="rounded-3xl border border-white/[0.07] bg-panel p-6"><div className="flex items-center gap-4"><div className="skeleton h-14 w-14 rounded-2xl" /><div className="flex-1"><div className="skeleton h-6 w-56 max-w-full rounded" /><div className="skeleton mt-2 h-3 w-72 max-w-full rounded" /></div></div></div>
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">{Array.from({ length: 4 }, (_, i) => <div key={i} className="rounded-2xl border border-white/[0.06] bg-panel p-4"><div className="skeleton h-3 w-20 rounded" /><div className="skeleton mt-3 h-7 w-16 rounded" /></div>)}</div>
+      <div className="grid gap-4 md:grid-cols-2">{Array.from({ length: 4 }, (_, i) => <div key={i} className="rounded-2xl border border-white/[0.06] bg-panel p-5"><div className="skeleton h-4 w-28 rounded" /><div className="skeleton mt-3 h-6 w-44 rounded" /><div className="skeleton mt-5 h-2 w-full rounded-full" /><div className="skeleton mt-4 h-3 w-32 rounded" /></div>)}</div>
     </div>
   );
 }

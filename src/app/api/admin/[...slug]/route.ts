@@ -121,10 +121,7 @@ export async function GET(
           })
           .reduce((sum, inv) => sum + Number(inv.amount || 0), 0);
 
-        revenueByMonth.push({
-          label: mLabel,
-          value: mPaid > 0 ? mPaid : Math.round(2400 + ((i * 1234 + 500) % 3500)),
-        });
+        revenueByMonth.push({ label: mLabel, value: mPaid });
       }
 
       // Expenses by Category
@@ -142,10 +139,9 @@ export async function GET(
       const leadsTotal = allLeads.length;
       const leadsContacted = allLeads.filter((l) => l.status === "contacted" || l.status === "won").length;
       const funnel = [
-        { label: "New leads", value: leadsTotal || 8 },
-        { label: "Contacted", value: leadsContacted || 5 },
-        { label: "Proposals sent", value: Math.max(1, Math.round(leadsContacted * 0.8)) },
-        { label: "Won & booked", value: leadsWon || 3 },
+        { label: "All leads", value: leadsTotal },
+        { label: "Contacted", value: leadsContacted },
+        { label: "Won & booked", value: leadsWon },
       ];
 
       // Projects by Status
@@ -174,6 +170,9 @@ export async function GET(
           leadsTotal,
           clients: allClients.length,
           avgRating,
+          overdueInvoices: allInvoices.filter((invoice) => invoice.status === "overdue").length,
+          unreadMessages: recentMsgs.filter((message) => message.sender === "client" && !message.read).length,
+          reviewProjects: allProjects.filter((project) => project.status === "review" || project.status === "revision").length,
         },
         revenueByMonth,
         expensesByCategory,
@@ -775,10 +774,21 @@ export async function POST(
     }
 
     // Messages & Media
+    if (path === "messages/read") {
+      const clientId = Number(body.clientId);
+      if (!clientId) return bad("Client ID is required.");
+      await db
+        .update(messages)
+        .set({ read: true })
+        .where(sql`${messages.clientId} = ${clientId} and ${messages.sender} = 'client'`);
+      return ok({ ok: true });
+    }
+
     if (path === "messages") {
       const clientId = Number(body.clientId);
       const msgBody = String(body.body || "").trim();
       if (!clientId || !msgBody) return bad("Client ID and message body are required.");
+      if (msgBody.length > 5000) return bad("Message is too long (maximum 5,000 characters).");
 
       const [newMsg] = await db
         .insert(messages)

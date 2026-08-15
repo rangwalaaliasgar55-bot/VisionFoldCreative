@@ -2,14 +2,17 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { api, Button, Card, Spinner, toast, useApi } from "@/components/AdminUI";
+import { api, Button, Card, PageSkeleton, toast, useApi } from "@/components/AdminUI";
 import { Bars, Funnel } from "@/components/Charts";
 import { fmtDate, fmtMoney, timeAgo } from "@/lib/utils";
 import {
+  AlertTriangle,
+  ArrowUpRight,
   Brain,
   CreditCard,
   DollarSign,
   FolderKanban,
+  MessageSquare,
   Sparkles,
   Star,
   Target,
@@ -54,7 +57,7 @@ export default function AdminDashboardPage() {
     }
   }, [reload]);
 
-  if (loading || !data) return <Spinner />;
+  if (loading || !data) return <PageSkeleton />;
   const s = data.stats;
 
   const kpis = [
@@ -92,6 +95,26 @@ export default function AdminDashboardPage() {
           </div>
         ))}
       </div>
+
+      <Card
+        title="Action center"
+        desc="The highest-priority studio work, collected in one place"
+        actions={<span className="rounded-full border border-white/8 bg-white/[0.03] px-2.5 py-1 text-[10px] font-semibold text-slate-500">Live queue</span>}
+      >
+        <div className="grid gap-3 md:grid-cols-3">
+          {[
+            { label: "Client messages", value: s.unreadMessages || 0, detail: "waiting for a studio reply", href: "/admin/clients", Icon: MessageSquare, tone: "text-cyan-300 bg-cyan-500/10" },
+            { label: "Cuts needing attention", value: s.reviewProjects || 0, detail: "in review or revision", href: "/admin/projects", Icon: FolderKanban, tone: "text-brand-300 bg-brand-500/10" },
+            { label: "Overdue invoices", value: s.overdueInvoices || 0, detail: "require payment follow-up", href: "/admin/invoices", Icon: AlertTriangle, tone: "text-amber-300 bg-amber-500/10" },
+          ].map(({ label, value, detail, href, Icon, tone }) => (
+            <Link key={label} href={href} className="group flex items-center gap-3 rounded-xl border border-white/[0.07] bg-black/10 p-3 transition hover:border-white/15 hover:bg-white/[0.025]">
+              <span className={`grid h-10 w-10 shrink-0 place-items-center rounded-xl ${tone}`}><Icon size={17} /></span>
+              <span className="min-w-0 flex-1"><span className="flex items-baseline gap-2"><strong className="font-display text-xl text-white">{value}</strong><span className="text-xs font-semibold text-slate-300">{label}</span></span><span className="block truncate text-[10px] text-slate-600">{detail}</span></span>
+              <ArrowUpRight size={14} className="text-slate-700 transition group-hover:text-slate-300" />
+            </Link>
+          ))}
+        </div>
+      </Card>
 
       <div className="grid gap-6 lg:grid-cols-3">
         <Card title="Revenue — last 6 months" desc="Paid invoices" className="lg:col-span-2">

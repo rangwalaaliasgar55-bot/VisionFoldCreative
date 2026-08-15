@@ -1,6 +1,6 @@
 import { db } from "@/db";
-import { invoices, messages, projects, ratings, updates } from "@/db/schema";
-import { eq, sql } from "drizzle-orm";
+import { deliverables, invoices, messages, projects, ratings, updates } from "@/db/schema";
+import { eq, inArray, sql } from "drizzle-orm";
 import { bad, hashPassword, ok, readBody, requireClient, verifyPassword } from "@/lib/auth";
 import { clients } from "@/db/schema";
 
@@ -27,13 +27,19 @@ export async function GET(
     const { action } = await ctx.params;
 
     if (action === "overview") {
-      const [clientProjects, clientMessages, clientInvoices, clientRatings, updateRows] = await Promise.all([
+      const [clientProjects, clientMessages, clientInvoices, clientRatings] = await Promise.all([
         db.select().from(projects).where(eq(projects.clientId, client.id)).orderBy(sql`${projects.status} = 'completed'`),
         db.select().from(messages).where(eq(messages.clientId, client.id)).orderBy(messages.createdAt),
         db.select().from(invoices).where(eq(invoices.clientId, client.id)).orderBy(sql`${invoices.createdAt} desc`),
         db.select().from(ratings).where(eq(ratings.clientId, client.id)).orderBy(sql`${ratings.createdAt} desc`),
-        db.select().from(updates),
       ]);
+      const projectIds = clientProjects.map((project) => project.id);
+      const [updateRows, deliverableRows] = projectIds.length
+        ? await Promise.all([
+            db.select().from(updates).where(inArray(updates.projectId, projectIds)).orderBy(sql`${updates.createdAt} desc`),
+            db.select().from(deliverables).where(inArray(deliverables.projectId, projectIds)).orderBy(sql`${deliverables.createdAt} desc`),
+          ])
+        : [[], []];
       const unread = clientMessages.filter((m) => m.sender === "admin" && !m.read).length;
       return ok({
         client: {
@@ -46,7 +52,8 @@ export async function GET(
           createdAt: client.createdAt,
         },
         projects: clientProjects,
-        updates: updateRows.filter((u) => clientProjects.some((p) => p.id === u.projectId)),
+        updates: updateRows,
+        deliverables: deliverableRows,
         messages: clientMessages,
         invoices: clientInvoices,
         ratings: clientRatings,
@@ -81,6 +88,7 @@ export async function POST(
     if (action === "message") {
       const text = String(body.body || "").trim();
       if (!text) return bad("Message is empty.");
+      if (text.length > 5000) return bad("Message is too long (maximum 5,000 characters).");
       const row = await db
         .insert(messages)
         .values({ clientId: client.id, sender: "client", body: text, read: false })
@@ -132,14 +140,14 @@ export async function POST(
     }
 
     if (action === "profile") {
-      const name = String(body.name || client.name).trim();
+      const name = String(body.name || client.name).trim().slice(0, 120);
       if (!name) return bad("Name is required.");
       await db
         .update(clients)
         .set({
           name,
-          company: String(body.company || ""),
-          phone: String(body.phone || ""),
+          company: String(body.company || "").trim().slice(0, 160),
+          phone: String(body.phone || "").trim().slice(0, 40),
         })
         .where(eq(clients.id, client.id));
       return ok({ ok: true, name });
@@ -150,7 +158,8 @@ export async function POST(
         return bad("Current password is incorrect.");
       }
       const next = String(body.next || "");
-      if (next.length < 6) return bad("New password must be at least 6 characters.");
+      if (next.length < 8) return bad("New password must be at least 8 characters.");
+      if (next.length > 128) return bad("New password is too long.");
       await db
         .update(clients)
         .set({ passwordHash: hashPassword(next) })
