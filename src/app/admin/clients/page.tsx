@@ -63,8 +63,9 @@ export default function AdminClientsPage() {
   async function createClient(e: React.FormEvent) {
     e.preventDefault();
     try {
-      await api("/api/admin/clients", { json: form });
+      const res = await api<{ name: string; tempPassword?: string }>("/api/admin/clients", { json: form });
       toast("Client created — welcome message sent to their portal");
+      if (res.tempPassword) setReset({ name: res.name, password: res.tempPassword });
       setShowAdd(false);
       setForm({ name: "", email: "", phone: "", company: "", password: "", notes: "", status: "active" });
       reload();
@@ -245,8 +246,8 @@ export default function AdminClientsPage() {
               <Input value={form.phone} onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))} />
             </Field>
           </div>
-          <Field label="Portal password" hint="Leave blank for the default demo password">
-            <Input value={form.password} onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))} placeholder="Default: vf-portal-2026" />
+          <Field label="Portal password" hint="Leave blank to auto-generate a secure temporary password">
+            <Input value={form.password} onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))} placeholder="Min. 8 characters (optional)" />
           </Field>
           <Field label="Notes">
             <Textarea rows={2} value={form.notes} onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))} />

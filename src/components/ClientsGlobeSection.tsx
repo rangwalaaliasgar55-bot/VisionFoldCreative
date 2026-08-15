@@ -44,7 +44,9 @@ export function ClientsGlobeSection() {
   const [active, setActive] = useState<number>(1);
   const [ready, setReady] = useState(false);
   const activeRef = useRef(active);
-  activeRef.current = active;
+  useEffect(() => {
+    activeRef.current = active;
+  }, [active]);
 
   const activeClient = useMemo(
     () => CLIENTS.find((c) => c.id === active) ?? CLIENTS[0],

@@ -124,10 +124,33 @@ export async function POST(req: Request, ctx: { params: Promise<{ path?: string[
       ...current,
       status: action === "publish" ? "published" : "draft",
       publishedAt: action === "publish" ? new Date().toISOString() : current.publishedAt,
+      scheduledFor: action === "publish" ? null : current.scheduledFor ?? null,
       updatedAt: new Date().toISOString(),
     };
     store.pages[index] = page;
     store.revisions.unshift(snapshot(page, action === "publish" ? "Published" : "Unpublished", String(admin.id)));
+    await writeStore(store);
+    return ok({ page });
+  }
+
+  // Schedule a page for auto-publication by the /api/cron/run-scheduled cron.
+  // Body: { at: string } (ISO date, must be in the future) or { at: null } to unschedule.
+  if (action === "schedule") {
+    const at = body.at == null ? null : new Date(String(body.at));
+    if (at && Number.isNaN(at.getTime())) return bad("Provide a valid ISO date in `at`. ");
+    if (at && at.getTime() <= Date.now()) return bad("Scheduled time must be in the future.");
+    if (at && current.blocks.length === 0) return bad("Add at least one content block before scheduling.");
+
+    const page: CmsPage = {
+      ...current,
+      status: at ? "scheduled" : current.status === "scheduled" ? "draft" : current.status,
+      scheduledFor: at ? at.toISOString() : null,
+      updatedAt: new Date().toISOString(),
+    };
+    store.pages[index] = page;
+    store.revisions.unshift(
+      snapshot(page, at ? `Scheduled for ${page.scheduledFor}` : "Schedule cleared", String(admin.id))
+    );
     await writeStore(store);
     return ok({ page });
   }

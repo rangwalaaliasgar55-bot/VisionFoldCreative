@@ -13,7 +13,7 @@ If you discover a security vulnerability, please report it responsibly:
 
 ### How to Report
 1. **Do NOT** open a public GitHub issue
-2. Email the maintainers directly at [security@example.com]
+2. Email the maintainers directly at [visionfoldcreative@gmail.com]
 3. Include the following information:
    - Description of the vulnerability
    - Steps to reproduce

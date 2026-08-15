@@ -42,7 +42,7 @@ async function getAdmin() {
   return admin;
 }
 
-function canAccess(role: string, path: string, write = false) {
+function canAccess(role: string, path: string, write = false, isDelete = false) {
   if (role === "admin") return true;
   const root = path.split("/")[0];
   if (role === "accountant") {
@@ -50,7 +50,11 @@ function canAccess(role: string, path: string, write = false) {
     return ["dashboard", "clients", "projects", "invoices", "expenses", "messages", "activity"].includes(root);
   }
   if (role === "editor") {
+    // Finance, team, system and infra are never visible to editors.
     if (["invoices", "expenses", "quotas", "webhooks", "team", "system"].includes(root)) return false;
+    // Site-wide settings are owner-only, and editors may not delete clients.
+    if (write && root === "settings") return false;
+    if (isDelete && root === "clients") return false;
     return true;
   }
   return false;
@@ -499,23 +503,32 @@ export async function POST(
 
     // 2. Clients
     if (path === "clients") {
-      const name = String(body.name || "").trim();
-      const email = String(body.email || "").trim().toLowerCase();
+      const name = String(body.name || "").trim().slice(0, 120);
+      const email = String(body.email || "").trim().toLowerCase().slice(0, 254);
       if (!name || !email) return bad("Name and email are required.");
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return bad("Enter a valid email address.");
+      const exists = await db.select({ id: clients.id }).from(clients).where(eq(clients.email, email)).limit(1);
+      if (exists.length) return bad("A client with this email already exists.", 409);
 
-      const rawPass = String(body.password || "demo1234").trim();
-      const passwordHash = hashPassword(rawPass);
+      // Never issue a well-known default password. If the admin didn't choose
+      // one, generate a one-time temporary password and show it once.
+      const providedPass = String(body.password || "").trim();
+      const tempPassword = providedPass || `vf_${randomBytes(5).toString("hex")}`;
+      if (providedPass && (providedPass.length < 8 || providedPass.length > 128)) {
+        return bad("Password must be between 8 and 128 characters.");
+      }
+      const passwordHash = hashPassword(tempPassword);
 
       const [newClient] = await db
         .insert(clients)
         .values({
           name,
           email,
-          phone: String(body.phone || "").trim(),
-          company: String(body.company || "").trim(),
+          phone: String(body.phone || "").trim().slice(0, 40),
+          company: String(body.company || "").trim().slice(0, 160),
           passwordHash,
           status: String(body.status || "active"),
-          notes: String(body.notes || "").trim(),
+          notes: String(body.notes || "").trim().slice(0, 2000),
         })
         .returning();
 
@@ -525,7 +538,7 @@ export async function POST(
         details: `Created client ${newClient.name} (${newClient.email}).`,
       });
 
-      return ok(newClient);
+      return ok({ ...newClient, passwordHash: undefined, tempPassword }, 201);
     }
 
     // Client Password Reset
@@ -744,7 +757,14 @@ export async function POST(
       const [leadRow] = await db.select().from(leads).where(eq(leads.id, leadId)).limit(1);
       if (!leadRow) return bad("Lead not found.", 404);
 
-      const clientPass = hashPassword("demo1234");
+      // An existing account with this email would violate the unique
+      // constraint mid-flow — fail fast with a clear error instead.
+      const [dupe] = await db.select({ id: clients.id }).from(clients).where(eq(clients.email, leadRow.email)).limit(1);
+      if (dupe) return bad(`A client account already exists for ${leadRow.email}.`, 409);
+
+      // Generate a one-time password; never use a well-known default.
+      const tempPassword = `vf_${randomBytes(5).toString("hex")}`;
+      const clientPass = hashPassword(tempPassword);
       const [newClient] = await db
         .insert(clients)
         .values({
@@ -773,7 +793,7 @@ export async function POST(
 
       await db.update(leads).set({ status: "won" }).where(eq(leads.id, leadId));
 
-      return ok({ ok: true, clientId: newClient.id, projectId: newProject.id });
+      return ok({ ok: true, clientId: newClient.id, projectId: newProject.id, tempPassword });
     }
 
     // Blog Posts & Categories
@@ -1033,7 +1053,15 @@ export async function PATCH(
       const id = Number(slug[slug.length - 1]);
       const updateData: Record<string, any> = {};
       if (body.title !== undefined) updateData.title = String(body.title);
-      if (body.slug !== undefined) updateData.slug = String(body.slug);
+      if (body.slug !== undefined) {
+        updateData.slug = String(body.slug)
+          .toLowerCase()
+          .trim()
+          .replace(/[^a-z0-9]+/g, "-")
+          .replace(/^-+|-+$/g, "")
+          .slice(0, 80);
+        if (!updateData.slug) return bad("Slug is invalid.");
+      }
       if (body.excerpt !== undefined) updateData.excerpt = String(body.excerpt);
       if (body.content !== undefined) updateData.content = String(body.content);
       if (body.status !== undefined) updateData.status = String(body.status);
@@ -1073,7 +1101,7 @@ export async function DELETE(
     const admin = await getAdmin();
     const { slug } = await ctx.params;
     const path = slug.join("/");
-    if (!canAccess(admin.role, path, true)) return bad("Your role cannot perform this action.", 403);
+    if (!canAccess(admin.role, path, true, true)) return bad("Your role cannot perform this action.", 403);
 
     if (slug.length === 2) {
       const [resource, idStr] = slug;

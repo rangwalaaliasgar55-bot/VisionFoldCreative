@@ -149,11 +149,14 @@ export default function AdminLeadsPage() {
   async function handleConvert(lead: LeadRow) {
     setConverting(lead.id);
     try {
-      const res = await api<{ ok: boolean; clientId: number; projectId: number }>(
+      const res = await api<{ ok: boolean; clientId: number; projectId: number; tempPassword?: string }>(
         `/api/admin/leads/${lead.id}/convert`,
         { json: {} }
       );
-      toast(`Converted ${lead.name} to Client #${res.clientId} & Project #${res.projectId}!`);
+      toast(
+        `Converted ${lead.name} to Client #${res.clientId} & Project #${res.projectId}!` +
+          (res.tempPassword ? ` Portal password: ${res.tempPassword} (shown once)` : "")
+      );
       reload();
     } catch {
       toast("Failed to convert lead", "err");
