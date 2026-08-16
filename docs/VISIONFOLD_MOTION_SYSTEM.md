@@ -112,6 +112,26 @@ The admin runs on the same tokens as the public site — there is no second them
 - Counters land on their final value immediately; the globe stops auto-spinning but
   stays draggable.
 
+## 4b. Site foundations
+
+- **Typography actually applies.** `--font-display` / `--font-sans` referenced
+  `--font-space` / `--font-inter`, which nothing defined — every font declaration
+  was invalid and the site rendered in system sans. The variables now carry the
+  literal families as fallbacks (`var(--font-space, "Space Grotesk")`), so the
+  stylesheet link works today and a future `next/font` migration transparently
+  takes precedence by defining the same variables.
+- **SEO**: generated `sitemap.ts` (static routes + published posts + published CMS
+  pages) and `robots.ts` (blocks `/admin`, `/portal`, `/api`) replace the stale
+  hand-written files that used to sit in `public/`. JSON-LD ships in the HTML:
+  `ProfessionalService` + `WebSite` site-wide, `BlogPosting` + `BreadcrumbList`
+  on posts (`components/Seo.tsx`).
+- **Images**: public thumbnails and post heroes run through `next/image`
+  (AVIF/WebP, responsive `sizes`, the blog hero marked `priority`). The reel and
+  the compare slider keep plain `<img>` on purpose — they live inside 3D
+  transforms and CSS filters where identical raw rendering matters.
+- **Branded `not-found.tsx` and `error.tsx`**, plus a skip-to-content link and an
+  `id="main"` landmark in the public layout.
+
 ## 5. Verifying shaders
 
 GLSL lives in template literals, so neither TypeScript nor `next build` can see a

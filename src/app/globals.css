@@ -21,8 +21,11 @@
   --default-transition-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
   --default-transition-duration: 250ms;
   --ease-vf: cubic-bezier(0.16, 1, 0.3, 1);
-  --font-display: var(--font-space), ui-sans-serif, system-ui, sans-serif;
-  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  /* The literal families are the fallback, so the type system works with the
+     stylesheet <link>. If next/font is ever wired up it defines --font-space /
+     --font-inter and transparently takes precedence. */
+  --font-display: var(--font-space, "Space Grotesk"), ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--font-inter, "Inter"), ui-sans-serif, system-ui, sans-serif;
 }
 
 html {

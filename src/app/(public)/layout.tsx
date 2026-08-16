@@ -9,6 +9,7 @@ import ThreeBackground from "@/components/ThreeBackground";
 import VisionRunner from "@/components/VisionRunner";
 import FloatingWhatsApp from "@/components/FloatingWhatsApp";
 import LiveTracker from "@/components/LiveTracker";
+import { JsonLd, organizationSchema, websiteSchema } from "@/components/Seo";
 
 export const dynamic = "force-dynamic";
 
@@ -52,11 +53,18 @@ export default async function PublicLayout({ children }: { children: ReactNode }
 
   return (
     <>
+      <JsonLd data={[organizationSchema(settings), websiteSchema(settings)]} />
+      <a
+        href="#main"
+        className="sr-only z-[200] focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:rounded-full focus:bg-[#7357FF] focus:px-5 focus:py-2.5 focus:text-xs focus:font-bold focus:uppercase focus:tracking-wider focus:text-white"
+      >
+        Skip to content
+      </a>
       <ThreeBackground />
       <SmoothScroll />
       <ScrollProgress />
       <SiteHeader title={String(settings.siteTitle)} />
-      <main className="animate-page-in min-h-screen pt-16">{children}</main>
+      <main id="main" className="animate-page-in min-h-screen pt-16">{children}</main>
       <SiteFooter settings={settings} />
       <VisionRunner />
       <FloatingWhatsApp number={String(settings.whatsapp || "")} />

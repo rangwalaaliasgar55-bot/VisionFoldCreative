@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import Image from "next/image";
 import { db } from "@/db";
 import { categories, posts } from "@/db/schema";
 import { desc, eq, getTableColumns } from "drizzle-orm";
@@ -66,10 +67,12 @@ export default async function BlogPage({
                   className="glass card-glow group grid overflow-hidden rounded-3xl sm:grid-cols-[280px_1fr]"
                 >
                   <div className="relative h-48 overflow-hidden sm:h-full">
-                    <img
+                    <Image
                       src={p.featuredImage}
                       alt={p.title}
-                      className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-110"
+                      fill
+                      sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                      className="object-cover transition-transform duration-700 group-hover:scale-110"
                     />
                   </div>
                   <div className="p-6">

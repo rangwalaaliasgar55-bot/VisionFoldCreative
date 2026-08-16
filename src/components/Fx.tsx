@@ -9,6 +9,7 @@ import {
 import { AnimatePresence, m } from "framer-motion";
 import { Film, Sliders, Sparkles, Star } from "lucide-react";
 import Link from "next/link";
+import Image from "next/image";
 import {
   CSS_EASE,
   DUR,
@@ -858,11 +859,12 @@ export function PortfolioFilterGrid({
               className="group block h-full overflow-hidden rounded-3xl border border-white/8 bg-panel transition-all hover:border-brand-400/40"
             >
               <div className="relative h-60 overflow-hidden bg-ink">
-                <img
+                <Image
                   src={item.thumbnailUrl}
                   alt={item.title}
-                  className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-110"
-                  loading="lazy"
+                  fill
+                  sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                  className="object-cover transition-transform duration-700 group-hover:scale-110"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent" />
                 {item.videoUrl ? (

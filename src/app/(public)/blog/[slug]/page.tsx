@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import Image from "next/image";
 import { notFound } from "next/navigation";
+import { JsonLd, articleSchema, breadcrumbSchema } from "@/components/Seo";
 import { db } from "@/db";
 import { categories, posts } from "@/db/schema";
 import { desc, eq, getTableColumns, sql } from "drizzle-orm";
@@ -53,6 +55,23 @@ export default async function PostPage({ params }: { params: Promise<{ slug: str
 
   return (
     <div className="bg-aurora">
+      <JsonLd
+        data={[
+          articleSchema({
+            title: row.title,
+            slug: row.slug,
+            excerpt: row.excerpt,
+            featuredImage: row.featuredImage,
+            publishedAt: row.publishedAt,
+            updatedAt: row.updatedAt,
+          }),
+          breadcrumbSchema([
+            { name: "Home", path: "/" },
+            { name: "Blog", path: "/blog" },
+            { name: row.title, path: `/blog/${row.slug}` },
+          ]),
+        ]}
+      />
       <article className="mx-auto max-w-3xl px-5 pb-20 pt-20 sm:px-8">
         <Reveal>
           <Link
@@ -81,7 +100,15 @@ export default async function PostPage({ params }: { params: Promise<{ slug: str
 
           {row.featuredImage && (
             <div className="mt-8 overflow-hidden rounded-3xl border border-white/10">
-              <img src={row.featuredImage} alt={row.title} className="w-full object-cover" />
+              <Image
+                src={row.featuredImage}
+                alt={row.title}
+                width={1200}
+                height={675}
+                priority
+                sizes="(max-width: 768px) 100vw, 768px"
+                className="h-auto w-full object-cover"
+              />
             </div>
           )}
 

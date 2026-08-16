@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { db } from "@/db";
 import { categories, clients, portfolio, posts, ratings } from "@/db/schema";
 import { desc, eq, getTableColumns } from "drizzle-orm";
@@ -318,10 +319,12 @@ export default async function HomePage() {
                 <Link href={`/blog/${p.slug}`} className="group block h-full">
                   <div className="glass card-glow overflow-hidden rounded-3xl transition-transform">
                     <div className="relative h-44 overflow-hidden">
-                      <img
+                      <Image
                         src={p.featuredImage}
                         alt={p.title}
-                        className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110"
+                        fill
+                        sizes="(max-width: 768px) 100vw, 33vw"
+                        className="object-cover transition-transform duration-500 group-hover:scale-110"
                       />
                       <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
                     </div>
