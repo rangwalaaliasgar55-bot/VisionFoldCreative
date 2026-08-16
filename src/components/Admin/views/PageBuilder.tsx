@@ -21,6 +21,12 @@ import { Card, PrimaryButton, GhostButton, Input, Textarea } from '../ui';
 
 export const PageBuilder: React.FC = () => {
   const [pages, setPages] = useState<CmsPage[]>([]);
+  // In-app dialogs — native prompt()/confirm() are blocking, unstyled and
+  // suppressible by the browser.
+  const [newTitle, setNewTitle] = useState<string | null>(null);
+  const [pendingAction, setPendingAction] = useState<
+    { kind: "delete" } | { kind: "rollback"; revisionId: string } | null
+  >(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [page, setPage] = useState<CmsPage | null>(null);
   const [revisions, setRevisions] = useState<CmsRevision[]>([]);
@@ -62,9 +68,9 @@ export const PageBuilder: React.FC = () => {
     return () => window.clearTimeout(task);
   }, [loadList]);
 
-  const createPage = async () => {
-    const title = prompt('Page title?', 'New page');
-    if (!title) return;
+  const createPage = async (title: string) => {
+    if (!title.trim()) return;
+    setNewTitle(null);
     setErr('');
     try {
       const res = await adminApi.post<{ page: CmsPage }>('/api/admin/cms/pages', { title });
@@ -154,7 +160,7 @@ export const PageBuilder: React.FC = () => {
 
   const deletePage = async () => {
     if (!page) return;
-    if (!confirm(`Delete “${page.title}” permanently?`)) return;
+    setPendingAction(null);
     try {
       await adminApi.delete(`/api/admin/cms/pages/${page.id}`);
       setPage(null);
@@ -208,7 +214,8 @@ export const PageBuilder: React.FC = () => {
   };
 
   const rollback = async (revisionId: string) => {
-    if (!page || !confirm('Restore this revision?')) return;
+    if (!page) return;
+    setPendingAction(null);
     try {
       const res = await adminApi.post<{ page: CmsPage }>(`/api/admin/cms/pages/${page.id}/rollback`, {
         revisionId,
@@ -231,7 +238,7 @@ export const PageBuilder: React.FC = () => {
             Edit → <strong className="text-white">Save</strong> → Publish → live at /p/slug
           </p>
         </div>
-        <PrimaryButton type="button" onClick={() => void createPage()}>
+        <PrimaryButton type="button" onClick={() => setNewTitle('New page')}>
           <Plus className="h-4 w-4" /> New page
         </PrimaryButton>
       </div>
@@ -330,7 +337,7 @@ export const PageBuilder: React.FC = () => {
                 ) : null}
                 <button
                   type="button"
-                  onClick={() => void deletePage()}
+                  onClick={() => setPendingAction({ kind: 'delete' })}
                   className="inline-flex items-center gap-1 rounded-full border border-red-500/30 px-3 py-2 text-xs font-bold uppercase tracking-wider text-red-300"
                 >
                   <Trash2 className="h-3.5 w-3.5" /> Delete page
@@ -412,7 +419,7 @@ export const PageBuilder: React.FC = () => {
                       <span>
                         {new Date(r.createdAt).toLocaleString()} · {r.note || 'Save'}
                       </span>
-                      <button type="button" onClick={() => void rollback(r.id)} className="inline-flex items-center gap-1 text-[#D4AF37]">
+                      <button type="button" onClick={() => setPendingAction({ kind: 'rollback', revisionId: r.id })} className="inline-flex items-center gap-1 text-amber">
                         <RotateCcw className="h-3 w-3" /> Restore
                       </button>
                     </li>
@@ -434,6 +441,75 @@ export const PageBuilder: React.FC = () => {
           </PrimaryButton>
         </div>
       ) : null}
+
+      {/* Create-page dialog (replaces window.prompt) */}
+      {newTitle !== null && (
+        <div
+          className="fixed inset-0 z-[95] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm"
+          onClick={() => setNewTitle(null)}
+        >
+          <form
+            onClick={(e) => e.stopPropagation()}
+            onSubmit={(e) => {
+              e.preventDefault();
+              void createPage(newTitle);
+            }}
+            className="glass-bright w-full max-w-sm rounded-2xl p-6"
+          >
+            <h3 className="font-display text-lg font-semibold text-white">New page</h3>
+            <p className="mt-1 text-xs text-slate-400">Give it a title — you can rename it later.</p>
+            <input
+              autoFocus
+              value={newTitle}
+              onChange={(e) => setNewTitle(e.target.value)}
+              className="field mt-4"
+              placeholder="Page title"
+            />
+            <div className="mt-5 flex justify-end gap-2">
+              <GhostButton type="button" onClick={() => setNewTitle(null)}>
+                Cancel
+              </GhostButton>
+              <PrimaryButton type="submit" disabled={!newTitle.trim()}>
+                Create draft
+              </PrimaryButton>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* Destructive-action dialog (replaces window.confirm) */}
+      {pendingAction && (
+        <div
+          className="fixed inset-0 z-[95] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm"
+          onClick={() => setPendingAction(null)}
+        >
+          <div onClick={(e) => e.stopPropagation()} className="glass-bright w-full max-w-sm rounded-2xl p-6">
+            <h3 className="font-display text-lg font-semibold text-white">
+              {pendingAction.kind === 'delete' ? 'Delete this page?' : 'Restore this revision?'}
+            </h3>
+            <p className="mt-2 text-xs leading-relaxed text-slate-400">
+              {pendingAction.kind === 'delete'
+                ? `“${page?.title}” and its revisions will be removed permanently. This cannot be undone.`
+                : 'The current draft will be replaced by the selected revision.'}
+            </p>
+            <div className="mt-5 flex justify-end gap-2">
+              <GhostButton type="button" onClick={() => setPendingAction(null)}>
+                Cancel
+              </GhostButton>
+              <PrimaryButton
+                type="button"
+                onClick={() =>
+                  pendingAction.kind === 'delete'
+                    ? void deletePage()
+                    : void rollback(pendingAction.revisionId)
+                }
+              >
+                {pendingAction.kind === 'delete' ? 'Delete permanently' : 'Restore'}
+              </PrimaryButton>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

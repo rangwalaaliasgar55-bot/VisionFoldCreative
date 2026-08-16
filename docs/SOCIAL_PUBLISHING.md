@@ -6,11 +6,24 @@ Social Studio is today to true one-click publishing.
 
 ## What ships today (no setup, no keys, no server)
 
-`src/lib/social/seo.ts` + `/admin/social`:
+`src/lib/social/engine.ts` + `src/lib/social/lexicon.ts` + `/admin/social`:
 
-- Type what the video is about → YouTube titles (5 options), description with
-  hook, bullets, chapters, links and CTA, tag list packed to the 500-character
-  budget, Instagram caption, and a tiered hashtag set for the first comment.
+- Type what the video is about → **four genuinely different posts**: YouTube
+  (search-led: title options, description, chapters, tags), Instagram
+  (feel-led: fragments, craft detail, hashtags in the first comment), LinkedIn
+  (insight-led: problem → approach → result, ends on a question, no "link in
+  bio", ≤5 hashtags), and Shorts/Reels (hook-led).
+- The engine **analyses before it writes**: detects intent (tutorial / case study
+  / BTS / showreel / launch / tips), extracts tools and real metrics, mines
+  keyphrases that never cross a sentence boundary or contain a stopword, and
+  canonicalises product names (`davinci resolve` → DaVinci Resolve, `4k` → 4K).
+- It then **critiques and repairs its own draft**: strips AI filler ("dive deep",
+  "in today\'s video"), collapses repeated words, fixes dangling punctuation,
+  flags ALL-CAPS and keyword stuffing, scores several title candidates on
+  keyword position and length, and keeps the best one.
+- A **distinctness check** measures content-word overlap between the platforms
+  and fails if they read like copy-paste (the suite enforces <60%).
+- `Rewrite` cycles deterministic alternates — different angle, same brief.
 - Everything is generated **in the browser**, deterministically, with no network
   call and no API key. It works offline.
 - Every field is validated against the real platform ceilings, and the thumbnail

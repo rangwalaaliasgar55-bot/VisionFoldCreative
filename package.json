@@ -10,7 +10,7 @@
     "typecheck": "tsc --noEmit",
     "check:shaders": "node scripts/check-shaders.mjs",
     "verify": "npm run typecheck && npm run lint && npm run check:shaders && npm run check:social",
-    "check:social": "node --experimental-strip-types scripts/check-social-seo.mjs"
+    "check:social": "tsx scripts/check-social-seo.mjs"
   },
   "dependencies": {
     "@types/three": "^0.185.4",

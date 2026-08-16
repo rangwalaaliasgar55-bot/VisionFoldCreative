@@ -1,14 +1,15 @@
 "use client";
 
 import { useMemo, useRef, useState } from "react";
-import { Check, Copy, Download, Image as ImageIcon, Sparkles } from "lucide-react";
+import { Check, Copy, Download, Image as ImageIcon, RefreshCcw, Sparkles } from "lucide-react";
 import {
   LIMITS,
   checkThumbnail,
-  generateSocialPack,
+  generateCampaign,
+  type PlatformDraft,
   type SocialInput,
   type ThumbCheck,
-} from "@/lib/social/seo";
+} from "@/lib/social/engine";
 import { cx, toast } from "@/components/AdminUI";
 
 /** lucide-react v1 dropped the brand glyphs, so these are inline. */
@@ -17,6 +18,16 @@ function Youtube({ size = 16, className = "" }: { size?: number; className?: str
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden>
       <path d="M2.5 17a24.12 24.12 0 0 1 0-10 2 2 0 0 1 1.4-1.4 49.56 49.56 0 0 1 16.2 0A2 2 0 0 1 21.5 7a24.12 24.12 0 0 1 0 10 2 2 0 0 1-1.4 1.4 49.55 49.55 0 0 1-16.2 0A2 2 0 0 1 2.5 17" />
       <path d="m10 15 5-3-5-3z" fill="currentColor" />
+    </svg>
+  );
+}
+
+function Linkedin({ size = 16, className = "" }: { size?: number; className?: string }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden>
+      <path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-4 0v7h-4v-7a6 6 0 0 1 6-6z" />
+      <rect x="2" y="9" width="4" height="12" />
+      <circle cx="4" cy="4" r="2" />
     </svg>
   );
 }
@@ -132,22 +143,24 @@ export default function SocialStudio({
     keywords: [],
   });
   const [keywordText, setKeywordText] = useState("");
+  const [variant, setVariant] = useState(0);
   const [thumb, setThumb] = useState<{ url: string; name: string; checks: ThumbCheck[] } | null>(
     null
   );
   const fileRef = useRef<HTMLInputElement>(null);
 
-  // Generated once per keystroke, entirely in the browser — no request, no key.
+  // Generated on every keystroke, entirely in the browser — no request, no key.
   const pack = useMemo(
     () =>
-      generateSocialPack({
+      generateCampaign({
         ...input,
+        variant,
         keywords: keywordText
           .split(",")
           .map((k) => k.trim())
           .filter(Boolean),
       }),
-    [input, keywordText]
+    [input, keywordText, variant]
   );
 
   const [edited, setEdited] = useState<Record<string, string>>({});
@@ -181,18 +194,30 @@ export default function SocialStudio({
     const payload = {
       generatedAt: new Date().toISOString(),
       brief: { ...input, keywords: keywordText },
-      seoScore: pack.score,
+      analysis: {
+        intent: pack.analysis.intent,
+        keyphrases: pack.analysis.keyphrases,
+        tools: pack.analysis.tools,
+        metrics: pack.analysis.metrics,
+      },
+      readiness: pack.score,
       youtube: {
-        title: field("ytTitle", pack.youtube.title),
-        description: field("ytDesc", pack.youtube.description),
+        title: field("ytTitle", pack.youtube.title ?? ""),
+        description: field("ytDesc", pack.youtube.body),
         tags: pack.youtube.tags,
-        titleAlternatives: pack.youtube.titles,
+        chapters: pack.youtube.chapters,
+        titleAlternatives: pack.youtube.titleOptions,
       },
       instagram: {
-        caption: field("igCaption", pack.instagram.caption),
-        firstComment: field("igTags", pack.instagram.firstComment),
+        caption: field("igCaption", pack.instagram.body),
+        firstComment: field("igTags", pack.instagram.firstComment ?? ""),
       },
-      shorts: pack.shorts,
+      linkedin: {
+        post: field("liBody", pack.linkedin.body),
+        hashtags: pack.linkedin.hashtags,
+      },
+      shorts: { title: pack.shorts.title, caption: pack.shorts.body, hashtags: pack.shorts.hashtags },
+      schedule: pack.schedule,
       thumbnail: thumb?.name ?? null,
     };
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
@@ -399,12 +424,38 @@ export default function SocialStudio({
               />
             </div>
             <button
+              onClick={() => {
+                setVariant((v) => v + 1);
+                setEdited({});
+              }}
+              title="Deterministic alternates — same brief, different angle"
+              className="inline-flex items-center gap-1.5 rounded-xl border border-white/12 px-3 py-2 text-xs font-bold text-slate-200 transition-colors hover:border-brand-400/60 hover:text-white"
+            >
+              <RefreshCcw size={13} /> Rewrite
+            </button>
+            <button
               onClick={exportPack}
               className="inline-flex items-center gap-1.5 rounded-xl bg-white px-3 py-2 text-xs font-bold text-ink transition-colors hover:bg-warm"
             >
               <Download size={13} /> Export pack
             </button>
           </div>
+          <div className="mt-3 flex flex-wrap items-center gap-1.5 text-[10px]">
+            <span className="rounded-full border border-brand-400/25 bg-brand-500/10 px-2 py-0.5 font-bold uppercase tracking-wider text-brand-200">
+              {pack.analysis.intent === "caseStudy" ? "case study" : pack.analysis.intent}
+            </span>
+            {pack.analysis.tools.map((t) => (
+              <span key={t} className="rounded-full border border-white/10 px-2 py-0.5 text-slate-400">
+                {t}
+              </span>
+            ))}
+            {pack.analysis.keyphrases.slice(0, 5).map((k) => (
+              <span key={k} className="rounded-full bg-white/5 px-2 py-0.5 text-slate-400">
+                {k}
+              </span>
+            ))}
+          </div>
+
           <ul className="mt-4 grid gap-1.5 sm:grid-cols-2">
             {pack.checks.map((c) => (
               <li key={c.label} className="flex items-start gap-2 text-[11px]">
@@ -428,16 +479,16 @@ export default function SocialStudio({
 
           <CopyBox
             label="Title"
-            value={field("ytTitle", pack.youtube.title)}
+            value={field("ytTitle", pack.youtube.title ?? "")}
             onChange={(v) => setField("ytTitle", v)}
             max={LIMITS.ytTitle}
             ideal={LIMITS.ytTitleIdeal}
             rows={2}
           />
 
-          {pack.youtube.titles.length > 1 && (
+          {(pack.youtube.titleOptions?.length ?? 0) > 1 && (
             <div className="flex flex-wrap gap-1.5">
-              {pack.youtube.titles.slice(1).map((t) => (
+              {pack.youtube.titleOptions!.slice(1).map((t) => (
                 <button
                   key={t}
                   onClick={() => setField("ytTitle", t)}
@@ -451,14 +502,14 @@ export default function SocialStudio({
 
           <CopyBox
             label="Description"
-            value={field("ytDesc", pack.youtube.description)}
+            value={field("ytDesc", pack.youtube.body)}
             onChange={(v) => setField("ytDesc", v)}
             max={LIMITS.ytDescription}
             rows={12}
           />
           <CopyBox
-            label={`Tags · ${pack.youtube.tags.join(",").length}/${LIMITS.ytTagsTotal} chars`}
-            value={field("ytTags", pack.youtube.tags.join(", "))}
+            label={`Tags · ${pack.youtube.tags!.join(",").length}/${LIMITS.ytTagsTotal} chars`}
+            value={field("ytTags", pack.youtube.tags!.join(", "))}
             onChange={(v) => setField("ytTags", v)}
             max={LIMITS.ytTagsTotal}
             rows={3}
@@ -473,14 +524,14 @@ export default function SocialStudio({
           </div>
           <CopyBox
             label="Caption"
-            value={field("igCaption", pack.instagram.caption)}
+            value={field("igCaption", pack.instagram.body)}
             onChange={(v) => setField("igCaption", v)}
             max={LIMITS.igCaption}
             rows={8}
           />
           <CopyBox
-            label={`First comment · ${pack.instagram.hashtags.length}/${LIMITS.igHashtags} hashtags`}
-            value={field("igTags", pack.instagram.firstComment)}
+            label={`First comment · ${pack.instagram.hashtags!.length}/${LIMITS.igHashtags} hashtags`}
+            value={field("igTags", pack.instagram.firstComment ?? "")}
             onChange={(v) => setField("igTags", v)}
             max={LIMITS.igCaption}
             rows={3}
@@ -488,6 +539,67 @@ export default function SocialStudio({
           <p className="text-[11px] text-slate-500">
             Hashtags sit in the first comment so the caption reads clean — same reach, better copy.
           </p>
+        </div>
+
+        {/* LinkedIn */}
+        <div className="glass space-y-4 rounded-3xl p-5">
+          <div className="flex items-center gap-2">
+            <Linkedin size={16} className="text-sky-400" />
+            <h2 className="font-display text-sm font-bold text-white">LinkedIn</h2>
+            <span className="ml-auto text-[10px] text-slate-500">
+              Insight register · no “link in bio” · {pack.linkedin.hashtags?.length ?? 0}/
+              {LIMITS.liHashtags} hashtags
+            </span>
+          </div>
+          <CopyBox
+            label="Post"
+            value={field("liBody", pack.linkedin.body)}
+            onChange={(v) => setField("liBody", v)}
+            max={LIMITS.liPost}
+            rows={14}
+          />
+          <div className="flex flex-wrap gap-1.5">
+            {pack.linkedin.hashtags?.map((h) => (
+              <span key={h} className="rounded-full bg-white/5 px-2 py-0.5 text-[10px] text-slate-400">
+                {h}
+              </span>
+            ))}
+          </div>
+        </div>
+
+        {/* Shorts / Reels */}
+        <div className="glass space-y-4 rounded-3xl p-5">
+          <div className="flex items-center gap-2">
+            <Youtube size={16} className="text-amber" />
+            <h2 className="font-display text-sm font-bold text-white">Shorts / Reels</h2>
+          </div>
+          <CopyBox
+            label="Title"
+            value={field("shTitle", pack.shorts.title ?? "")}
+            onChange={(v) => setField("shTitle", v)}
+            max={LIMITS.shortsTitle}
+            rows={2}
+          />
+          <CopyBox
+            label="Caption"
+            value={field("shBody", pack.shorts.body)}
+            onChange={(v) => setField("shBody", v)}
+            max={400}
+            rows={4}
+          />
+        </div>
+
+        {/* Rollout */}
+        <div className="glass rounded-3xl p-5">
+          <h2 className="font-display text-sm font-bold text-white">Suggested rollout</h2>
+          <ol className="mt-3 space-y-2">
+            {pack.schedule.map((slot) => (
+              <li key={slot.when} className="flex gap-3 text-[11px]">
+                <span className="w-28 shrink-0 font-mono text-slate-500">{slot.when}</span>
+                <span className="text-slate-300">{slot.what}</span>
+              </li>
+            ))}
+          </ol>
         </div>
 
         {/* Publishing reality check */}
