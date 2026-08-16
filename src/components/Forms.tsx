@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { CheckCircle2, Loader2, LogOut, Send } from "lucide-react";
 
 export function LoginForm({
@@ -124,8 +125,51 @@ export function LogoutButton({ label = "Sign out" }: { label?: string }) {
 const SERVICES = ["Brand Film", "YouTube Editing", "Commercials", "Music Video", "Wedding / Event", "Podcast Editing", "Other"];
 const BUDGETS = ["Under $1k", "$1k–$2k", "$2k–$4k", "$4k–$8k", "$8k+"];
 
+/** Quote-builder ids -> the labels this form actually offers. */
+const SERVICE_FROM_QUERY: Record<string, string> = {
+  short: "Other",
+  brand: "Brand Film",
+  youtube: "YouTube Editing",
+  commercial: "Commercials",
+  music: "Music Video",
+  podcast: "Podcast Editing",
+  wedding: "Wedding / Event",
+};
+
 export function ContactForm() {
-  const [form, setForm] = useState({ name: "", email: "", phone: "", service: SERVICES[0], budget: BUDGETS[2], message: "" });
+  // Derived at first render (no effect, no state sync): a spec built in the
+  // quote calculator arrives as query params and lands straight in the brief.
+  const params = useSearchParams();
+
+  const [form, setForm] = useState(() => {
+    const base = {
+      name: "",
+      email: "",
+      phone: "",
+      service: SERVICES[0],
+      budget: BUDGETS[2],
+      message: "",
+    };
+    const service = params.get("service");
+    const mapped = service
+      ? SERVICE_FROM_QUERY[service] || (SERVICES.includes(service) ? service : "")
+      : "";
+
+    const spec: string[] = [];
+    const videos = params.get("videos");
+    const hours = params.get("hours");
+    if (videos) spec.push(`${videos} deliverable ${Number(videos) === 1 ? "video" : "videos"}`);
+    if (hours) spec.push(`~${hours} hrs of raw footage`);
+    if (params.get("gfx") === "1") spec.push("custom 2D/3D motion graphics");
+    if (params.get("rush") === "1") spec.push("priority 48-hour delivery");
+
+    return {
+      ...base,
+      service: mapped || base.service,
+      message: spec.length ? `Project spec from the quote builder:\n· ${spec.join("\n· ")}\n\n` : "",
+    };
+  });
+  const prefilled = Boolean(params.get("service") || params.get("videos"));
   const [status, setStatus] = useState<"idle" | "loading" | "done" | "error">("idle");
   const set = (k: string, v: string) => setForm((f) => ({ ...f, [k]: v }));
 
@@ -154,6 +198,11 @@ export function ContactForm() {
 
   return (
     <form onSubmit={submit} className="glass-bright space-y-4 rounded-3xl p-6 sm:p-8">
+      {prefilled && (
+        <p className="rounded-2xl border border-brand-400/25 bg-brand-500/10 px-4 py-3 text-xs text-brand-200">
+          We carried your quote-builder spec across — edit anything below before sending.
+        </p>
+      )}
       <div className="grid gap-4 sm:grid-cols-2">
         <div>
           <label className="mb-1.5 block text-xs font-semibold uppercase tracking-widest text-slate-400">Name *</label>

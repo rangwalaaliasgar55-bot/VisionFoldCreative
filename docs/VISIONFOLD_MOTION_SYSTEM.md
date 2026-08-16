@@ -132,6 +132,24 @@ The admin runs on the same tokens as the public site — there is no second them
 - **Branded `not-found.tsx` and `error.tsx`**, plus a skip-to-content link and an
   `id="main"` landmark in the public layout.
 
+## 4c. Product features
+
+- **Inline video lightbox** (`components/VideoLightbox.tsx`). Portfolio cards with
+  an embeddable URL (YouTube, Vimeo, or a direct mp4/webm) now play in-page
+  instead of bouncing to another tab; anything unrecognised still opens as a
+  normal link. Escape closes, focus is trapped and restored, the page locks, and
+  the iframe is only mounted while open so nothing phones home in the background.
+- **Shareable portfolio filters.** `/work?category=Brand%20Film` deep-links a
+  filter; the pills keep the URL in sync via `history.replaceState` (no
+  navigation, no scroll jump), with a live result count and an empty state.
+- **The quote builder now hands off.** It encodes the spec into
+  `/contact?service=…&videos=…&hours=…&gfx=…&rush=…`, and the contact form derives
+  its initial state from those params — service preselected, the brief prefilled,
+  and a note saying so. Previously the calculator's CTA passed `?service=` and
+  the form ignored it entirely.
+- **RSS** at `/blog/rss.xml`, advertised through the blog's metadata, plus
+  reading time on posts.
+
 ## 5. Verifying shaders
 
 GLSL lives in template literals, so neither TypeScript nor `next build` can see a

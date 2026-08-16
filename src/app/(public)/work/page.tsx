@@ -13,7 +13,12 @@ export const metadata: Metadata = {
   description: "Brand films, YouTube series, music videos and commercials edited by VisionFold Creative.",
 };
 
-export default async function WorkPage() {
+export default async function WorkPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ category?: string }>;
+}) {
+  const { category } = await searchParams;
   const settings = await getSettings();
   const items = await db
     .select()
@@ -53,7 +58,7 @@ export default async function WorkPage() {
         </Reveal>
 
         {/* Portfolio Filter Grid */}
-        <PortfolioFilterGrid items={items} />
+        <PortfolioFilterGrid items={items} initialCategory={category || "All"} />
 
         {/* Before / After Color Comparison */}
         <Reveal>

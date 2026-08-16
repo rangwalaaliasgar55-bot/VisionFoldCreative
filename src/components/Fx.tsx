@@ -10,6 +10,7 @@ import { AnimatePresence, m } from "framer-motion";
 import { Film, Sliders, Sparkles, Star } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
+import { VideoLightbox, parseVideo, type ParsedVideo } from "@/components/VideoLightbox";
 import {
   CSS_EASE,
   DUR,
@@ -787,10 +788,15 @@ export function RatesCalculator() {
         <div>
           <p className="text-xs uppercase tracking-wider text-slate-400">Your custom quote</p>
           <p className="font-display text-2xl sm:text-3xl font-bold text-gradient">Priced to your brief</p>
-          <p className="mt-1 text-xs text-slate-400">Every rate is confirmed with you before we start — no hidden fees.</p>
+          <p className="mt-1 max-w-md text-xs text-slate-400">
+            {videoCount} {videoCount === 1 ? "cut" : "cuts"} · {rawFootageHours} hrs raw
+            {needsMotionGfx ? " · motion graphics" : ""}
+            {fastTurnaround ? " · 48h rush" : ""} — we carry this spec into the brief so you
+            don&rsquo;t retype it.
+          </p>
         </div>
         <Link
-          href={`/contact?service=${serviceType}`}
+          href={`/contact?service=${serviceType}&videos=${videoCount}&hours=${rawFootageHours}&gfx=${needsMotionGfx ? 1 : 0}&rush=${fastTurnaround ? 1 : 0}`}
           className="rounded-full bg-brand-600 px-7 py-3 text-sm font-bold text-white shadow-lg shadow-brand-500/30 hover:bg-brand-500 transition-transform hover:scale-105"
         >
           Request custom quote →
@@ -802,6 +808,7 @@ export function RatesCalculator() {
 
 export function PortfolioFilterGrid({
   items,
+  initialCategory = "All",
 }: {
   items: {
     id: number;
@@ -813,11 +820,25 @@ export function PortfolioFilterGrid({
     year: string;
     featured: boolean;
   }[];
+  initialCategory?: string;
 }) {
   const categories = ["All", ...Array.from(new Set(items.map((i) => i.category)))];
-  const [activeCat, setActiveCat] = useState("All");
+  const [activeCat, setActiveCat] = useState(
+    categories.includes(initialCategory) ? initialCategory : "All"
+  );
+  const [playing, setPlaying] = useState<{ video: ParsedVideo; title: string } | null>(null);
 
   const filtered = activeCat === "All" ? items : items.filter((i) => i.category === activeCat);
+
+  // Filters are shareable: the URL follows the pills without a navigation.
+  const pick = (category: string) => {
+    setActiveCat(category);
+    if (typeof window === "undefined") return;
+    const url = new URL(window.location.href);
+    if (category === "All") url.searchParams.delete("category");
+    else url.searchParams.set("category", category);
+    window.history.replaceState(null, "", url.toString());
+  };
 
   return (
     <div className="space-y-8">
@@ -826,7 +847,8 @@ export function PortfolioFilterGrid({
         {categories.map((c) => (
           <button
             key={c}
-            onClick={() => setActiveCat(c)}
+            onClick={() => pick(c)}
+            aria-pressed={activeCat === c}
             style={{ transition: `all ${DUR.hoverIn}s ${CSS_EASE}` }}
             className={`rounded-full px-5 py-2 text-xs font-bold uppercase tracking-wider ${
               activeCat === c
@@ -838,6 +860,11 @@ export function PortfolioFilterGrid({
           </button>
         ))}
       </div>
+
+      <p className="text-center text-xs text-slate-500" aria-live="polite">
+        Showing {filtered.length} {filtered.length === 1 ? "project" : "projects"}
+        {activeCat !== "All" ? ` in ${activeCat}` : ""}
+      </p>
 
       {/* Grid of 3D Tilt Cards */}
       <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
@@ -854,8 +881,15 @@ export function PortfolioFilterGrid({
           <Tilt max={7} className="h-full">
             <Link
               href={item.videoUrl || "/contact"}
-              target={item.videoUrl ? "_blank" : undefined}
-              rel={item.videoUrl ? "noopener noreferrer" : undefined}
+              target={item.videoUrl && !parseVideo(item.videoUrl) ? "_blank" : undefined}
+              rel={item.videoUrl && !parseVideo(item.videoUrl) ? "noopener noreferrer" : undefined}
+              onClick={(e) => {
+                const video = parseVideo(item.videoUrl);
+                if (!video) return; // not embeddable — let the link behave normally
+                e.preventDefault();
+                setPlaying({ video, title: item.title });
+              }}
+              aria-haspopup={parseVideo(item.videoUrl) ? "dialog" : undefined}
               className="group block h-full overflow-hidden rounded-3xl border border-white/8 bg-panel transition-all hover:border-brand-400/40"
             >
               <div className="relative h-60 overflow-hidden bg-ink">
@@ -891,7 +925,7 @@ export function PortfolioFilterGrid({
                 <div className="flex items-center justify-between border-t border-white/8 pt-3 text-[11px] text-slate-500">
                   <span>Year: {item.year}</span>
                   <span className="text-cyan-300 font-semibold group-hover:translate-x-0.5 transition-transform">
-                    View Master Cut →
+                    {parseVideo(item.videoUrl) ? "Play master cut ▸" : "View Master Cut →"}
                   </span>
                 </div>
               </div>
@@ -901,6 +935,23 @@ export function PortfolioFilterGrid({
         ))}
         </AnimatePresence>
       </div>
+
+      {!filtered.length && (
+        <p className="py-14 text-center text-sm text-slate-500">
+          Nothing in <span className="text-slate-300">{activeCat}</span> yet —{" "}
+          <button onClick={() => pick("All")} className="text-cyan-300 underline-offset-4 hover:underline">
+            show everything
+          </button>
+          .
+        </p>
+      )}
+
+      <VideoLightbox
+        open={Boolean(playing)}
+        video={playing?.video ?? null}
+        title={playing?.title ?? ""}
+        onClose={() => setPlaying(null)}
+      />
     </div>
   );
 }

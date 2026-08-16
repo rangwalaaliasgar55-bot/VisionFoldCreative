@@ -13,6 +13,9 @@ import { ensureSeed } from "@/lib/seed";
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
+  alternates: {
+    types: { "application/rss+xml": "/blog/rss.xml" },
+  },
   title: "Blog & Editing Insights",
   description: "Editing tips, pricing guides and studio notes from VisionFold Creative.",
 };

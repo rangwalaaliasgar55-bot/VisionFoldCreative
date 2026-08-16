@@ -51,6 +51,7 @@ export default async function PostPage({ params }: { params: Promise<{ slug: str
   ]);
 
   const paragraphs = row.content.split(/\n\n+/).filter(Boolean);
+  const readMinutes = Math.max(1, Math.round(row.content.trim().split(/\s+/).length / 200));
   const tags = row.tags.split(",").map((t) => t.trim()).filter(Boolean);
 
   return (
@@ -91,6 +92,8 @@ export default async function PostPage({ params }: { params: Promise<{ slug: str
               </Link>
             )}
             <span className="text-slate-500">{fmtDate(row.publishedAt)}</span>
+            <span className="text-slate-600">·</span>
+            <span className="text-slate-500">{readMinutes} min read</span>
             <span className="text-slate-600">· {row.views.toLocaleString()} reads</span>
           </div>
 
