@@ -5,8 +5,10 @@
  */
 
 import { db } from "@/db";
-import { invoices, leads, messages, projects, updates } from "@/db/schema";
+import { clients, invoices, leads, messages, projects, updates } from "@/db/schema";
 import { desc, eq } from "drizzle-orm";
+import { emailConfigured, sendEmail, studioInbox } from "@/lib/email";
+import { digestEmail, invoiceOverdueEmail } from "@/lib/emailTemplates";
 import { getSetting, setSetting } from "@/lib/settings";
 import {
   DEFAULT_RULES,
@@ -110,7 +112,16 @@ export async function runAutomations(config?: Partial<RuleConfig>): Promise<RunS
     config: { ...DEFAULT_RULES, ...(config || {}) },
   });
 
-  const applied = { invoicesMarkedOverdue: 0, clientMessages: 0, projectUpdates: 0 };
+  const applied = { invoicesMarkedOverdue: 0, clientMessages: 0, projectUpdates: 0, emails: 0 };
+
+  // Client contact details, for the emails that accompany portal nudges.
+  const clientRows = await db
+    .select({ id: clients.id, name: clients.name, email: clients.email })
+    .from(clients)
+    .limit(500)
+    .catch(() => [] as { id: number; name: string; email: string }[]);
+  const clientById = new Map(clientRows.map((c) => [c.id, c]));
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://visionfoldcreative.vercel.app";
   const errors: string[] = [];
   const nextNudges = { ...state.nudges };
 
@@ -128,6 +139,31 @@ export async function runAutomations(config?: Partial<RuleConfig>): Promise<RunS
         });
         nextNudges[effect.nudgeKey] = now.toISOString();
         applied.clientMessages++;
+
+        // An invoice chase in a portal nobody has opened isn't a chase.
+        if (effect.nudgeKey.startsWith("invoice_nudge:") && emailConfigured()) {
+          const client = clientById.get(effect.clientId);
+          const invoice = invoiceRows.find((row) => row.id === Number(effect.nudgeKey.split(":")[1]));
+          if (client?.email && invoice) {
+            const due = invoice.dueDate ? new Date(invoice.dueDate) : null;
+            const daysOverdue = due
+              ? Math.max(1, Math.floor((now.getTime() - due.getTime()) / 86_400_000))
+              : 1;
+            const mail = invoiceOverdueEmail(
+              { number: invoice.number, amount: invoice.amount, daysOverdue, clientName: client.name },
+              siteUrl
+            );
+            const sent = await sendEmail({
+              to: client.email,
+              subject: mail.subject,
+              html: mail.html,
+              text: mail.text,
+              replyTo: studioInbox(),
+              tag: "invoice-overdue",
+            });
+            if (sent.ok) applied.emails++;
+          }
+        }
       } else if (effect.type === "project_update") {
         await db.insert(updates).values({
           projectId: effect.projectId,
@@ -139,6 +175,29 @@ export async function runAutomations(config?: Partial<RuleConfig>): Promise<RunS
       }
     } catch (error) {
       errors.push(`${effect.type}: ${(error as Error).message}`);
+    }
+  }
+
+  // One digest a day, no matter how often the runner is invoked.
+  if (emailConfigured() && items.length > 0) {
+    const digestKey = "studio_digest";
+    const last = nextNudges[digestKey] ? new Date(nextNudges[digestKey]).getTime() : 0;
+    if (now.getTime() - last >= 20 * 3_600_000) {
+      const mail = digestEmail(
+        items.map((i) => ({ title: i.title, detail: i.detail, severity: i.severity })),
+        siteUrl
+      );
+      const sent = await sendEmail({
+        to: studioInbox(),
+        subject: mail.subject,
+        html: mail.html,
+        text: mail.text,
+        tag: "digest",
+      });
+      if (sent.ok) {
+        nextNudges[digestKey] = now.toISOString();
+        applied.emails++;
+      }
     }
   }
 

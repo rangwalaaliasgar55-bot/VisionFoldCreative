@@ -1,4 +1,6 @@
 import { db } from "@/db";
+import { sendAll, studioInbox } from "@/lib/email";
+import { leadAutoReplyEmail, newLeadEmail } from "@/lib/emailTemplates";
 import { automations, leads, newsletter } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { bad, loginThrottled, ok, readBody, requestIp } from "@/lib/auth";
@@ -41,6 +43,17 @@ export async function POST(
         source: "website",
       })
       .returning();
+
+    // Tell someone. Until now a brief could sit unseen until the admin was
+    // opened. Failures here must never lose the lead, so results are ignored.
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://visionfoldcreative.vercel.app";
+    const leadPayload = { name, email, phone: String(body.phone || ""), service: String(body.service || ""), budget: String(body.budget || ""), message };
+    const studio = newLeadEmail(leadPayload, siteUrl);
+    const reply = leadAutoReplyEmail(leadPayload, siteUrl);
+    void sendAll([
+      { to: studioInbox(), subject: studio.subject, html: studio.html, text: studio.text, replyTo: email, tag: "lead" },
+      { to: email, subject: reply.subject, html: reply.html, text: reply.text, replyTo: studioInbox(), tag: "lead-autoreply" },
+    ]).catch(() => undefined);
 
     if (await automationsEnabled()) {
       const auto = (await db.select().from(automations).where(eq(automations.trigger, "lead_created")).limit(1))[0];
