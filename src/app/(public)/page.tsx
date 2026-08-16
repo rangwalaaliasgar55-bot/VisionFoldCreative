@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import { fmtDate } from "@/lib/utils";
 import { workPath } from "@/lib/slug";
+import { getFeaturedWork, getPublishedPosts } from "@/lib/cachedQueries";
 import { Faq } from "@/components/Faq";
 import { ensureSeed } from "@/lib/seed";
 
@@ -49,14 +50,8 @@ export default async function HomePage() {
   await ensureSeed();
   const settings = await getSettings();
   const [work, latestPosts, publicRatings] = await Promise.all([
-    db.select().from(portfolio).orderBy(desc(portfolio.featured), desc(portfolio.createdAt)).limit(8),
-    db
-      .select({ ...getTableColumns(posts), categoryName: categories.name })
-      .from(posts)
-      .leftJoin(categories, eq(posts.categoryId, categories.id))
-      .where(eq(posts.status, "published"))
-      .orderBy(desc(posts.publishedAt))
-      .limit(3),
+    getFeaturedWork(8),
+    getPublishedPosts(3),
     db
       .select({ ...getTableColumns(ratings), clientName: clients.name })
       .from(ratings)

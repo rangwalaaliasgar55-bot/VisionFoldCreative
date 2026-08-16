@@ -30,6 +30,20 @@ export async function POST(
     }
     if (message.length < 10) return bad("Tell us a little more about the project (at least 10 characters).");
 
+    // Attribution, stored without a schema change: source gets the channel,
+    // notes keeps the full picture for the admin.
+    const attribution = (body.attribution || {}) as Record<string, string | undefined>;
+    const utmSource = String(attribution.utmSource || "").trim().slice(0, 60);
+    const attributionNote = [
+      utmSource ? `utm_source: ${utmSource}` : "",
+      attribution.utmMedium ? `utm_medium: ${String(attribution.utmMedium).slice(0, 60)}` : "",
+      attribution.utmCampaign ? `utm_campaign: ${String(attribution.utmCampaign).slice(0, 80)}` : "",
+      attribution.referrer ? `referrer: ${String(attribution.referrer).slice(0, 160)}` : "",
+      attribution.landing ? `landed on: ${String(attribution.landing).slice(0, 120)}` : "",
+    ]
+      .filter(Boolean)
+      .join("\n");
+
     const row = await db
       .insert(leads)
       .values({
@@ -40,7 +54,8 @@ export async function POST(
         budget: String(body.budget || "").slice(0, 80),
         message,
         status: "new",
-        source: "website",
+        source: utmSource || "website",
+        notes: attributionNote,
       })
       .returning();
 
@@ -59,7 +74,11 @@ export async function POST(
       const auto = (await db.select().from(automations).where(eq(automations.trigger, "lead_created")).limit(1))[0];
       if (auto?.enabled) {
         const note = (auto.config as any)?.note || "Auto-ack queued.";
-        await db.update(leads).set({ notes: note }).where(eq(leads.id, row[0].id));
+        // Append — don't clobber the attribution we just recorded.
+        await db
+          .update(leads)
+          .set({ notes: [attributionNote, note].filter(Boolean).join("\n") })
+          .where(eq(leads.id, row[0].id));
       }
     }
 

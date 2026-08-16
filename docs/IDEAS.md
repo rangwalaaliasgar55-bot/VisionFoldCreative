@@ -38,7 +38,7 @@ generic filler, nothing already built. Pick from it in any order.
 | 19 | Client quote pulled into the case study | Third-party voice inside your own argument. | S |
 | 20 | Related projects at the foot of each page | Keeps people moving through the work. | S |
 | 21 | ~~`CreativeWork` + `VideoObject` structured data~~ **DONE** | Shipped with the case-study pages. | ✅ |
-| 22 | Auto-generated OG image per project | Links to your work look designed when shared. | M |
+| 22 | ~~Auto-generated OG image per project~~ **DONE** | Branded 1200×630 card generated per case study. | ✅ |
 | 23 | Filter by industry as well as format | Prospects self-identify by their sector, not by "16:9". | S |
 | 24 | Password-protected private case studies | Some client work can't be public — show it selectively. | M |
 | 25 | "Process" gallery: stills from timeline to final | Shows craft without needing another edit. | S |
@@ -52,7 +52,7 @@ generic filler, nothing already built. Pick from it in any order.
 | 28 | Related posts by shared tags | Currently just "latest three". | S |
 | 29 | Table of contents on long posts | Also earns jump links in search results. | S |
 | 30 | Author profiles with `Person` schema | E-E-A-T signals for a studio blog. | M |
-| 31 | Auto-generated OG images for posts | Same win as #22, different surface. | M |
+| 31 | ~~Auto-generated OG images for posts~~ **DONE** | Same treatment on the journal. | ✅ |
 | 32 | Internal linking suggestions in the editor | Cheap SEO discipline, enforced at write time. | M |
 | 33 | Broken-link checker in `npm run verify` | Dead links quietly accumulate. | S |
 | 34 | Reading progress + estimated finish on posts | Small, and it measurably helps completion. | S |
@@ -65,8 +65,8 @@ generic filler, nothing already built. Pick from it in any order.
 
 | # | Item | Why | Effort |
 | --- | --- | --- | --- |
-| 39 | ISR instead of `force-dynamic` on 11 pages | Every visit currently hits Postgres. | M |
-| 40 | Tag-based cache invalidation on publish | Keeps ISR fresh without dropping to dynamic. | M |
+| 39 | ~~Per-visit database load~~ **DONE (differently)** | Content queries are now tag-cached; full ISR is blocked by the session read in the layout. | ✅ |
+| 40 | ~~Tag-based cache invalidation on publish~~ **DONE** | Admin writes bust `portfolio` / `posts` tags immediately. | ✅ |
 | 41 | Lazy-mount the Three.js backdrop below the hero | Biggest JS cost on every public page. | M |
 | 42 | Route-split Three.js off non-home pages | Most pages don't need the backdrop at all. | M |
 | 43 | `next/image` in admin, portal and media library | The heaviest screens are still unoptimised. | S |
@@ -141,7 +141,7 @@ generic filler, nothing already built. Pick from it in any order.
 | # | Item | Why | Effort |
 | --- | --- | --- | --- |
 | 89 | Component tests (Vitest + Testing Library) | Six gates cover pure logic; the reel, compare slider and intake form are untested UI. | M |
-| 90 | CI running `npm run verify` on every PR | The gates only help if they always run. | S |
+| 90 | ~~CI running `npm run verify` on every PR~~ **DONE** | GitHub Actions: verify + build on push and PR. | ✅ |
 | 91 | Error monitoring (Sentry) | A production error is currently invisible. | S · blocked |
 | 92 | Structured request logging | Debugging live issues is guesswork right now. | M |
 | 93 | Database backups with a tested restore | An untested backup isn't a backup. | M · blocked |
@@ -154,7 +154,7 @@ generic filler, nothing already built. Pick from it in any order.
 | # | Item | Why | Effort |
 | --- | --- | --- | --- |
 | 97 | Conversion funnel analytics (visit → brief → client) | `visitors` is tracked; nothing answers "what works". | M |
-| 98 | UTM capture stored on the lead | Know which channel actually pays. | S |
+| 98 | ~~UTM capture stored on the lead~~ **DONE** | Source, medium, campaign, referrer and landing page. | ✅ |
 | 99 | Referral tracking with a credit | Studios grow on word of mouth; nothing records it. | M |
 | 100 | A/B testing on the hero and CTA copy | Stop guessing which headline earns briefs. | L |
 
@@ -166,9 +166,9 @@ generic filler, nothing already built. Pick from it in any order.
 
 1. ~~#1 case-study pages~~ ✅ done
 2. ~~#53 reel → case study~~ ✅ done
-3. **#39 ISR** — every page hit currently queries the database
-4. **#89 + #90 tests and CI** — locks in everything built so far
-5. **#22 auto-generated OG images** — case-study links now exist to be shared
+3. ~~#39 per-visit database load~~ ✅ done (tag-cached queries)
+4. ~~#22 / #31 OG images~~ ✅ done · ~~#90 CI~~ ✅ done · ~~#98 UTM~~ ✅ done
+5. **#89 component tests** — the last piece of the confidence story
 
 **Highest value that needs you first:** #2 packages pricing (a business decision),
 #7 real client logos, #8 video testimonials, #82 payment links.

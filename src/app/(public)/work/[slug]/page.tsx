@@ -11,6 +11,7 @@ import { WorkVideo } from "@/components/WorkVideo";
 import { JsonLd, breadcrumbSchema } from "@/components/Seo";
 import { parseWorkSlug, workPath, workSlug } from "@/lib/slug";
 import { getSettings } from "@/lib/settings";
+import { getRelatedWork, getWorkById } from "@/lib/cachedQueries";
 
 export const dynamic = "force-dynamic";
 
@@ -21,8 +22,7 @@ type Props = { params: Promise<{ slug: string }> };
 async function findWork(slug: string) {
   const id = parseWorkSlug(slug);
   if (!id) return null;
-  const [row] = await db.select().from(portfolio).where(eq(portfolio.id, id)).limit(1);
-  return row ?? null;
+  return getWorkById(id);
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
@@ -38,18 +38,10 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     title: row.title,
     description,
     alternates: { canonical: `${SITE}${workPath(row)}` },
-    openGraph: {
-      title: row.title,
-      description,
-      type: "article",
-      images: row.thumbnailUrl ? [{ url: row.thumbnailUrl, alt: row.title }] : undefined,
-    },
-    twitter: {
-      card: "summary_large_image",
-      title: row.title,
-      description,
-      images: row.thumbnailUrl ? [row.thumbnailUrl] : undefined,
-    },
+    // No `images` here on purpose: that would override the generated card in
+    // opengraph-image.tsx, which carries the title and branding.
+    openGraph: { title: row.title, description, type: "article" },
+    twitter: { card: "summary_large_image", title: row.title, description },
   };
 }
 
@@ -72,12 +64,7 @@ export default async function WorkCaseStudy({ params }: Props) {
 
   const [settings, related] = await Promise.all([
     getSettings(),
-    db
-      .select()
-      .from(portfolio)
-      .where(ne(portfolio.id, row.id))
-      .orderBy(desc(portfolio.featured), desc(portfolio.createdAt))
-      .limit(3),
+    getRelatedWork(row.id, 3),
   ]);
 
   const paragraphs = (row.description || "").split(/\n\n+/).map((p) => p.trim()).filter(Boolean);

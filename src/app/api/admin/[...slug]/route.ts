@@ -40,6 +40,8 @@ import { announcementFor } from "@/lib/statusUpdates";
 import { runAutomations } from "@/lib/automations/run";
 import { listWaMessages, sendWhatsAppText, whatsappConfig, whatsappConnected } from "@/lib/whatsapp";
 import { randomBytes } from "crypto";
+import { revalidateTag } from "next/cache";
+import { CACHE_TAGS } from "@/lib/cachedQueries";
 
 export const dynamic = "force-dynamic";
 
@@ -507,6 +509,10 @@ export async function POST(
     const admin = await getAdmin();
     const { slug } = await ctx.params;
     const path = slug.join("/");
+    // Public content caches are tag-based; bust them when their source changes.
+    const root = path.split("/")[0];
+    if (root === "portfolio") revalidateTag(CACHE_TAGS.portfolio, "max");
+    if (root === "blog" || root === "posts" || root.startsWith("wp")) revalidateTag(CACHE_TAGS.posts, "max");
     const body = await readBody<Record<string, any>>(req);
     if (!canAccess(admin.role, path, true)) return bad("Your role cannot perform this action.", 403);
 
@@ -1056,6 +1062,11 @@ export async function PATCH(
     const { slug } = await ctx.params;
     const body = await readBody<Record<string, any>>(req);
     const path = slug.join("/");
+    // Public content caches are tag-based; bust them when their source changes.
+    const cacheRoot = path.split("/")[0];
+    if (cacheRoot === "portfolio") revalidateTag(CACHE_TAGS.portfolio, "max");
+    if (cacheRoot === "blog" || cacheRoot === "posts" || cacheRoot.startsWith("wp"))
+      revalidateTag(CACHE_TAGS.posts, "max");
     if (!canAccess(admin.role, path, true)) return bad("Your role cannot perform this action.", 403);
 
     // 1. Quotas: PATCH /api/admin/quotas
@@ -1271,6 +1282,10 @@ export async function DELETE(
     const admin = await getAdmin();
     const { slug } = await ctx.params;
     const path = slug.join("/");
+    // Public content caches are tag-based; bust them when their source changes.
+    const root = path.split("/")[0];
+    if (root === "portfolio") revalidateTag(CACHE_TAGS.portfolio, "max");
+    if (root === "blog" || root === "posts" || root.startsWith("wp")) revalidateTag(CACHE_TAGS.posts, "max");
     if (!canAccess(admin.role, path, true, true)) return bad("Your role cannot perform this action.", 403);
 
     if (slug.length === 2) {

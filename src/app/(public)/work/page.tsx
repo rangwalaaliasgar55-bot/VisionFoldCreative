@@ -5,6 +5,7 @@ import { portfolio } from "@/db/schema";
 import { desc } from "drizzle-orm";
 import { Counter, PortfolioFilterGrid, Reveal, SplitCompare } from "@/components/Fx";
 import { getSettings } from "@/lib/settings";
+import { getPortfolioItems } from "@/lib/cachedQueries";
 
 export const dynamic = "force-dynamic";
 
@@ -20,10 +21,7 @@ export default async function WorkPage({
 }) {
   const { category } = await searchParams;
   const settings = await getSettings();
-  const items = await db
-    .select()
-    .from(portfolio)
-    .orderBy(desc(portfolio.featured), desc(portfolio.createdAt));
+  const items = await getPortfolioItems();
 
   return (
     <div className="bg-aurora">

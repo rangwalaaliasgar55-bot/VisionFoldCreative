@@ -177,7 +177,20 @@ export function ContactForm() {
     e.preventDefault();
     setStatus("loading");
     try {
-      const res = await fetch("/api/public/contact", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(form) });
+      // Attribution: where this brief actually came from. Read at submit time
+      // so a campaign link is captured even if they browsed around first.
+      const attribution = {
+        utmSource: params.get("utm_source") || undefined,
+        utmMedium: params.get("utm_medium") || undefined,
+        utmCampaign: params.get("utm_campaign") || undefined,
+        referrer: typeof document !== "undefined" ? document.referrer || undefined : undefined,
+        landing: typeof window !== "undefined" ? window.location.pathname : undefined,
+      };
+      const res = await fetch("/api/public/contact", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...form, attribution }),
+      });
       if (!res.ok) throw new Error();
       setStatus("done");
     } catch {

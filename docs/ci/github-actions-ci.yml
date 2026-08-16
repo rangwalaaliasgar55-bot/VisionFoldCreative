@@ -1,0 +1,38 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# One run per branch; cancel superseded runs rather than burning minutes.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: Typecheck, lint, gates, build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      # typecheck + lint + shader, social, automation, intake, status and email gates
+      - name: Verify
+        run: npm run verify
+
+      - name: Build
+        run: npm run build
+        env:
+          # The build must not depend on real secrets.
+          NEXT_PUBLIC_SITE_URL: https://visionfoldcreative.vercel.app
