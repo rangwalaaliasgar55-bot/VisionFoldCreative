@@ -35,7 +35,7 @@ export default async function WorkPage() {
           </div>
         </Reveal>
 
-        <Reveal delay={150}>
+        <Reveal delay={70}>
           <div className="mx-auto grid max-w-3xl grid-cols-3 gap-4">
             {[
               { v: Number(settings.statsYears || 2), s: "", l: "Years editing", d: 0 },

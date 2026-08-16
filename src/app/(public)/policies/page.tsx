@@ -98,7 +98,7 @@ export default async function PoliciesPage() {
 
         <div className="mt-14 space-y-10">
           {SECTIONS.map((s, i) => (
-            <Reveal key={s.title} delay={i * 80}>
+            <Reveal key={s.title} delay={i * 70}>
               <section className="glass rounded-3xl p-7 sm:p-9">
                 <h2 className="font-display flex items-center gap-3 text-2xl font-bold text-white">
                   <span className="grid h-10 w-10 place-items-center rounded-xl bg-gradient-to-br from-[#7357FF]/30 to-[#F4A62A]/15 text-lg">

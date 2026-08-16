@@ -47,7 +47,7 @@ export default async function ContactPage() {
               </p>
             </Reveal>
 
-            <Reveal delay={120}>
+            <Reveal delay={70}>
               <div className="mt-10 space-y-4">
                 {[
                   { Icon: Mail, label: "Email", value: String(settings.email) },
@@ -70,7 +70,7 @@ export default async function ContactPage() {
               </div>
             </Reveal>
 
-            <Reveal delay={200}>
+            <Reveal delay={140}>
               <div className="mt-12">
                 <h3 className="font-display text-lg font-semibold text-white">
                   Quick answers
@@ -83,7 +83,7 @@ export default async function ContactPage() {
           </div>
 
           <div>
-            <Reveal delay={100}>
+            <Reveal delay={70}>
               <ContactForm />
             </Reveal>
             <p className="mt-4 text-center text-xs text-slate-600">

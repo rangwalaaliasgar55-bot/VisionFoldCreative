@@ -2,7 +2,9 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { AnimatePresence, m } from "framer-motion";
 import { Menu, X } from "lucide-react";
+import { CSS_EASE, DUR, SPRING } from "@/lib/motion";
 import { NewsletterForm } from "@/components/Forms";
 
 function InstagramIcon({ size = 16 }: { size?: number }) {
@@ -61,18 +63,43 @@ export function SiteHeader({ title }: { title: string }) {
   const [scrolled, setScrolled] = useState(false);
   const [open, setOpen] = useState(false);
 
+  // RAF-throttled — the header never fights the scroll thread.
   useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 24);
-    onScroll();
+    let raf = 0;
+    let last = false;
+    const read = () => {
+      raf = 0;
+      const next = window.scrollY > 12;
+      if (next !== last) {
+        last = next;
+        setScrolled(next);
+      }
+    };
+    const onScroll = () => {
+      if (!raf) raf = requestAnimationFrame(read);
+    };
+    read();
     window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      if (raf) cancelAnimationFrame(raf);
+    };
   }, []);
 
   return (
     <header
-      className={`fixed inset-x-0 top-0 z-50 transition-all duration-300 ${
-        scrolled ? "border-b border-white/10 bg-[#0B1020]/90 py-2.5 backdrop-blur-2xl shadow-[0_8px_40px_-12px_rgba(0,0,0,0.7)]" : "py-5"
+      className={`fixed inset-x-0 top-0 z-50 ${
+        scrolled
+          ? "border-b border-white/10 bg-[#0B1020]/85 py-2.5 shadow-[0_8px_40px_-12px_rgba(0,0,0,0.7)]"
+          : "border-b border-transparent py-5"
       }`}
+      style={{
+        transform: "translateZ(0)",
+        willChange: scrolled ? "transform" : undefined,
+        backdropFilter: scrolled ? "blur(16px)" : "blur(0px)",
+        WebkitBackdropFilter: scrolled ? "blur(16px)" : "blur(0px)",
+        transition: `padding ${DUR.chrome}s ${CSS_EASE}, background-color ${DUR.chrome}s ${CSS_EASE}, border-color ${DUR.chrome}s ${CSS_EASE}, box-shadow ${DUR.chrome}s ${CSS_EASE}, backdrop-filter ${DUR.chrome}s ${CSS_EASE}`,
+      }}
     >
       <div className="mx-auto flex max-w-7xl items-center justify-between px-5 sm:px-8">
         <Link href="/" className="flex items-center gap-2.5" onClick={() => setOpen(false)}>
@@ -82,45 +109,57 @@ export function SiteHeader({ title }: { title: string }) {
 
         <nav className="hidden items-center gap-0.5 lg:flex">
           {NAV.map((n) => (
-            <Link key={n.href} href={n.href} className="rounded-full px-3.5 py-2 text-xs font-bold uppercase tracking-wider text-[#98A1B3] transition-colors hover:text-white">
+            <Link key={n.href} href={n.href} className="nav-link rounded-full px-3.5 py-2 text-xs font-bold uppercase tracking-wider text-[#98A1B3] hover:text-white">
               {n.label}
             </Link>
           ))}
         </nav>
 
         <div className="hidden items-center gap-2 lg:flex">
-          <Link href="/portal" className="rounded-full border border-white/15 bg-white/5 px-4 py-2 text-xs font-bold uppercase tracking-wider text-[#98A1B3] transition hover:border-[#7357FF]/50 hover:text-white">
+          <Link href="/portal" className="nav-link rounded-full border border-white/15 bg-white/5 px-4 py-2 text-xs font-bold uppercase tracking-wider text-[#98A1B3] hover:border-[#7357FF]/50 hover:text-white">
             Client Portal
           </Link>
-          <Link href="/contact" className="rounded-full bg-[#7357FF] px-5 py-2.5 text-xs font-black uppercase tracking-wider text-white shadow-lg shadow-[#7357FF]/30 transition hover:bg-[#6346E8] hover:scale-[1.02]">
+          <Link href="/contact" className="nav-link btn-lift rounded-full bg-[#7357FF] px-5 py-2.5 text-xs font-black uppercase tracking-wider text-white shadow-lg shadow-[#7357FF]/30 hover:bg-[#6346E8]">
             Book a Call
           </Link>
         </div>
 
-        <button className="text-[#F6F3EC] lg:hidden" onClick={() => setOpen((v) => !v)} aria-label="Toggle menu">
+        <button className="text-[#F6F3EC] lg:hidden" onClick={() => setOpen((v) => !v)} aria-label="Toggle menu" aria-expanded={open}>
           {open ? <X /> : <Menu />}
         </button>
       </div>
 
-      {open && (
-        <div className="glass mx-4 mt-3 rounded-2xl border border-white/10 bg-[#0B1020]/95 p-4 lg:hidden">
-          <nav className="flex flex-col">
-            {NAV.map((n) => (
-              <Link key={n.href} href={n.href} onClick={() => setOpen(false)} className="rounded-xl px-4 py-3 text-sm font-medium text-slate-200 hover:bg-white/5">
-                {n.label}
-              </Link>
-            ))}
-            <div className="mt-3 flex flex-col gap-2 border-t border-white/10 pt-3">
-              <Link href="/portal" onClick={() => setOpen(false)} className="rounded-xl border border-white/10 bg-white/5 py-3 text-center text-sm font-bold uppercase tracking-wider text-[#F6F3EC]">
-                Client Portal
-              </Link>
-              <Link href="/contact" onClick={() => setOpen(false)} className="rounded-full bg-[#7357FF] py-3 text-center text-sm font-black uppercase tracking-wider text-white shadow-lg shadow-[#7357FF]/25">
-                Book a Call
-              </Link>
+      <AnimatePresence initial={false}>
+        {open && (
+          <m.div
+            key="mobile-menu"
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={SPRING}
+            className="overflow-hidden lg:hidden"
+            style={{ willChange: "height, opacity" }}
+          >
+            <div className="glass mx-4 mt-3 rounded-2xl border border-white/10 bg-[#0B1020]/95 p-4">
+              <nav className="flex flex-col">
+                {NAV.map((n) => (
+                  <Link key={n.href} href={n.href} onClick={() => setOpen(false)} className="nav-link rounded-xl px-4 py-3 text-sm font-medium text-slate-200 hover:bg-white/5">
+                    {n.label}
+                  </Link>
+                ))}
+                <div className="mt-3 flex flex-col gap-2 border-t border-white/10 pt-3">
+                  <Link href="/portal" onClick={() => setOpen(false)} className="nav-link rounded-xl border border-white/10 bg-white/5 py-3 text-center text-sm font-bold uppercase tracking-wider text-[#F6F3EC]">
+                    Client Portal
+                  </Link>
+                  <Link href="/contact" onClick={() => setOpen(false)} className="nav-link rounded-full bg-[#7357FF] py-3 text-center text-sm font-black uppercase tracking-wider text-white shadow-lg shadow-[#7357FF]/25">
+                    Book a Call
+                  </Link>
+                </div>
+              </nav>
             </div>
-          </nav>
-        </div>
-      )}
+          </m.div>
+        )}
+      </AnimatePresence>
     </header>
   );
 }
@@ -144,7 +183,7 @@ export function SiteFooter({ settings }: { settings: Record<string, any> }) {
               { href: settings.youtube, Icon: YoutubeIcon },
               { href: settings.x, Icon: XIcon },
             ].map(({ href, Icon }, i) => (
-              <a key={i} href={href} target="_blank" rel="noreferrer" className="glass rounded-xl p-2.5 text-slate-400 transition-all hover:scale-110 hover:text-white">
+              <a key={i} href={href} target="_blank" rel="noreferrer" className="glass hover-lift rounded-xl p-2.5 text-slate-400 hover:text-white">
                 <Icon size={16} />
               </a>
             ))}
@@ -163,7 +202,7 @@ export function SiteFooter({ settings }: { settings: Record<string, any> }) {
               ["Policies", "/policies"],
             ].map(([label, href]) => (
               <li key={href}>
-                <Link href={href} className="text-slate-400 transition-colors hover:text-white">{label}</Link>
+                <Link href={href} className="nav-link text-slate-400 hover:text-white">{label}</Link>
               </li>
             ))}
           </ul>

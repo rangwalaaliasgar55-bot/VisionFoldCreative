@@ -17,12 +17,37 @@
   --color-cy-500: #F4A62A;
   --color-pnk-400: #F4A62A;
   --color-amber: #F4A62A;
+  /* ONE CAMERA: every Tailwind transition-* utility inherits the VisionFold ease. */
+  --default-transition-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+  --default-transition-duration: 250ms;
+  --ease-vf: cubic-bezier(0.16, 1, 0.3, 1);
   --font-display: var(--font-space), ui-sans-serif, system-ui, sans-serif;
   --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
 }
 
 html {
   scroll-behavior: smooth;
+  --vf-ease: cubic-bezier(0.16, 1, 0.3, 1);
+  --vf-hover-in: 150ms;
+  --vf-hover-out: 250ms;
+}
+
+/* Lenis owns the scroll while it's alive — no competing native smoothing. */
+html.lenis,
+html.lenis body {
+  height: auto;
+}
+html.lenis {
+  scroll-behavior: auto !important;
+}
+.lenis.lenis-smooth {
+  scroll-behavior: auto !important;
+}
+.lenis.lenis-smooth [data-lenis-prevent] {
+  overscroll-behavior: contain;
+}
+.lenis.lenis-stopped {
+  overflow: hidden;
 }
 
 body {
@@ -81,15 +106,20 @@ body {
   mask-image: radial-gradient(ellipse 80% 60% at 50% 40%, black 30%, transparent 75%);
 }
 
+/* One lift, one curve: every card in the site rises exactly 4px. */
 .card-glow {
-  transition: transform 0.35s ease, box-shadow 0.35s ease, border-color 0.35s ease;
+  transition:
+    transform var(--vf-hover-out) var(--vf-ease),
+    box-shadow var(--vf-hover-out) var(--vf-ease),
+    border-color var(--vf-hover-out) var(--vf-ease);
 }
 .card-glow:hover {
   box-shadow:
     0 20px 60px -20px rgba(115, 87, 255, 0.45),
     0 0 0 1px rgba(115, 87, 255, 0.22) inset;
   border-color: rgba(115, 87, 255, 0.4);
-  transform: translateY(-2px);
+  transform: translate3d(0, -4px, 0);
+  transition-duration: var(--vf-hover-in);
 }
 
 .glow-ring {
@@ -140,21 +170,31 @@ body {
   position: relative;
   border: 1px solid rgba(30, 39, 64, 0.9);
   background: var(--color-panel2);
-  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  transition:
+    transform var(--vf-hover-out) var(--vf-ease),
+    box-shadow var(--vf-hover-out) var(--vf-ease),
+    border-color var(--vf-hover-out) var(--vf-ease);
 }
 .fold-card:hover {
   border-color: rgba(115, 87, 255, 0.5);
-  transform: translateY(-3px);
+  transform: translate3d(0, -4px, 0);
   box-shadow: 0 24px 48px -24px rgba(0, 0, 0, 0.75), 0 0 0 1px rgba(115, 87, 255, 0.12);
+  transition-duration: var(--vf-hover-in);
 }
 
-@keyframes reelspin {
-  from { transform: rotateY(0deg); }
-  to { transform: rotateY(360deg); }
+/* Shared micro-interactions — links and buttons breathe on the same curve. */
+.nav-link {
+  transition:
+    color var(--vf-hover-out) var(--vf-ease),
+    background-color var(--vf-hover-out) var(--vf-ease),
+    border-color var(--vf-hover-out) var(--vf-ease),
+    transform var(--vf-hover-out) var(--vf-ease);
 }
-.animate-reel-spin {
-  animation: reelspin 40s linear infinite;
-  transform-style: preserve-3d;
+.nav-link:hover {
+  transition-duration: var(--vf-hover-in);
+}
+.btn-lift:hover {
+  transform: translate3d(0, -2px, 0);
 }
 
 @keyframes floaty {
@@ -170,10 +210,13 @@ body {
 .animate-floaty2 { animation: floaty2 8s ease-in-out infinite; }
 
 @keyframes marquee {
-  from { transform: translateX(0); }
-  to { transform: translateX(-50%); }
+  from { transform: translate3d(0, 0, 0); }
+  to { transform: translate3d(-50%, 0, 0); }
 }
-.animate-marquee { animation: marquee 32s linear infinite; }
+.animate-marquee {
+  animation: marquee 28s linear infinite;
+  will-change: transform;
+}
 
 @keyframes shimmer {
   from { background-position: 200% 0; }
@@ -211,7 +254,7 @@ body {
   font-size: 0.875rem;
   color: #F6F3EC;
   outline: none;
-  transition: border-color 0.2s, box-shadow 0.2s;
+  transition: border-color var(--vf-hover-in) var(--vf-ease), box-shadow var(--vf-hover-in) var(--vf-ease);
 }
 .field::placeholder { color: #64748b; }
 .field:focus {
@@ -251,20 +294,25 @@ select:focus-visible {
   from { opacity: 0; transform: translateY(14px); }
   to { opacity: 1; transform: translateY(0); }
 }
-.animate-page-in { animation: page-in 0.55s cubic-bezier(0.16, 1, 0.3, 1) both; }
+.animate-page-in { animation: page-in 0.62s var(--vf-ease) both; }
 
 @keyframes fade-in {
   from { opacity: 0; }
   to { opacity: 1; }
 }
-.animate-fade-in { animation: fade-in 0.4s ease both; }
+.animate-fade-in { animation: fade-in 0.4s var(--vf-ease) both; }
 
 /* Smooth state transitions on interactive surfaces */
 .hover-lift {
-  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.3s ease, border-color 0.3s ease, background-color 0.3s ease;
+  transition:
+    transform var(--vf-hover-out) var(--vf-ease),
+    box-shadow var(--vf-hover-out) var(--vf-ease),
+    border-color var(--vf-hover-out) var(--vf-ease),
+    background-color var(--vf-hover-out) var(--vf-ease);
 }
 .hover-lift:hover {
-  transform: translateY(-3px);
+  transform: translate3d(0, -4px, 0);
+  transition-duration: var(--vf-hover-in);
   box-shadow: 0 18px 40px -24px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(115, 87, 255, 0.14) inset;
   border-color: rgba(115, 87, 255, 0.32);
 }
@@ -274,14 +322,14 @@ select:focus-visible {
   to { opacity: 1; transform: translate3d(0, 0, 0) rotateX(0); }
 }
 .cms-block-reveal {
-  animation: cms-block-in 0.7s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: cms-block-in 0.62s var(--vf-ease) both;
   transform-origin: 50% 0;
 }
 
 .auth-3d-card {
   transform: perspective(1100px) rotateX(0deg) translateZ(0);
   transform-style: preserve-3d;
-  transition: transform 0.55s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.55s ease;
+  transition: transform var(--vf-hover-out) var(--vf-ease), box-shadow var(--vf-hover-out) var(--vf-ease);
 }
 .auth-3d-card:hover {
   transform: perspective(1100px) rotateX(1.5deg) translateY(-3px) translateZ(8px);
@@ -310,24 +358,42 @@ select:focus-visible {
 
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
+
+  /* Kill idle loops, but never hide content: reveals resolve instantly. */
   .animate-marquee,
   .animate-floaty,
   .animate-floaty2,
-  .animate-reel-spin,
   .animate-shimmer,
   .animate-pulseglow,
   .animate-scrollcue,
   .animate-spin-slow,
-  .cms-block-reveal,
   .skeleton::after,
   .shimmer {
     animation: none !important;
   }
+
+  .animate-page-in,
+  .cms-block-reveal {
+    animation-duration: 0.01ms !important;
+  }
+
+  .vf-reveal {
+    opacity: 1 !important;
+    transform: none !important;
+  }
+
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+
   .card-glow:hover,
   .fold-card:hover,
+  .hover-lift:hover,
   .auth-3d-card,
   .auth-3d-card:hover {
     transform: none !important;
-    transition: none !important;
   }
 }

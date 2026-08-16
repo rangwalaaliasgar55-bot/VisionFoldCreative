@@ -4,11 +4,24 @@ import {
   useEffect,
   useRef,
   useState,
-  type CSSProperties,
   type ReactNode,
 } from "react";
-import { Check, Film, Sliders, Sparkles, Star } from "lucide-react";
+import { AnimatePresence, m } from "framer-motion";
+import { Film, Sliders, Sparkles, Star } from "lucide-react";
 import Link from "next/link";
+import {
+  CSS_EASE,
+  DUR,
+  EASE,
+  VIEWPORT,
+  damp,
+  decay,
+  easeOutExpo,
+  revealTransition,
+  revealVariants,
+  usePrefersReducedMotion,
+  type RevealVariant,
+} from "@/lib/motion";
 
 export function Reveal({
   children,
@@ -17,110 +30,119 @@ export function Reveal({
   className = "",
 }: {
   children: ReactNode;
+  /** Delay in ms — clamped to the 420ms stagger window. */
   delay?: number;
-  variant?: "up" | "left" | "right" | "scale" | "fade";
+  variant?: RevealVariant;
   className?: string;
 }) {
-  const ref = useRef<HTMLDivElement>(null);
-  const [on, setOn] = useState(false);
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    const io = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          setOn(true);
-          io.disconnect();
-        }
-      },
-      { threshold: 0.12, rootMargin: "0px 0px -8% 0px" }
-    );
-    io.observe(el);
-    return () => io.disconnect();
-  }, []);
+  const reduced = usePrefersReducedMotion();
 
-  const hidden =
-    variant === "left"
-      ? "-translate-x-10 opacity-0"
-      : variant === "right"
-      ? "translate-x-10 opacity-0"
-      : variant === "scale"
-      ? "scale-95 opacity-0"
-      : variant === "fade"
-      ? "opacity-0"
-      : "translate-y-8 opacity-0";
+  if (reduced) {
+    return <div className={`vf-reveal ${className}`}>{children}</div>;
+  }
 
   return (
-    <div
-      ref={ref}
-      style={{ transitionDelay: `${delay}ms` }}
-      className={`transition-all duration-700 ease-out will-change-transform ${
-        on ? "translate-x-0 translate-y-0 scale-100 opacity-100" : hidden
-      } ${className}`}
+    <m.div
+      className={`vf-reveal ${className}`}
+      variants={revealVariants(variant)}
+      initial="hidden"
+      whileInView="visible"
+      viewport={VIEWPORT}
+      transition={revealTransition(delay / 1000)}
+      style={{ willChange: "transform, opacity" }}
     >
       {children}
-    </div>
+    </m.div>
   );
 }
 
 export function Tilt({
   children,
   className = "",
-  max = 10,
+  max = 7,
 }: {
   children: ReactNode;
   className?: string;
   max?: number;
 }) {
   const ref = useRef<HTMLDivElement>(null);
-  const [style, setStyle] = useState<CSSProperties>({});
-  const [glare, setGlare] = useState({ x: 50, y: 50, opacity: 0 });
+  const glareRef = useRef<HTMLDivElement>(null);
+  const reduced = usePrefersReducedMotion();
 
   useEffect(() => {
     const el = ref.current;
-    if (!el) return;
+    if (!el || reduced) return;
+    if (window.matchMedia("(hover: none)").matches) return;
+
     let raf = 0;
-    const move = (e: MouseEvent) => {
+    let frame: { rx: number; ry: number; gx: number; gy: number } | null = null;
+
+    const paint = () => {
+      raf = 0;
+      if (!frame) return;
+      el.style.transition = `transform ${DUR.hoverIn}s ${CSS_EASE}`;
+      el.style.transform = `perspective(1000px) rotateX(${frame.rx.toFixed(2)}deg) rotateY(${frame.ry.toFixed(
+        2
+      )}deg) scale3d(1.02, 1.02, 1.02)`;
+      const glare = glareRef.current;
+      if (glare) {
+        glare.style.background = `radial-gradient(circle at ${frame.gx.toFixed(1)}% ${frame.gy.toFixed(
+          1
+        )}%, rgba(255,255,255,0.14) 0%, transparent 65%)`;
+        glare.style.opacity = "0.18";
+      }
+    };
+
+    const move = (e: PointerEvent) => {
       const r = el.getBoundingClientRect();
       const px = (e.clientX - r.left) / r.width - 0.5;
       const py = (e.clientY - r.top) / r.height - 0.5;
-      cancelAnimationFrame(raf);
-      raf = requestAnimationFrame(() => {
-        setStyle({
-          transform: `perspective(1000px) rotateX(${(-py * max).toFixed(2)}deg) rotateY(${(px * max).toFixed(2)}deg) scale3d(1.025, 1.025, 1.025)`,
-          transition: "transform 80ms linear",
-        });
-        setGlare({
-          x: ((e.clientX - r.left) / r.width) * 100,
-          y: ((e.clientY - r.top) / r.height) * 100,
-          opacity: 0.22,
-        });
-      });
+      frame = {
+        rx: -py * max,
+        ry: px * max,
+        gx: (px + 0.5) * 100,
+        gy: (py + 0.5) * 100,
+      };
+      if (!raf) raf = requestAnimationFrame(paint);
     };
+
     const leave = () => {
-      setStyle({
-        transform: "perspective(1000px) rotateX(0deg) rotateY(0deg) scale3d(1,1,1)",
-        transition: "transform 500ms cubic-bezier(.2,.8,.3,1)",
-      });
-      setGlare((g) => ({ ...g, opacity: 0 }));
+      cancelAnimationFrame(raf);
+      raf = 0;
+      frame = null;
+      el.style.transition = `transform ${DUR.hoverOut}s ${CSS_EASE}`;
+      el.style.transform = "perspective(1000px) rotateX(0deg) rotateY(0deg) scale3d(1,1,1)";
+      const glare = glareRef.current;
+      if (glare) glare.style.opacity = "0";
     };
-    el.addEventListener("mousemove", move);
-    el.addEventListener("mouseleave", leave);
+
+    el.addEventListener("pointermove", move);
+    el.addEventListener("pointerleave", leave);
+    el.addEventListener("pointercancel", leave);
     return () => {
-      el.removeEventListener("mousemove", move);
-      el.removeEventListener("mouseleave", leave);
+      el.removeEventListener("pointermove", move);
+      el.removeEventListener("pointerleave", leave);
+      el.removeEventListener("pointercancel", leave);
       cancelAnimationFrame(raf);
     };
-  }, [max]);
+  }, [max, reduced]);
 
   return (
-    <div ref={ref} style={style} className={`relative overflow-hidden will-change-transform ${className}`}>
+    <div
+      ref={ref}
+      className={`relative overflow-hidden ${className}`}
+      style={{
+        transformOrigin: "50% 50%",
+        transform: "perspective(1000px)",
+        willChange: "transform",
+      }}
+    >
       {children}
       <div
-        className="pointer-events-none absolute inset-0 transition-opacity duration-300"
-        style={{
-          background: `radial-gradient(circle at ${glare.x}% ${glare.y}%, rgba(255,255,255,${glare.opacity}) 0%, transparent 60%)`,
-        }}
+        ref={glareRef}
+        aria-hidden
+        className="pointer-events-none absolute inset-0"
+        style={{ opacity: 0, transition: `opacity 200ms ${CSS_EASE}` }}
       />
     </div>
   );
@@ -142,35 +164,38 @@ export function Counter({
   decimals?: number;
 }) {
   const ref = useRef<HTMLSpanElement>(null);
-  const [progress, setProgress] = useState(0);
+  const reduced = usePrefersReducedMotion();
+  const [animated, setAnimated] = useState<number | null>(null);
   const started = useRef(false);
+  // Reduced motion lands on the final number immediately — no ramp, no flash of 0.
+  const value = animated ?? (reduced ? to : 0);
+
   useEffect(() => {
     const el = ref.current;
-    if (!el) return;
+    if (!el || reduced) return;
     const io = new IntersectionObserver(
       ([entry]) => {
-        if (entry.isIntersecting && !started.current) {
-          started.current = true;
-          const start = performance.now();
-          const tick = (now: number) => {
-            const p = Math.min(1, (now - start) / duration);
-            const eased = 1 - Math.pow(1 - p, 3);
-            setProgress(eased);
-            if (p < 1) requestAnimationFrame(tick);
-          };
-          requestAnimationFrame(tick);
-          io.disconnect();
-        }
+        if (!entry.isIntersecting || started.current) return;
+        started.current = true;
+        const start = performance.now();
+        const tick = (now: number) => {
+          const p = Math.min(1, (now - start) / duration);
+          setAnimated(p >= 1 ? to : to * easeOutExpo(p));
+          if (p < 1) requestAnimationFrame(tick);
+        };
+        requestAnimationFrame(tick);
+        io.disconnect();
       },
       { threshold: 0.4 }
     );
     io.observe(el);
     return () => io.disconnect();
-  }, [to, duration]);
+  }, [to, duration, reduced]);
+
   return (
     <span ref={ref} className={className}>
       {prefix}
-      {(to * progress).toLocaleString("en-US", {
+      {value.toLocaleString("en-US", {
         minimumFractionDigits: decimals,
         maximumFractionDigits: decimals,
       })}
@@ -251,48 +276,197 @@ export function Reel3D({
 }: {
   items: { title: string; thumbnailUrl: string; category: string; href: string }[];
 }) {
-  const [paused, setPaused] = useState(false);
-  if (!items.length) return null;
-  const radius = 480;
+  const ringRef = useRef<HTMLDivElement>(null);
+  const stageRef = useRef<HTMLDivElement>(null);
+  const [radius, setRadius] = useState(420);
+  const [activeIndex, setActiveIndex] = useState(0);
+  const reduced = usePrefersReducedMotion();
+  const count = items.length;
+
+  useEffect(() => {
+    const pick = () => {
+      const w = window.innerWidth;
+      setRadius(w < 640 ? 320 : w < 1024 ? 420 : 520);
+    };
+    pick();
+    window.addEventListener("resize", pick);
+    return () => window.removeEventListener("resize", pick);
+  }, []);
+
+  useEffect(() => {
+    const ring = ringRef.current;
+    const stage = stageRef.current;
+    if (!ring || !stage || !count) return;
+
+    const step = 360 / count;
+    const state = {
+      angle: 0,
+      velocity: 0,
+      dragging: false,
+      hovering: false,
+      lastX: 0,
+      moved: 0,
+    };
+    let raf = 0;
+    let last = performance.now();
+    let lastIndex = -1;
+
+    const BASE = 0.012; // deg per ms — one full pass every ~30s
+
+    const loop = (now: number) => {
+      raf = requestAnimationFrame(loop);
+      const ms = Math.min(now - last, 50);
+      last = now;
+      const f = ms / 16.6667;
+
+      if (!state.dragging) {
+        if (Math.abs(state.velocity) > 0.02) {
+          state.angle += state.velocity * f;
+          state.velocity = decay(state.velocity, 0.965, ms / 1000);
+        } else if (state.hovering) {
+          // Snag: settle onto the nearest card and hold it for inspection
+          state.velocity = 0;
+          const target = Math.round(state.angle / step) * step;
+          state.angle = damp(state.angle, target, 6, ms / 1000);
+        } else if (!reduced) {
+          state.angle += BASE * ms;
+        }
+      }
+
+      ring.style.transform = `translate3d(-50%, -50%, 0) rotateY(${state.angle.toFixed(3)}deg)`;
+
+      const idx = ((-Math.round(state.angle / step)) % count + count) % count;
+      if (idx !== lastIndex) {
+        lastIndex = idx;
+        setActiveIndex(idx);
+      }
+    };
+    raf = requestAnimationFrame(loop);
+
+    const onEnter = () => (state.hovering = true);
+    const onLeave = () => {
+      state.hovering = false;
+      state.dragging = false;
+    };
+    const onDown = (e: PointerEvent) => {
+      state.dragging = true;
+      state.moved = 0;
+      state.lastX = e.clientX;
+      state.velocity = 0;
+      stage.setPointerCapture(e.pointerId);
+      stage.style.cursor = "grabbing";
+    };
+    const onMove = (e: PointerEvent) => {
+      if (!state.dragging) return;
+      const dx = e.clientX - state.lastX;
+      state.lastX = e.clientX;
+      state.moved += Math.abs(dx);
+      state.angle += dx * 0.25;
+      state.velocity = dx * 0.25;
+    };
+    const onUp = (e: PointerEvent) => {
+      if (!state.dragging) return;
+      state.dragging = false;
+      stage.style.cursor = "grab";
+      try {
+        stage.releasePointerCapture(e.pointerId);
+      } catch {
+        /* ignore */
+      }
+      // A real drag shouldn't fire the card link underneath
+      if (state.moved > 8) {
+        const swallow = (ev: Event) => {
+          ev.preventDefault();
+          ev.stopPropagation();
+        };
+        stage.addEventListener("click", swallow, { capture: true, once: true });
+        setTimeout(() => stage.removeEventListener("click", swallow, { capture: true }), 40);
+      }
+    };
+
+    stage.addEventListener("pointerenter", onEnter);
+    stage.addEventListener("pointerleave", onLeave);
+    stage.addEventListener("pointerdown", onDown);
+    stage.addEventListener("pointermove", onMove);
+    stage.addEventListener("pointerup", onUp);
+    stage.addEventListener("pointercancel", onUp);
+
+    return () => {
+      cancelAnimationFrame(raf);
+      stage.removeEventListener("pointerenter", onEnter);
+      stage.removeEventListener("pointerleave", onLeave);
+      stage.removeEventListener("pointerdown", onDown);
+      stage.removeEventListener("pointermove", onMove);
+      stage.removeEventListener("pointerup", onUp);
+      stage.removeEventListener("pointercancel", onUp);
+    };
+  }, [count, reduced]);
+
+  if (!count) return null;
 
   return (
-    <div
-      className="relative mx-auto h-[320px] w-full max-w-5xl sm:h-[420px]"
-      style={{ perspective: "1800px" }}
-      onMouseEnter={() => setPaused(true)}
-      onMouseLeave={() => setPaused(false)}
-    >
-      <div className="pointer-events-none absolute inset-x-0 bottom-0 top-0 z-10 bg-gradient-to-r from-ink via-transparent to-ink" />
+    <div className="relative">
       <div
-        className="animate-reel-spin absolute left-1/2 top-1/2 h-0 w-0"
-        style={{ animationPlayState: paused ? "paused" : "running" }}
+        ref={stageRef}
+        className="relative mx-auto h-[300px] w-full max-w-5xl touch-pan-y select-none sm:h-[420px]"
+        style={{ perspective: "1800px", cursor: "grab" }}
       >
+        <div className="pointer-events-none absolute inset-0 z-10 bg-gradient-to-r from-ink via-transparent to-ink" />
+        <div
+          ref={ringRef}
+          className="absolute left-1/2 top-1/2 h-0 w-0"
+          style={{
+            transformStyle: "preserve-3d",
+            transform: "translate3d(-50%, -50%, 0)",
+            willChange: "transform",
+          }}
+        >
+          {items.map((it, i) => (
+            <Link
+              key={i}
+              href={it.href}
+              draggable={false}
+              className="group absolute block h-[150px] w-[230px] -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-2xl border border-white/15 sm:h-[200px] sm:w-[320px]"
+              style={{
+                transform: `rotateY(${(360 / count) * i}deg) translateZ(${radius}px)`,
+                backfaceVisibility: "hidden",
+                boxShadow: "0 30px 80px rgba(0,0,0,0.65)",
+              }}
+            >
+              <img
+                src={it.thumbnailUrl}
+                alt={it.title}
+                draggable={false}
+                className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                style={{ transitionTimingFunction: CSS_EASE }}
+                loading="lazy"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-transparent" />
+              <div className="absolute inset-x-0 bottom-0 p-3.5">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-cyan-300">{it.category}</p>
+                <p className="truncate text-sm font-semibold text-white">{it.title}</p>
+              </div>
+            </Link>
+          ))}
+        </div>
+      </div>
+
+      <div className="mt-5 flex items-center justify-center gap-2">
         {items.map((it, i) => (
-          <Link
+          <span
             key={i}
-            href={it.href}
-            className="group absolute block h-[160px] w-[250px] -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-2xl border border-white/15 shadow-[0_25px_60px_-20px_rgba(0,0,0,0.9)] sm:h-[200px] sm:w-[320px]"
+            aria-hidden
+            className="h-1.5 rounded-full"
             style={{
-              transform: `rotateY(${(360 / items.length) * i}deg) translateZ(${radius}px)`,
-              backfaceVisibility: "visible",
+              width: i === activeIndex ? 22 : 6,
+              background: i === activeIndex ? "#F4A62A" : "rgba(246,243,236,0.25)",
+              transition: `width 250ms ${CSS_EASE}, background-color 250ms ${CSS_EASE}`,
             }}
-          >
-            <img
-              src={it.thumbnailUrl}
-              alt={it.title}
-              className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110"
-              loading="lazy"
-            />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-transparent" />
-            <div className="absolute inset-x-0 bottom-0 p-3.5">
-              <p className="text-[10px] font-bold uppercase tracking-widest text-cyan-300">{it.category}</p>
-              <p className="truncate text-sm font-semibold text-white">{it.title}</p>
-            </div>
-          </Link>
+          />
         ))}
       </div>
-      <p className="absolute inset-x-0 -bottom-2 text-center text-xs text-slate-500">
-        Hover to pause 3D reel · click any project to view details
+      <p className="mt-3 text-center text-xs text-slate-500">
+        Drag to spin · hover to snap and inspect · click any project to view details
       </p>
     </div>
   );
@@ -307,76 +481,121 @@ export function SplitCompare({
   gradedImage?: string;
   title?: string;
 }) {
-  const [sliderPos, setSliderPos] = useState(50);
+  const [pos, setPos] = useState(50);
   const containerRef = useRef<HTMLDivElement>(null);
-  const [isDragging, setIsDragging] = useState(false);
+  const dragging = useRef(false);
 
-  const handleMove = (clientX: number) => {
-    if (!containerRef.current) return;
-    const rect = containerRef.current.getBoundingClientRect();
-    const x = clientX - rect.left;
-    const pct = Math.max(0, Math.min(100, (x / rect.width) * 100));
-    setSliderPos(pct);
+  const moveTo = (clientX: number) => {
+    const el = containerRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    const pct = ((clientX - rect.left) / rect.width) * 100;
+    setPos(Math.max(0, Math.min(100, pct)));
   };
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const onTouchMove = (e: TouchEvent) => {
+      if (!e.touches.length) return;
+      e.preventDefault(); // stop the page from scrolling mid-compare
+      moveTo(e.touches[0].clientX);
+    };
+    el.addEventListener("touchmove", onTouchMove, { passive: false });
+    el.addEventListener("touchstart", onTouchMove, { passive: false });
+    return () => {
+      el.removeEventListener("touchmove", onTouchMove);
+      el.removeEventListener("touchstart", onTouchMove);
+    };
+  }, []);
+
+  useEffect(() => {
+    const up = () => (dragging.current = false);
+    const move = (e: PointerEvent) => {
+      if (dragging.current) moveTo(e.clientX);
+    };
+    window.addEventListener("pointerup", up);
+    window.addEventListener("pointermove", move);
+    return () => {
+      window.removeEventListener("pointerup", up);
+      window.removeEventListener("pointermove", move);
+    };
+  }, []);
 
   return (
     <div className="mx-auto max-w-5xl rounded-3xl border border-white/10 bg-panel/80 p-4 sm:p-6">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-        <h3 className="font-display text-base font-bold text-white flex items-center gap-2">
+        <h3 className="font-display flex items-center gap-2 text-base font-bold text-white">
           <Sliders size={16} className="text-cyan-300" /> {title}
         </h3>
-        <span className="text-xs text-slate-400">Drag center handle to compare</span>
+        <span className="text-xs text-slate-400">Drag the handle · arrow keys work too</span>
       </div>
 
       <div
         ref={containerRef}
-        onMouseDown={() => setIsDragging(true)}
-        onMouseUp={() => setIsDragging(false)}
-        onMouseMove={(e) => isDragging && handleMove(e.clientX)}
-        onTouchMove={(e) => handleMove(e.touches[0].clientX)}
-        className="relative aspect-video w-full select-none overflow-hidden rounded-2xl border border-white/15 bg-black cursor-ew-resize shadow-2xl"
+        onPointerDown={(e) => {
+          dragging.current = true;
+          moveTo(e.clientX);
+        }}
+        className="relative aspect-video w-full cursor-ew-resize select-none overflow-hidden rounded-2xl border border-white/15 bg-black shadow-2xl"
+        style={{ touchAction: "pan-y" }}
       >
-        {/* Graded Layer */}
+        {/* Graded master — the base layer */}
         <img
           src={gradedImage}
-          alt="Cinema Color Graded"
+          alt="Cinema color graded master"
+          draggable={false}
           className="absolute inset-0 h-full w-full object-cover"
-          style={{ filter: "contrast(1.2) saturate(1.3) drop-shadow(0 0 12px rgba(115,87,255,0.3))" }}
+          style={{ filter: "contrast(1.18) saturate(1.35) brightness(0.98) hue-rotate(-2deg)" }}
         />
         <div className="absolute left-4 top-4 rounded-xl bg-black/80 px-3 py-1 text-xs font-bold uppercase tracking-wider text-cyan-300 backdrop-blur-md">
           VisionFold Master Grade
         </div>
 
-        {/* Raw Layer with Clip Path */}
+        {/* RAW log — clipped from the right, no width math, no seams */}
         <div
-          className="absolute inset-y-0 right-0 overflow-hidden border-l-2 border-amber-400"
-          style={{ width: `${100 - sliderPos}%` }}
+          className="absolute inset-0"
+          style={{ clipPath: `inset(0 0 0 ${pos}%)`, willChange: "clip-path" }}
         >
           <img
             src={rawImage}
-            alt="Raw Sensor Log"
+            alt="Unprocessed RAW log"
+            draggable={false}
             className="absolute inset-0 h-full w-full object-cover"
-            style={{
-              filter: "contrast(0.65) brightness(1.1) saturate(0.35) sepia(0.12)",
-              width: `${100 / ((100 - sliderPos) / 100)}%`,
-              maxWidth: "none",
-              right: 0,
-            }}
+            style={{ filter: "contrast(0.72) brightness(1.08) saturate(0.28) sepia(0.08)" }}
           />
           <div className="absolute right-4 top-4 rounded-xl bg-black/80 px-3 py-1 text-xs font-bold uppercase tracking-wider text-slate-300 backdrop-blur-md">
             Unprocessed RAW Log
           </div>
         </div>
 
-        {/* Divider Slider Thumb */}
+        {/* Divider + handle */}
         <div
-          className="pointer-events-none absolute inset-y-0 flex items-center justify-center"
-          style={{ left: `${sliderPos}%` }}
+          className="pointer-events-none absolute inset-y-0 z-10 flex w-px items-center justify-center bg-white/70"
+          style={{ left: `${pos}%`, transform: "translateX(-50%)" }}
         >
-          <div className="h-9 w-9 -translate-x-1/2 rounded-full border-2 border-white bg-gradient-to-r from-brand-600 to-cy-500 shadow-2xl flex items-center justify-center text-white text-xs font-bold">
+          <div
+            className="grid h-10 w-10 place-items-center rounded-full border border-white/70 bg-[#0B1020]/80 text-xs font-bold text-white backdrop-blur"
+            style={{
+              boxShadow: "0 0 0 4px rgba(255,255,255,0.12), 0 8px 24px rgba(0,0,0,0.45)",
+            }}
+          >
             ↔
           </div>
         </div>
+
+        {/* Keyboard-accessible control */}
+        <input
+          type="range"
+          min={0}
+          max={100}
+          step={1}
+          value={Math.round(pos)}
+          onChange={(e) => setPos(Number(e.target.value))}
+          aria-label="Compare raw footage with the graded master"
+          className="absolute inset-0 z-20 h-full w-full opacity-0"
+          style={{ pointerEvents: "none" }}
+        />
       </div>
     </div>
   );
@@ -532,7 +751,8 @@ export function PortfolioFilterGrid({
           <button
             key={c}
             onClick={() => setActiveCat(c)}
-            className={`rounded-full px-5 py-2 text-xs font-bold uppercase tracking-wider transition-all ${
+            style={{ transition: `all ${DUR.hoverIn}s ${CSS_EASE}` }}
+            className={`rounded-full px-5 py-2 text-xs font-bold uppercase tracking-wider ${
               activeCat === c
                 ? "bg-brand-600 text-white shadow-[0_0_24px_-6px_rgba(115,87,255,0.9)] scale-105"
                 : "glass text-slate-300 hover:text-white hover:border-white/20"
@@ -545,8 +765,17 @@ export function PortfolioFilterGrid({
 
       {/* Grid of 3D Tilt Cards */}
       <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        <AnimatePresence mode="popLayout" initial={false}>
         {filtered.map((item) => (
-          <Tilt key={item.id} max={7} className="h-full">
+          <m.div
+            key={item.id}
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 12 }}
+            transition={{ duration: DUR.reveal, ease: EASE as unknown as [number, number, number, number] }}
+            className="h-full"
+          >
+          <Tilt max={7} className="h-full">
             <Link
               href={item.videoUrl || "/contact"}
               target={item.videoUrl ? "_blank" : undefined}
@@ -591,7 +820,9 @@ export function PortfolioFilterGrid({
               </div>
             </Link>
           </Tilt>
+          </m.div>
         ))}
+        </AnimatePresence>
       </div>
     </div>
   );

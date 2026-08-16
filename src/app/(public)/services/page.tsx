@@ -119,7 +119,7 @@ export default async function ServicesPage() {
         <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
           {SERVICES.map(({ Icon, title, price, unit, desc, perks }, i) => (
             <Reveal key={title} delay={i * 70}>
-              <Tilt max={6} className="h-full">
+              <Tilt max={7} className="h-full">
                 <div className="glass card-glow flex h-full flex-col rounded-3xl p-6">
                   <div className="flex items-start justify-between">
                     <div className="grid h-12 w-12 place-items-center rounded-2xl bg-gradient-to-br from-[#7357FF]/30 to-[#F4A62A]/10 text-brand-300">

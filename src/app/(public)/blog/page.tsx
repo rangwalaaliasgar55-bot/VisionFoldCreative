@@ -60,7 +60,7 @@ export default async function BlogPage({
               </div>
             )}
             {filtered.map((p, i) => (
-              <Reveal key={p.id} delay={i * 60}>
+              <Reveal key={p.id} delay={i * 70}>
                 <Link
                   href={`/blog/${p.slug}`}
                   className="glass card-glow group grid overflow-hidden rounded-3xl sm:grid-cols-[280px_1fr]"
