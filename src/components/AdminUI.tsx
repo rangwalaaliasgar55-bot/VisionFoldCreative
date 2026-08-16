@@ -9,6 +9,8 @@ import {
 } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { AnimatePresence, m } from "framer-motion";
+import { CSS_EASE, DUR, EASE, SPRING } from "@/lib/motion";
 import {
   FolderKanban,
   Globe,
@@ -100,20 +102,30 @@ export function Toasts() {
     };
   }, []);
   return (
-    <div className="pointer-events-none fixed bottom-5 right-5 z-[100] space-y-2">
-      {items.map((t) => (
-        <div
-          key={t.id}
-          className={cx(
-            "pointer-events-auto rounded-xl px-4 py-3 text-sm font-medium shadow-2xl backdrop-blur-xl",
-            t.tone === "ok"
-              ? "border border-emerald-400/30 bg-emerald-950/80 text-emerald-200"
-              : "border border-red-400/30 bg-red-950/80 text-red-200"
-          )}
-        >
-          {t.msg}
-        </div>
-      ))}
+    <div
+      className="pointer-events-none fixed bottom-5 right-5 z-[100] space-y-2"
+      role="status"
+      aria-live="polite"
+    >
+      <AnimatePresence initial={false}>
+        {items.map((t) => (
+          <m.div
+            key={t.id}
+            initial={{ opacity: 0, y: 12, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 8, scale: 0.98 }}
+            transition={SPRING}
+            className={cx(
+              "pointer-events-auto rounded-xl px-4 py-3 text-sm font-medium shadow-2xl backdrop-blur-xl",
+              t.tone === "ok"
+                ? "border border-emerald-400/30 bg-emerald-950/80 text-emerald-200"
+                : "border border-red-400/30 bg-red-950/80 text-red-200"
+            )}
+          >
+            {t.msg}
+          </m.div>
+        ))}
+      </AnimatePresence>
     </div>
   );
 }
@@ -265,19 +277,55 @@ export function Modal({
     if (!open) return;
     const esc = (e: KeyboardEvent) => e.key === "Escape" && onClose();
     window.addEventListener("keydown", esc);
-    return () => window.removeEventListener("keydown", esc);
+    // Lock the page behind the dialog so it can't scroll away underneath.
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      window.removeEventListener("keydown", esc);
+      document.body.style.overflow = prev;
+    };
   }, [open, onClose]);
-  if (!open) return null;
+
+  const ease = EASE as unknown as [number, number, number, number];
+
   return (
-    <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm" onClick={onClose}>
-      <div onClick={(e) => e.stopPropagation()} className={cx("glass-bright scrollbar-thin max-h-[88vh] w-full overflow-y-auto rounded-2xl p-6 shadow-2xl", wide ? "max-w-2xl" : "max-w-lg")}>
-        <div className="mb-4 flex items-center justify-between">
-          <h3 className="font-display text-lg font-semibold text-white">{title}</h3>
-          <button onClick={onClose} className="rounded-lg p-1 text-slate-500 hover:bg-white/5 hover:text-white"><X size={18} /></button>
-        </div>
-        {children}
-      </div>
-    </div>
+    <AnimatePresence>
+      {open && (
+        <m.div
+          className="fixed inset-0 z-[90] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm"
+          onClick={onClose}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: DUR.hoverIn, ease }}
+        >
+          <m.div
+            role="dialog"
+            aria-modal="true"
+            aria-label={title}
+            onClick={(e) => e.stopPropagation()}
+            initial={{ opacity: 0, y: 12, scale: 0.985 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 8, scale: 0.985 }}
+            transition={{ duration: DUR.reveal * 0.6, ease }}
+            className={cx("glass-bright scrollbar-thin max-h-[88vh] w-full overflow-y-auto rounded-2xl p-6 shadow-2xl", wide ? "max-w-2xl" : "max-w-lg")}
+          >
+            <div className="mb-4 flex items-center justify-between">
+              <h3 className="font-display text-lg font-semibold text-white">{title}</h3>
+              <button
+                onClick={onClose}
+                aria-label="Close dialog"
+                className="rounded-lg p-1 text-slate-500 hover:bg-white/5 hover:text-white"
+                style={{ transition: `color ${DUR.hoverIn}s ${CSS_EASE}` }}
+              >
+                <X size={18} />
+              </button>
+            </div>
+            {children}
+          </m.div>
+        </m.div>
+      )}
+    </AnimatePresence>
   );
 }
 

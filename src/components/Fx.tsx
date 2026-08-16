@@ -436,18 +436,26 @@ export function Reel3D({
 
   if (!count) return null;
 
+  // The fade lives on a wrapper, never on the element that owns `perspective` —
+  // a mask there can flatten the 3D context in some engines.
+  const edgeFade =
+    "linear-gradient(to right, transparent 0%, #000 15%, #000 85%, transparent 100%)";
+
   return (
     <div className="relative">
+      <div
+        className="mx-auto w-full max-w-5xl"
+        style={{ maskImage: edgeFade, WebkitMaskImage: edgeFade }}
+      >
       <div
         ref={stageRef}
         tabIndex={0}
         role="group"
         aria-roledescription="carousel"
         aria-label="Featured work — drag to spin, or use the left and right arrow keys"
-        className="relative mx-auto h-[300px] w-full max-w-5xl touch-pan-y select-none rounded-3xl focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-brand-500 sm:h-[420px]"
+        className="relative h-[300px] w-full touch-pan-y select-none rounded-3xl focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-brand-500 sm:h-[420px]"
         style={{ perspective: "1800px", cursor: "grab" }}
       >
-        <div className="pointer-events-none absolute inset-0 z-10 bg-gradient-to-r from-ink via-transparent to-ink" />
         <div
           ref={ringRef}
           className="absolute left-1/2 top-1/2 h-0 w-0"
@@ -466,7 +474,7 @@ export function Reel3D({
               style={{
                 transform: `rotateY(${(360 / count) * i}deg) translateZ(${radius}px)`,
                 backfaceVisibility: "hidden",
-                boxShadow: "0 30px 80px rgba(0,0,0,0.65)",
+                boxShadow: "0 24px 60px -28px rgba(0,0,0,0.85)",
               }}
             >
               <img
@@ -485,6 +493,7 @@ export function Reel3D({
             </Link>
           ))}
         </div>
+      </div>
       </div>
 
       <div className="mt-5 flex items-center justify-center gap-2">

@@ -2,7 +2,8 @@
 
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { AnimatePresence, m } from "framer-motion";
 import {
   Bell,
   Bot,
@@ -33,6 +34,7 @@ import {
 } from "lucide-react";
 import { LogoutButton } from "@/components/Forms";
 import { cx } from "@/components/AdminUI";
+import { CSS_EASE, DUR, EASE, SPRING } from "@/lib/motion";
 
 type StaffRole = "admin" | "editor" | "accountant";
 type NavItem = { href: string; label: string; description: string; Icon: LucideIcon; roles?: StaffRole[] };
@@ -154,12 +156,17 @@ function SidebarContent({ pathname, onNavigate, name, email, role }: { pathname:
 export function AdminShell({ children, name, email, role }: { children: ReactNode; name: string; email: string; role: string }) {
   const staffRole: StaffRole = role === "editor" || role === "accountant" ? role : "admin";
   const pathname = usePathname() || "/admin";
+  const router = useRouter();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [quickOpen, setQuickOpen] = useState(false);
   const [query, setQuery] = useState("");
+  const [cursor, setCursor] = useState(0);
   const [liveCount, setLiveCount] = useState(0);
   const searchRef = useRef<HTMLInputElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
+  const quickRef = useRef<HTMLDivElement>(null);
+  const paletteTrigger = useRef<HTMLButtonElement>(null);
   const visibleItems = useMemo(() => ALL_ITEMS.filter((item) => canSee(item, staffRole)), [staffRole]);
   const current = visibleItems.find((item) => isActive(pathname, item.href)) || visibleItems[0];
 
@@ -186,31 +193,69 @@ export function AdminShell({ children, name, email, role }: { children: ReactNod
     };
   }, [staffRole]);
 
-  useEffect(() => {
-    const onKey = (event: KeyboardEvent) => {
-      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
-        event.preventDefault();
-        setPaletteOpen((value) => !value);
-      }
-      if (event.key === "Escape") {
-        setPaletteOpen(false);
-        setQuickOpen(false);
-        setMobileOpen(false);
-      }
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, []);
-
-  useEffect(() => {
-    if (paletteOpen) requestAnimationFrame(() => searchRef.current?.focus());
-  }, [paletteOpen]);
-
   const results = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return visibleItems;
     return visibleItems.filter((item) => `${item.label} ${item.description}`.toLowerCase().includes(q));
   }, [query, visibleItems]);
+
+  // ⌘K, plus the ↑ ↓ ↵ navigation the palette footer has always advertised.
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
+        event.preventDefault();
+        setCursor(0);
+        setPaletteOpen((value) => !value);
+        return;
+      }
+      if (event.key === "Escape") {
+        setPaletteOpen(false);
+        setQuickOpen(false);
+        setMobileOpen(false);
+        return;
+      }
+      if (!paletteOpen || !results.length) return;
+      if (event.key === "ArrowDown") {
+        event.preventDefault();
+        setCursor((c) => (c + 1) % results.length);
+      } else if (event.key === "ArrowUp") {
+        event.preventDefault();
+        setCursor((c) => (c - 1 + results.length) % results.length);
+      } else if (event.key === "Enter") {
+        event.preventDefault();
+        const target = results[Math.min(cursor, results.length - 1)];
+        if (target) {
+          setPaletteOpen(false);
+          router.push(target.href);
+        }
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [paletteOpen, results, cursor, router]);
+
+  // Keep the highlighted row in view while arrowing through a long list.
+  useEffect(() => {
+    if (!paletteOpen) return;
+    listRef.current
+      ?.querySelector(`[data-index="${cursor}"]`)
+      ?.scrollIntoView({ block: "nearest" });
+  }, [cursor, paletteOpen]);
+
+  useEffect(() => {
+    if (paletteOpen) requestAnimationFrame(() => searchRef.current?.focus());
+    else paletteTrigger.current?.focus({ preventScroll: true });
+  }, [paletteOpen]);
+
+  // Quick-create closes when you click anywhere else.
+  useEffect(() => {
+    if (!quickOpen) return;
+    const onDown = (event: PointerEvent) => {
+      if (!quickRef.current?.contains(event.target as Node)) setQuickOpen(false);
+    };
+    window.addEventListener("pointerdown", onDown);
+    return () => window.removeEventListener("pointerdown", onDown);
+  }, [quickOpen]);
 
   return (
     <div className="admin-surface animate-page-in min-h-screen bg-ink">
@@ -218,15 +263,31 @@ export function AdminShell({ children, name, email, role }: { children: ReactNod
         <SidebarContent pathname={pathname} name={name} email={email} role={staffRole} />
       </aside>
 
-      {mobileOpen && (
+      <AnimatePresence>
+        {mobileOpen && (
         <div className="fixed inset-0 z-[80] xl:hidden">
-          <button aria-label="Close menu" className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setMobileOpen(false)} />
-          <aside className="relative h-full w-[min(86vw,290px)] border-r border-white/10 bg-[#0d1324] shadow-2xl">
+          <m.button
+            aria-label="Close menu"
+            className="absolute inset-0 bg-black/70 backdrop-blur-sm"
+            onClick={() => setMobileOpen(false)}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: DUR.hoverOut, ease: EASE as unknown as [number, number, number, number] }}
+          />
+          <m.aside
+            className="relative h-full w-[min(86vw,290px)] border-r border-white/10 bg-[#0d1324] shadow-2xl"
+            initial={{ x: -24, opacity: 0 }}
+            animate={{ x: 0, opacity: 1 }}
+            exit={{ x: -24, opacity: 0 }}
+            transition={SPRING}
+          >
             <button aria-label="Close menu" onClick={() => setMobileOpen(false)} className="absolute right-3 top-5 z-10 rounded-lg p-2 text-slate-400 hover:bg-white/5 hover:text-white"><X size={18} /></button>
             <SidebarContent pathname={pathname} onNavigate={() => setMobileOpen(false)} name={name} email={email} role={staffRole} />
-          </aside>
+          </m.aside>
         </div>
-      )}
+        )}
+      </AnimatePresence>
 
       <div className="xl:pl-[260px]">
         <header className="sticky top-0 z-30 flex h-[72px] items-center gap-3 border-b border-white/[0.07] bg-ink/85 px-4 backdrop-blur-2xl sm:px-6">
@@ -241,16 +302,24 @@ export function AdminShell({ children, name, email, role }: { children: ReactNod
             <p className="hidden truncate text-[11px] text-slate-600 sm:block">{current.description}</p>
           </div>
 
-          <button onClick={() => setPaletteOpen(true)} className="hidden h-9 w-full max-w-[280px] items-center gap-2 rounded-xl border border-white/[0.08] bg-white/[0.035] px-3 text-left text-xs text-slate-500 transition hover:border-white/15 hover:bg-white/[0.055] md:flex">
+          <button ref={paletteTrigger} onClick={() => { setCursor(0); setPaletteOpen(true); }} className="hidden h-9 w-full max-w-[280px] items-center gap-2 rounded-xl border border-white/[0.08] bg-white/[0.035] px-3 text-left text-xs text-slate-500 transition hover:border-white/15 hover:bg-white/[0.055] md:flex">
             <Search size={14} /><span className="flex-1">Search admin…</span><kbd className="rounded-md border border-white/10 bg-black/20 px-1.5 py-0.5 text-[9px] text-slate-500">⌘ K</kbd>
           </button>
 
-          <div className="relative">
-            <button onClick={() => setQuickOpen((value) => !value)} className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-white px-3 text-xs font-bold text-ink transition hover:bg-warm">
+          <div className="relative" ref={quickRef}>
+            <button aria-haspopup="menu" aria-expanded={quickOpen} onClick={() => setQuickOpen((value) => !value)} className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-white px-3 text-xs font-bold text-ink transition hover:bg-warm">
               <Plus size={14} /> <span className="hidden sm:inline">Create</span>
             </button>
-            {quickOpen && (
-              <div className="absolute right-0 top-12 w-72 rounded-2xl border border-white/10 bg-panel p-2 shadow-2xl shadow-black/50">
+            <AnimatePresence>
+              {quickOpen && (
+              <m.div
+                role="menu"
+                className="absolute right-0 top-12 w-72 origin-top-right rounded-2xl border border-white/10 bg-panel p-2 shadow-2xl shadow-black/50"
+                initial={{ opacity: 0, y: -6, scale: 0.98 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: -6, scale: 0.98 }}
+                transition={{ duration: DUR.hoverIn, ease: EASE as unknown as [number, number, number, number] }}
+              >
                 <p className="px-3 py-2 text-[9px] font-bold uppercase tracking-[.2em] text-slate-600">Quick create</p>
                 {QUICK_ACTIONS.filter((item) => canSee(item, staffRole)).map(({ href, label, description, Icon }) => (
                   <Link key={label} href={href} onClick={() => setQuickOpen(false)} className="flex items-center gap-3 rounded-xl p-3 hover:bg-white/5">
@@ -259,8 +328,9 @@ export function AdminShell({ children, name, email, role }: { children: ReactNod
                     <ChevronRight size={13} className="text-slate-600" />
                   </Link>
                 ))}
-              </div>
-            )}
+              </m.div>
+              )}
+            </AnimatePresence>
           </div>
           <Link href="/admin/automations" aria-label="AI assistant" className="grid h-9 w-9 place-items-center rounded-xl border border-white/[0.08] text-slate-400 hover:bg-white/5 hover:text-brand-300"><Bot size={17} /></Link>
           {staffRole === "admin" && (
@@ -285,22 +355,59 @@ export function AdminShell({ children, name, email, role }: { children: ReactNod
         </footer>
       </div>
 
-      {paletteOpen && (
-        <div className="fixed inset-0 z-[100] flex justify-center bg-black/70 px-4 pt-[12vh] backdrop-blur-sm" onMouseDown={() => setPaletteOpen(false)}>
-          <div className="h-fit w-full max-w-xl overflow-hidden rounded-2xl border border-white/12 bg-[#12182b] shadow-2xl shadow-black/70" onMouseDown={(e) => e.stopPropagation()}>
-            <div className="flex items-center gap-3 border-b border-white/8 px-4"><Search size={18} className="text-brand-300" /><input ref={searchRef} value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search pages and tools…" className="h-14 flex-1 bg-transparent text-sm text-white outline-none placeholder:text-slate-600" /><kbd className="rounded-md border border-white/10 px-1.5 py-0.5 text-[9px] text-slate-500">ESC</kbd></div>
-            <div className="scrollbar-thin max-h-[430px] overflow-y-auto p-2">
-              {results.length ? results.map(({ href, label, description, Icon }) => (
-                <Link key={href} href={href} onClick={() => setPaletteOpen(false)} className="group flex items-center gap-3 rounded-xl p-3 hover:bg-white/[0.06]">
-                  <span className="grid h-9 w-9 place-items-center rounded-xl border border-white/[0.07] bg-white/[0.035] text-slate-400 group-hover:text-brand-300"><Icon size={16} /></span>
-                  <span className="flex-1"><span className="block text-sm font-medium text-white">{label}</span><span className="block text-[11px] text-slate-500">{description}</span></span><ChevronRight size={14} className="text-slate-700" />
+      <AnimatePresence>
+        {paletteOpen && (
+        <m.div
+          className="fixed inset-0 z-[100] flex justify-center bg-black/70 px-4 pt-[12vh] backdrop-blur-sm"
+          onMouseDown={() => setPaletteOpen(false)}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: DUR.hoverIn, ease: EASE as unknown as [number, number, number, number] }}
+        >
+          <m.div
+            role="dialog"
+            aria-modal="true"
+            aria-label="Search admin"
+            className="h-fit w-full max-w-xl overflow-hidden rounded-2xl border border-white/12 bg-[#12182b] shadow-2xl shadow-black/70"
+            onMouseDown={(e) => e.stopPropagation()}
+            initial={{ opacity: 0, y: -10, scale: 0.985 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -10, scale: 0.985 }}
+            transition={{ duration: DUR.reveal * 0.55, ease: EASE as unknown as [number, number, number, number] }}
+          >
+            <div className="flex items-center gap-3 border-b border-white/8 px-4"><Search size={18} className="text-brand-300" /><input ref={searchRef} value={query} onChange={(e) => { setQuery(e.target.value); setCursor(0); }} placeholder="Search pages and tools…" className="h-14 flex-1 bg-transparent text-sm text-white outline-none placeholder:text-slate-600" /><kbd className="rounded-md border border-white/10 px-1.5 py-0.5 text-[9px] text-slate-500">ESC</kbd></div>
+            <div ref={listRef} className="scrollbar-thin max-h-[430px] overflow-y-auto p-2">
+              {results.length ? results.map(({ href, label, description, Icon }, i) => (
+                <Link
+                  key={href}
+                  href={href}
+                  data-index={i}
+                  onMouseEnter={() => setCursor(i)}
+                  onClick={() => setPaletteOpen(false)}
+                  aria-selected={i === cursor}
+                  className={cx(
+                    "group flex items-center gap-3 rounded-xl p-3",
+                    i === cursor ? "bg-white/[0.08]" : "hover:bg-white/[0.06]"
+                  )}
+                  style={{ transition: `background-color ${DUR.hoverIn}s ${CSS_EASE}` }}
+                >
+                  <span className={cx(
+                    "grid h-9 w-9 place-items-center rounded-xl border border-white/[0.07] bg-white/[0.035]",
+                    i === cursor ? "text-brand-300" : "text-slate-400"
+                  )}><Icon size={16} /></span>
+                  <span className="flex-1"><span className="block text-sm font-medium text-white">{label}</span><span className="block text-[11px] text-slate-500">{description}</span></span>
+                  {i === cursor
+                    ? <kbd className="rounded-md border border-white/10 bg-black/25 px-1.5 py-0.5 text-[9px] text-slate-400">↵</kbd>
+                    : <ChevronRight size={14} className="text-slate-700" />}
                 </Link>
               )) : <p className="p-8 text-center text-sm text-slate-500">No admin tools match “{query}”</p>}
             </div>
-            <div className="flex items-center gap-4 border-t border-white/8 px-4 py-2.5 text-[9px] text-slate-600"><span><Command size={10} className="mr-1 inline" />K to open</span><span>↑↓ browse</span><span>↵ select</span></div>
-          </div>
-        </div>
-      )}
+            <div className="flex items-center gap-4 border-t border-white/8 px-4 py-2.5 text-[9px] text-slate-600"><span><Command size={10} className="mr-1 inline" />K to open</span><span>↑↓ browse</span><span>↵ select</span><span>esc close</span></div>
+          </m.div>
+        </m.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

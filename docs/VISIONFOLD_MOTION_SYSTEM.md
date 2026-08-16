@@ -86,6 +86,22 @@ is a broken control:
   it holds focus. On touch, the gesture is only claimed once it is clearly
   horizontal — a vertical swipe that starts on the image still scrolls the page.
 
+## 3c. Admin (Studio OS)
+
+The admin runs on the same tokens as the public site — there is no second theme.
+
+- `components/Admin/ui.tsx` was a stray gold-on-black kit (`#D4AF37` / `#0A0A0B`)
+  used by the page builder; it is now themed with ink / violet / amber like
+  everything else. **Do not reintroduce a second palette there.**
+- Command palette (`⌘K`): `↑ ↓` move a highlighted row, `↵` opens it, `esc`
+  closes and returns focus to the trigger — the footer advertised those keys long
+  before they worked. `role="dialog"` + `aria-modal`, and the active row scrolls
+  itself into view.
+- Quick-create closes on outside click; the mobile drawer springs in; the palette,
+  menus, modals and toasts all animate on the house curve at chrome speed.
+- `Modal` locks body scroll while open and is labelled; `Toasts` announce via
+  `role="status" aria-live="polite"`.
+
 ## 4. Reduced motion
 
 - Lenis never starts; `html` keeps native scrolling.
