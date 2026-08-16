@@ -22,7 +22,19 @@
 }
 
 html {
-  scroll-behavior: smooth;
+  scroll-behavior: auto;
+}
+
+/* Lenis smooth scroll — when JS disabled, fallback to smooth */
+html.lenis,
+html.lenis body {
+  height: auto;
+}
+.lenis.lenis-smooth {
+  scroll-behavior: auto !important;
+}
+.lenis.lenis-smooth [data-lenis-prevent] {
+  overscroll-behavior: contain;
 }
 
 body {
@@ -82,14 +94,14 @@ body {
 }
 
 .card-glow {
-  transition: transform 0.35s ease, box-shadow 0.35s ease, border-color 0.35s ease;
+  transition: transform 0.62s cubic-bezier(0.16,1,0.3,1), box-shadow 0.62s cubic-bezier(0.16,1,0.3,1), border-color 0.62s cubic-bezier(0.16,1,0.3,1);
 }
 .card-glow:hover {
   box-shadow:
-    0 20px 60px -20px rgba(115, 87, 255, 0.45),
+    0 24px 64px -24px rgba(115, 87, 255, 0.48),
     0 0 0 1px rgba(115, 87, 255, 0.22) inset;
   border-color: rgba(115, 87, 255, 0.4);
-  transform: translateY(-2px);
+  transform: translateY(-4px);
 }
 
 .glow-ring {
@@ -140,11 +152,11 @@ body {
   position: relative;
   border: 1px solid rgba(30, 39, 64, 0.9);
   background: var(--color-panel2);
-  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: transform 0.62s cubic-bezier(0.16,1,0.3,1), box-shadow 0.62s cubic-bezier(0.16,1,0.3,1), border-color 0.62s cubic-bezier(0.16,1,0.3,1);
 }
 .fold-card:hover {
   border-color: rgba(115, 87, 255, 0.5);
-  transform: translateY(-3px);
+  transform: translateY(-4px);
   box-shadow: 0 24px 48px -24px rgba(0, 0, 0, 0.75), 0 0 0 1px rgba(115, 87, 255, 0.12);
 }
 
@@ -170,10 +182,14 @@ body {
 .animate-floaty2 { animation: floaty2 8s ease-in-out infinite; }
 
 @keyframes marquee {
-  from { transform: translateX(0); }
-  to { transform: translateX(-50%); }
+  from { transform: translate3d(0,0,0); }
+  to { transform: translate3d(-50%,0,0); }
 }
-.animate-marquee { animation: marquee 32s linear infinite; }
+.animate-marquee {
+  animation: marquee 28s linear infinite;
+  will-change: transform;
+  transform: translateZ(0);
+}
 
 @keyframes shimmer {
   from { background-position: 200% 0; }
@@ -310,21 +326,35 @@ select:focus-visible {
 
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
-  .animate-marquee,
+  .animate-marquee {
+    animation-duration: 0.01ms !important;
+  }
   .animate-floaty,
   .animate-floaty2,
   .animate-reel-spin,
   .animate-shimmer,
   .animate-pulseglow,
   .animate-scrollcue,
-  .animate-spin-slow,
+  .animate-spin-slow {
+    animation: none !important;
+  }
   .cms-block-reveal,
   .skeleton::after,
   .shimmer {
     animation: none !important;
   }
+  /* Reveal: never hide content when reduced */
+  [class*="translate-y-"][class*="opacity-0"],
+  [class*="-translate-x-"][class*="opacity-0"],
+  [class*="translate-x-"][class*="opacity-0"],
+  [class*="scale-"][class*="opacity-0"] {
+    transform: none !important;
+    opacity: 1 !important;
+  }
   .card-glow:hover,
-  .fold-card:hover,
+  .fold-card:hover {
+    transform: none !important;
+  }
   .auth-3d-card,
   .auth-3d-card:hover {
     transform: none !important;

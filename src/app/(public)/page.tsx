@@ -168,8 +168,8 @@ export default async function HomePage() {
         </Reveal>
         <div className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {SERVICES.map(({ Icon, title, desc, price }, i) => (
-            <Reveal key={title} delay={i * 80}>
-              <Tilt max={6} className="h-full">
+            <Reveal key={title} delay={i * 70}>
+              <Tilt max={7} className="h-full">
                 <div className="glass card-glow group flex h-full flex-col rounded-3xl p-6">
                   <div className="mb-4 grid h-12 w-12 place-items-center rounded-2xl bg-gradient-to-br from-brand-600/30 to-cy-500/20 text-brand-300 transition-transform group-hover:scale-110 group-hover:rotate-6">
                     <Icon size={22} />
@@ -216,7 +216,7 @@ export default async function HomePage() {
           </Reveal>
           <div className="process-timeline relative z-10 mt-12 grid gap-5 md:grid-cols-2 lg:grid-cols-4">
             {PROCESS.map(({ Icon, step, title, desc }, i) => (
-              <Reveal key={step} delay={i * 90} variant={i % 2 === 0 ? "left" : "right"}>
+              <Reveal key={step} delay={i * 70} variant={i % 2 === 0 ? "left" : "right"}>
                 <div className="group relative h-full overflow-hidden rounded-3xl border border-white/8 bg-panel p-6 transition-colors hover:border-brand-400/40">
                   <span className="font-display absolute -right-2 -top-6 text-7xl font-bold text-white/4 transition-colors group-hover:text-brand-500/10">
                     {step}
@@ -274,8 +274,8 @@ export default async function HomePage() {
             </Reveal>
             <div className="mt-12 grid gap-5 md:grid-cols-3">
               {publicRatings.slice(0, 3).map((r, i) => (
-                <Reveal key={r.id} delay={i * 90}>
-                  <Tilt max={5} className="h-full">
+                <Reveal key={r.id} delay={i * 70}>
+                  <Tilt max={7} className="h-full">
                     <figure className="glass flex h-full flex-col rounded-3xl p-6">
                       <Stars value={r.stars} />
                       <blockquote className="mt-4 flex-1 text-sm leading-relaxed text-slate-300">
@@ -317,7 +317,7 @@ export default async function HomePage() {
           </Reveal>
           <div className="mt-10 grid gap-6 md:grid-cols-3">
             {latestPosts.map((p, i) => (
-              <Reveal key={p.id} delay={i * 90}>
+              <Reveal key={p.id} delay={i * 70}>
                 <Link href={`/blog/${p.slug}`} className="group block h-full">
                   <div className="glass card-glow overflow-hidden rounded-3xl transition-transform">
                     <div className="relative h-44 overflow-hidden">

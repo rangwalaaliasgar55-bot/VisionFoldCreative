@@ -2,7 +2,7 @@
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
-import { Globe2, MapPin, Sparkles, Navigation } from "lucide-react";
+import { Globe2, MapPin } from "lucide-react";
 
 const HQ = { city: "Indore", country: "India", lat: 22.7196, lng: 75.8577 };
 
@@ -38,8 +38,31 @@ function arcCurve(from: THREE.Vector3, to: THREE.Vector3, altitude = 0.38): THRE
   return new THREE.QuadraticBezierCurve3(from, mid, to);
 }
 
+function createFallbackEarthTexture(): THREE.CanvasTexture {
+  const c = document.createElement("canvas");
+  c.width = 512;
+  c.height = 256;
+  const ctx = c.getContext("2d")!;
+  ctx.fillStyle = "#0B1020";
+  ctx.fillRect(0, 0, c.width, c.height);
+  // subtle grid continents placeholder
+  ctx.fillStyle = "rgba(115,87,255,0.18)";
+  for (let i = 0; i < 180; i++) {
+    const x = (Math.sin(i * 0.7) * 0.5 + 0.5) * c.width;
+    const y = (Math.cos(i * 0.5) * 0.5 + 0.5) * c.height;
+    ctx.fillRect(x, y, 2, 2);
+  }
+  ctx.fillStyle = "rgba(244,166,42,0.12)";
+  ctx.fillRect(c.width * 0.22, c.height * 0.35, 80, 24);
+  ctx.fillRect(c.width * 0.68, c.height * 0.28, 60, 18);
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  return tex;
+}
+
 export function ClientsGlobeSection() {
   const mountRef = useRef<HTMLDivElement>(null);
+  const sectionRef = useRef<HTMLElement>(null);
   const dragRef = useRef({ active: false, lx: 0, ly: 0, vx: 0, vy: 0, rotY: 0.5, rotX: 0.15 });
   const [active, setActive] = useState<number>(1);
   const [ready, setReady] = useState(false);
@@ -69,8 +92,9 @@ export function ClientsGlobeSection() {
     const camera = new THREE.PerspectiveCamera(42, w / h, 0.1, 100);
     camera.position.set(0, 0.1, 2.7);
 
-    const renderer = new THREE.WebGLRenderer({ antialias: !isMobile, alpha: true, powerPreference: "high-performance" });
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, isMobile ? 1.2 : 1.75));
+    const renderer = new THREE.WebGLRenderer({ antialias: !isMobile, alpha: true, powerPreference: "default" });
+    // Cap DPR — identical to ThreeBackground cap
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, isMobile ? 1.0 : 1.25));
     renderer.setSize(w, h, false);
     renderer.setClearColor(0x000000, 0);
     el.appendChild(renderer.domElement);
@@ -82,52 +106,76 @@ export function ClientsGlobeSection() {
       cursor: "grab",
       touchAction: "none",
       userSelect: "none",
+      willChange: "transform",
     });
 
-    // 1. Atmosphere Glow Shell
+    // 1. Atmosphere Glow Shell — additive for bloom feel
     const atmosGeo = new THREE.SphereGeometry(1.08, 48, 48);
     const atmosMat = new THREE.MeshBasicMaterial({
       color: 0x7357ff,
       transparent: true,
-      opacity: 0.18,
+      opacity: 0.14,
       side: THREE.BackSide,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
     });
     scene.add(new THREE.Mesh(atmosGeo, atmosMat));
 
-    // 2. Earth Sphere
+    // 2. Earth Sphere — StandardMaterial (PBR) + fallback texture
     const earthGeo = new THREE.SphereGeometry(1, isMobile ? 48 : 64, isMobile ? 48 : 64);
     const loader = new THREE.TextureLoader();
-    const earthDay = loader.load(
-      "https://unpkg.com/three-globe@2.31.1/example/img/earth-blue-marble.jpg",
-      () => {
-        renderer.render(scene, camera);
-      }
-    );
-    earthDay.colorSpace = THREE.SRGBColorSpace;
-    const earthNight = loader.load(
-      "https://unpkg.com/three-globe@2.31.1/example/img/earth-night.jpg"
-    );
-    earthNight.colorSpace = THREE.SRGBColorSpace;
+    let earthDay: THREE.Texture = createFallbackEarthTexture();
+    let earthNight: THREE.Texture = createFallbackEarthTexture();
+    let dayLoaded = false;
+    let nightLoaded = false;
 
-    const earthMat = new THREE.MeshPhongMaterial({
+    const tryLoad = (url: string, onLoad: (t: THREE.Texture) => void, onError?: () => void) => {
+      loader.load(
+        url,
+        (tex) => {
+          tex.colorSpace = THREE.SRGBColorSpace;
+          onLoad(tex);
+        },
+        undefined,
+        () => {
+          onError?.();
+        }
+      );
+    };
+
+    tryLoad("https://unpkg.com/three-globe@2.31.1/example/img/earth-blue-marble.jpg", (tex) => {
+      earthDay.dispose();
+      earthDay = tex;
+      (earthMat as THREE.MeshStandardMaterial).map = earthDay;
+      earthMat.needsUpdate = true;
+      dayLoaded = true;
+      renderer.render(scene, camera);
+    });
+    tryLoad("https://unpkg.com/three-globe@2.31.1/example/img/earth-night.jpg", (tex) => {
+      earthNight.dispose();
+      earthNight = tex;
+      (earthMat as THREE.MeshStandardMaterial).emissiveMap = earthNight;
+      earthMat.needsUpdate = true;
+      nightLoaded = true;
+    });
+
+    const earthMat = new THREE.MeshStandardMaterial({
       map: earthDay,
-      bumpMap: earthDay,
-      bumpScale: 0.018,
-      specular: new THREE.Color(0x7357ff),
-      shininess: 24,
+      roughness: 0.82,
+      metalness: 0.08,
       emissiveMap: earthNight,
       emissive: new THREE.Color(0x4a2bc7),
-      emissiveIntensity: 0.45,
+      emissiveIntensity: 0.42,
     });
     const earth = new THREE.Mesh(earthGeo, earthMat);
     scene.add(earth);
 
-    // 3. Ambient & Directional Lights
-    scene.add(new THREE.AmbientLight(0xffffff, 0.65));
-    const keyLight = new THREE.DirectionalLight(0xf4a62a, 1.3);
+    // 3. Lights — Hemisphere + Key + Rim (PBR now responds)
+    scene.add(new THREE.HemisphereLight(0xffffff, 0x0b1020, 0.72));
+    const keyLight = new THREE.DirectionalLight(0xf4a62a, 1.1);
     keyLight.position.set(4, 3, 3);
     scene.add(keyLight);
-    const rimLight = new THREE.DirectionalLight(0x7357ff, 0.8);
+    const rimLight = new THREE.DirectionalLight(0x7357ff, 0.72);
     rimLight.position.set(-3, -1, -2);
     scene.add(rimLight);
 
@@ -139,6 +187,7 @@ export function ClientsGlobeSection() {
 
     const R = 1.014;
     const hqPos = latLngToVec3(HQ.lat, HQ.lng, R);
+    let hqRing: THREE.Mesh | null = null;
 
     // HQ Indore Gold Pin
     {
@@ -156,11 +205,13 @@ export function ClientsGlobeSection() {
           side: THREE.DoubleSide,
           transparent: true,
           opacity: 0.85,
+          depthWrite: false,
         })
       );
       ring.position.copy(hqPos);
-      ring.lookAt(0, 0, 0);
+      // Will billboard each frame via quaternion
       markers.add(ring);
+      hqRing = ring;
     }
 
     // Other Client City Markers & Connecting Arcs
@@ -179,7 +230,7 @@ export function ClientsGlobeSection() {
       const pts = curve.getPoints(60);
       const line = new THREE.Line(
         new THREE.BufferGeometry().setFromPoints(pts),
-        new THREE.LineBasicMaterial({ color: 0x7357ff, transparent: true, opacity: 0.45 })
+        new THREE.LineBasicMaterial({ color: 0x7357ff, transparent: true, opacity: 0.45, blending: THREE.AdditiveBlending } as unknown as THREE.LineBasicMaterialParameters)
       );
       line.userData = { id: c.id };
       arcs.add(line);
@@ -194,8 +245,23 @@ export function ClientsGlobeSection() {
 
     let raf = 0;
     let frame = 0;
+    let lastTime = performance.now();
     const clock = new THREE.Clock();
     const drag = dragRef.current;
+    let visible = true;
+
+    // Visibility gating — pause when section off-screen
+    const visObserver = new IntersectionObserver(
+      ([entry]) => {
+        visible = entry.isIntersecting;
+      },
+      { threshold: 0.12 }
+    );
+    if (sectionRef.current) visObserver.observe(sectionRef.current);
+    const onVisChange = () => {
+      visible = !document.hidden && (sectionRef.current ? visible : true);
+    };
+    document.addEventListener("visibilitychange", onVisChange);
 
     const onPointerDown = (e: PointerEvent) => {
       drag.active = true;
@@ -210,8 +276,9 @@ export function ClientsGlobeSection() {
       const dy = e.clientY - drag.ly;
       drag.lx = e.clientX;
       drag.ly = e.clientY;
-      drag.vx = dx * 0.008;
-      drag.vy = dy * 0.005;
+      // Identical feel: 0.005 factor (same as Reel3D 0.008 but lighter for globe mass)
+      drag.vx = dx * 0.005;
+      drag.vy = dy * 0.003;
       drag.rotY += drag.vx;
       drag.rotX = Math.max(-0.6, Math.min(0.6, drag.rotX + drag.vy));
     };
@@ -242,38 +309,65 @@ export function ClientsGlobeSection() {
 
     const animate = () => {
       raf = requestAnimationFrame(animate);
+      const now = performance.now();
+      const delta = Math.min(0.05, (now - lastTime) / 1000);
+      lastTime = now;
       const t = clock.getElapsedTime();
 
-      if (!reduced && !drag.active) {
-        drag.rotY += 0.009 + drag.vx;
-        drag.vx *= 0.95;
-        drag.vy *= 0.95;
+      if (!visible) {
+        // Throttle: still drifting at 6fps when not visible
+        if (Math.random() < 0.92) return;
+      }
+
+      if (!reduced) {
+        if (!drag.active) {
+          // Auto-rotate base 0.18 rad/s + fling velocity with delta-normalized decay 0.965
+          const base = 0.18 * delta;
+          drag.rotY += base + drag.vx;
+          const decay = Math.pow(0.965, delta * 60);
+          drag.vx *= decay;
+          drag.vy *= decay;
+        } else {
+          const decay = Math.pow(0.985, delta * 60);
+          drag.vx *= decay;
+          drag.vy *= decay;
+        }
       } else if (!drag.active) {
-        drag.vx *= 0.92;
-        drag.vy *= 0.92;
+        // Reduced: no auto, just decay fling
+        const decay = Math.pow(0.96, delta * 60);
+        drag.vx *= decay;
+        drag.vy *= decay;
         drag.rotY += drag.vx;
       }
 
       earth.rotation.y = drag.rotY;
       earth.rotation.x = drag.rotX;
 
+      // Billboard HQ ring
+      if (hqRing) {
+        hqRing.quaternion.copy(camera.quaternion);
+        // Pulse ring scale subtly
+        hqRing.scale.setScalar(1 + Math.sin(t * 2.2) * 0.06);
+      }
+
       arcs.children.forEach((obj) => {
         if (obj instanceof THREE.Line) {
           const mat = obj.material as THREE.LineBasicMaterial;
           const isActive = obj.userData.id === activeRef.current;
           mat.color.setHex(isActive ? 0xf4a62a : 0x7357ff);
-          mat.opacity = isActive ? 0.95 : 0.3 + Math.sin(t * 2 + obj.userData.id) * 0.08;
+          mat.opacity = isActive ? 0.95 : 0.28 + Math.sin(t * 1.6 + obj.userData.id) * 0.08;
         } else if (obj instanceof THREE.Mesh && obj.userData.curve) {
           const curve = obj.userData.curve as THREE.QuadraticBezierCurve3;
-          obj.userData.t = (obj.userData.t + 0.009) % 1;
+          // Delta-normalized pulse speed
+          obj.userData.t = (obj.userData.t + 0.009 * delta * 60) % 1;
           obj.position.copy(curve.getPoint(obj.userData.t));
-          obj.visible = obj.userData.id === activeRef.current || Math.sin(t + obj.userData.id) > 0.15;
+          obj.visible = obj.userData.id === activeRef.current || Math.sin(t * 0.9 + obj.userData.id) > 0.18;
         }
       });
 
       markers.children.forEach((obj) => {
         if (obj.userData?.id === activeRef.current) {
-          obj.scale.setScalar(1.5 + Math.sin(t * 4) * 0.25);
+          obj.scale.setScalar(1.5 + Math.sin(t * 3.2) * 0.22);
         } else if (obj.userData?.id) {
           obj.scale.setScalar(1);
         }
@@ -288,13 +382,15 @@ export function ClientsGlobeSection() {
     return () => {
       cancelAnimationFrame(raf);
       window.removeEventListener("resize", onResize);
+      document.removeEventListener("visibilitychange", onVisChange);
+      visObserver.disconnect();
       renderer.domElement.removeEventListener("pointerdown", onPointerDown);
       renderer.domElement.removeEventListener("pointermove", onPointerMove);
       renderer.domElement.removeEventListener("pointerup", onPointerUp);
       renderer.domElement.removeEventListener("pointercancel", onPointerUp);
       renderer.dispose();
       earthGeo.dispose();
-      earthMat.dispose();
+      (earthMat as THREE.Material).dispose();
       earthDay.dispose();
       earthNight.dispose();
       atmosGeo.dispose();
@@ -306,7 +402,7 @@ export function ClientsGlobeSection() {
   }, []);
 
   return (
-    <section className="relative z-10 border-y border-white/8 bg-panel/40 px-5 py-24 sm:px-8">
+    <section ref={sectionRef} className="relative z-10 border-y border-white/8 bg-panel/40 px-5 py-24 sm:px-8">
       <div className="mx-auto max-w-7xl">
         <div className="mb-12 text-center">
           <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-brand-400/30 bg-brand-500/10 px-4 py-1.5 text-xs font-semibold text-brand-300">
@@ -331,7 +427,7 @@ export function ClientsGlobeSection() {
           ].map((s) => (
             <div key={s.label} className="glass rounded-2xl p-4 text-center">
               <p className="font-display text-xl font-bold text-white">{s.label}</p>
-              <p className="mt-0.5 text-[10px] uppercase tracking-wider text-cyan-300 font-semibold">{s.sub}</p>
+              <p className="mt-0.5 text-[10px] uppercase tracking-widest text-cyan-300 font-semibold">{s.sub}</p>
             </div>
           ))}
         </div>
@@ -371,11 +467,12 @@ export function ClientsGlobeSection() {
                 type="button"
                 onMouseEnter={() => setActive(c.id)}
                 onClick={() => setActive(c.id)}
-                className={`flex w-full items-center justify-between rounded-2xl border px-4 py-3 text-left transition-all ${
+                className={`flex w-full items-center justify-between rounded-2xl border px-4 py-3 text-left transition-all duration-200 ${
                   active === c.id
                     ? "border-brand-500 bg-brand-600/20 shadow-lg shadow-brand-500/20 scale-[1.01]"
                     : "border-white/6 bg-white/[0.02] hover:border-white/15 hover:bg-white/5"
                 }`}
+                style={{ transitionTimingFunction: "cubic-bezier(0.16,1,0.3,1)" } as React.CSSProperties}
               >
                 <div className="flex items-center gap-3">
                   <span

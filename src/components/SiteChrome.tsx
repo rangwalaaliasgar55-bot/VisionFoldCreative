@@ -62,16 +62,31 @@ export function SiteHeader({ title }: { title: string }) {
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 24);
+    let raf = 0;
+    let lastY = 0;
+    const onScroll = () => {
+      if (raf) return;
+      raf = requestAnimationFrame(() => {
+        raf = 0;
+        const y = window.scrollY;
+        if (Math.abs(y - lastY) < 2) return;
+        lastY = y;
+        setScrolled(y > 12);
+      });
+    };
     onScroll();
     window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      if (raf) cancelAnimationFrame(raf);
+    };
   }, []);
 
   return (
     <header
-      className={`fixed inset-x-0 top-0 z-50 transition-all duration-300 ${
-        scrolled ? "border-b border-white/10 bg-[#0B1020]/90 py-2.5 backdrop-blur-2xl shadow-[0_8px_40px_-12px_rgba(0,0,0,0.7)]" : "py-5"
+      style={{ transform: "translateZ(0)", willChange: scrolled ? "backdrop-filter" : undefined } as React.CSSProperties}
+      className={`fixed inset-x-0 top-0 z-50 transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] ${
+        scrolled ? "border-b border-white/10 bg-[#0B1020]/85 py-2.5 backdrop-blur-[16px] shadow-[0_8px_40px_-12px_rgba(0,0,0,0.7)]" : "py-5"
       }`}
     >
       <div className="mx-auto flex max-w-7xl items-center justify-between px-5 sm:px-8">
