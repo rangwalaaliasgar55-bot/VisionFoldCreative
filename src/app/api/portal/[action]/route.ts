@@ -2,6 +2,7 @@ import { db } from "@/db";
 import { deliverables, invoices, messages, projects, ratings, updates } from "@/db/schema";
 import { and, eq, inArray, isNull, sql } from "drizzle-orm";
 import { bad, hashPassword, ok, readBody, requireClient, verifyPassword } from "@/lib/auth";
+import { briefSummary, formatBrief, validateBrief } from "@/lib/intake";
 import { clients } from "@/db/schema";
 
 export const dynamic = "force-dynamic";
@@ -201,9 +202,22 @@ export async function POST(
     if (action === "request-project") {
       const title = String(body.title || "").trim();
       const service = String(body.service || "Video Editing");
-      const description = String(body.description || "").trim();
       const budget = String(body.budget || "1500.00");
+
+      // The brief is validated with the same rules the portal form uses, so a
+      // crafted request can't slip an incomplete project past the gate.
+      const answers = (body.brief && typeof body.brief === "object" ? body.brief : { ...body, title, service }) as Record<string, string | string[]>;
+      const validation = validateBrief(answers);
+      if (!validation.complete) {
+        return bad(
+          `Brief is incomplete — still needed: ${validation.missing.map((m) => m.label).join(", ")}`
+        );
+      }
       if (!title) return bad("Project title is required.");
+
+      const description = [formatBrief(answers), String(body.description || "").trim()]
+        .filter(Boolean)
+        .join("\n\n");
 
       const [newProj] = await db
         .insert(projects)
@@ -215,23 +229,30 @@ export async function POST(
           status: "intake",
           progress: 5,
           budget: budget.replace(/[^0-9.]/g, "") || "1500.00",
+          dueDate: (() => {
+            const raw = String(answers.deadline || "").trim();
+            const date = raw ? new Date(raw) : null;
+            return date && !Number.isNaN(date.getTime()) ? date.toISOString().slice(0, 10) : null;
+          })(),
         })
         .returning();
 
       await db.insert(updates).values({
         projectId: newProj.id,
-        title: "Intake Brief Submitted",
-        body: `Client requested new project "${title}". Footage intake initiated.`,
+        title: "Brief received",
+        body: `${briefSummary(answers)}\n\n${formatBrief(answers)}`,
       });
 
       await db.insert(messages).values({
         clientId: client.id,
         sender: "admin",
-        body: `We received your request for "${title}"! We're reviewing your brief and will confirm timeline shortly.`,
+        body: `Got your brief for "${title}" — everything we need is there${
+          validation.warnings.length ? ", with a couple of notes we'll confirm" : ""
+        }. We'll come back with a timeline shortly.`,
         read: false,
       });
 
-      return ok(newProj);
+      return ok({ ...newProj, warnings: validation.warnings });
     }
 
     if (action === "project-feedback") {

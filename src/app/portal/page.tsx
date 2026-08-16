@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { BRIEF_FIELDS, validateBrief } from "@/lib/intake";
 import {
   Badge,
   Button,
@@ -84,12 +85,12 @@ export default function ClientPortalPage() {
 
   // New Project Intake Modal
   const [showIntake, setShowIntake] = useState(false);
-  const [intakeForm, setIntakeForm] = useState({
-    title: "",
-    service: "Brand Films",
-    description: "",
-    budget: "$2,500",
-    footageUrl: "",
+  const [brief, setBrief] = useState<Record<string, string | string[]>>({
+    service: BRIEF_FIELDS.find((f) => f.id === "service")?.options?.[0] || "",
+    runtime: BRIEF_FIELDS.find((f) => f.id === "runtime")?.options?.[0] || "",
+    captions: BRIEF_FIELDS.find((f) => f.id === "captions")?.options?.[0] || "",
+    music: BRIEF_FIELDS.find((f) => f.id === "music")?.options?.[0] || "",
+    aspectRatios: [],
   });
 
   // Rating Modal
@@ -213,30 +214,35 @@ export default function ClientPortalPage() {
 
   async function handleIntakeSubmit(e: React.FormEvent) {
     e.preventDefault();
+    const validation = validateBrief(brief);
+    if (!validation.complete) {
+      toast(`Still needed: ${validation.missing.map((m) => m.label).join(", ")}`, "err");
+      return;
+    }
     try {
       const res = await fetch("/api/portal/request-project", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          title: intakeForm.title,
-          service: intakeForm.service,
-          description: `${intakeForm.description}\n\nFootage Link: ${intakeForm.footageUrl}`,
-          budget: intakeForm.budget,
+          title: brief.title,
+          service: brief.service,
+          brief,
         }),
       });
       if (res.ok) {
-        toast("Project request submitted to the studio!");
+        toast("Brief submitted — nothing missing, we can start.");
         setShowIntake(false);
-        setIntakeForm({
-          title: "",
-          service: "Brand Films",
-          description: "",
-          budget: "$2,500",
-          footageUrl: "",
+        setBrief({
+          service: BRIEF_FIELDS.find((f) => f.id === "service")?.options?.[0] || "",
+          runtime: BRIEF_FIELDS.find((f) => f.id === "runtime")?.options?.[0] || "",
+          captions: BRIEF_FIELDS.find((f) => f.id === "captions")?.options?.[0] || "",
+          music: BRIEF_FIELDS.find((f) => f.id === "music")?.options?.[0] || "",
+          aspectRatios: [],
         });
         await loadData();
       } else {
-        toast("Submission failed", "err");
+        const payload = await res.json().catch(() => ({}));
+        toast(payload.error || "Submission failed", "err");
       }
     } catch {
       toast("Network error", "err");
@@ -327,6 +333,7 @@ export default function ClientPortalPage() {
   const messages = data.messages || [];
   const invoices = data.invoices || [];
   const deliverables = data.deliverables || [];
+  const briefState = validateBrief(brief);
   const activeProjects = projects.filter((project) => project.status !== "completed");
   const outstandingInvoices = invoices.filter((invoice) => invoice.status !== "paid");
   const nextDue = [...activeProjects]
@@ -877,67 +884,125 @@ export default function ClientPortalPage() {
         </div>
       )}
 
-      {/* New Project Intake Modal */}
+      {/* New Project Intake Modal — fields, gate and warnings all come from
+          src/lib/intake.ts, the same module the server validates with. */}
       {showIntake && (
-        <Modal open={showIntake} onClose={() => setShowIntake(false)} title="Submit New Project Brief">
+        <Modal open={showIntake} onClose={() => setShowIntake(false)} title="Start a project" wide>
           <form onSubmit={handleIntakeSubmit} className="space-y-4">
-            <Field label="Project Title">
-              <Input
-                required
-                value={intakeForm.title}
-                onChange={(e) => setIntakeForm({ ...intakeForm, title: e.target.value })}
-                placeholder="e.g. Autumn Brand Launch Film 4K"
-              />
-            </Field>
-
-            <div className="grid grid-cols-2 gap-3">
-              <Field label="Service">
-                <Select
-                  value={intakeForm.service}
-                  onChange={(e) => setIntakeForm({ ...intakeForm, service: e.target.value })}
-                >
-                  <option value="Brand Films">Brand Films</option>
-                  <option value="YouTube Editing">YouTube Editing</option>
-                  <option value="Commercials & Ads">Commercials & Ads</option>
-                  <option value="Music Video">Music Video</option>
-                  <option value="Podcast Editing">Podcast Editing</option>
-                  <option value="Wedding Cinema">Wedding Cinema</option>
-                </Select>
-              </Field>
-              <Field label="Budget Range">
-                <Input
-                  value={intakeForm.budget}
-                  onChange={(e) => setIntakeForm({ ...intakeForm, budget: e.target.value })}
-                  placeholder="e.g. $2,500"
+            <div className="rounded-2xl border border-white/8 bg-white/[0.02] p-3">
+              <div className="flex items-center justify-between text-xs">
+                <span className="font-semibold text-slate-300">Brief completeness</span>
+                <span className={briefState.complete ? "text-emerald-400" : "text-amber-300"}>
+                  {briefState.completeness}%
+                </span>
+              </div>
+              <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-white/10">
+                <div
+                  className="h-full rounded-full bg-gradient-to-r from-brand-500 to-amber transition-[width] duration-500"
+                  style={{ width: `${briefState.completeness}%` }}
                 />
-              </Field>
+              </div>
+              {briefState.missing.length > 0 && (
+                <p className="mt-2 text-[11px] text-slate-400">
+                  Still needed: {briefState.missing.map((m) => m.label).join(", ")}
+                </p>
+              )}
             </div>
 
-            <Field label="Raw Footage Link (Google Drive / Dropbox / Frame.io)">
-              <Input
-                required
-                type="url"
-                value={intakeForm.footageUrl}
-                onChange={(e) => setIntakeForm({ ...intakeForm, footageUrl: e.target.value })}
-                placeholder="https://drive.google.com/..."
-              />
-            </Field>
+            <div className="grid gap-4 sm:grid-cols-2">
+              {BRIEF_FIELDS.map((field) => {
+                const value = brief[field.id];
+                const wide = field.type === "textarea" || field.type === "multiselect";
+                return (
+                  <div key={field.id} className={wide ? "sm:col-span-2" : undefined}>
+                    <Field
+                      label={`${field.label}${field.required ? " *" : ""}`}
+                      hint={field.help}
+                    >
+                      {field.type === "select" ? (
+                        <Select
+                          value={String(value || "")}
+                          onChange={(e) => setBrief({ ...brief, [field.id]: e.target.value })}
+                        >
+                          {field.options?.map((option) => (
+                            <option key={option} value={option}>
+                              {option}
+                            </option>
+                          ))}
+                        </Select>
+                      ) : field.type === "multiselect" ? (
+                        <div className="flex flex-wrap gap-2">
+                          {field.options?.map((option) => {
+                            const list = Array.isArray(value) ? value : [];
+                            const on = list.includes(option);
+                            return (
+                              <button
+                                key={option}
+                                type="button"
+                                onClick={() =>
+                                  setBrief({
+                                    ...brief,
+                                    [field.id]: on
+                                      ? list.filter((v) => v !== option)
+                                      : [...list, option],
+                                  })
+                                }
+                                className={
+                                  on
+                                    ? "rounded-full bg-brand-600 px-3 py-1.5 text-xs font-semibold text-white"
+                                    : "rounded-full border border-white/12 px-3 py-1.5 text-xs text-slate-300 hover:border-white/30"
+                                }
+                              >
+                                {option}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      ) : field.type === "textarea" ? (
+                        <Textarea
+                          rows={3}
+                          value={String(value || "")}
+                          placeholder={field.placeholder}
+                          onChange={(e) => setBrief({ ...brief, [field.id]: e.target.value })}
+                        />
+                      ) : (
+                        <Input
+                          type={field.type === "date" ? "date" : field.type === "url" ? "url" : "text"}
+                          value={String(value || "")}
+                          placeholder={field.placeholder}
+                          onChange={(e) => setBrief({ ...brief, [field.id]: e.target.value })}
+                        />
+                      )}
+                    </Field>
+                  </div>
+                );
+              })}
+            </div>
 
-            <Field label="Creative Brief & References">
-              <Textarea
-                rows={4}
-                required
-                value={intakeForm.description}
-                onChange={(e) => setIntakeForm({ ...intakeForm, description: e.target.value })}
-                placeholder="Pacing requirements, target video duration, music preferences, mood references…"
-              />
-            </Field>
+            {briefState.warnings.length > 0 && (
+              <ul className="space-y-1 rounded-2xl border border-amber-400/20 bg-amber-400/[0.06] p-3">
+                {briefState.warnings.map((warning) => (
+                  <li key={warning} className="text-[11px] text-amber-200/90">
+                    · {warning}
+                  </li>
+                ))}
+              </ul>
+            )}
 
-            <div className="flex justify-end gap-2 pt-2 border-t border-white/8">
-              <Button variant="ghost" onClick={() => setShowIntake(false)}>
-                Cancel
-              </Button>
-              <Button type="submit">Submit Brief to Suite</Button>
+            <div className="flex items-center justify-between gap-2 border-t border-white/8 pt-3">
+              <p className="text-[11px] text-slate-500">
+                {briefState.complete
+                  ? "Everything we need is here — we can start on this."
+                  : "Fill the starred fields and we can start without a single follow-up question."}
+              </p>
+              <div className="flex gap-2">
+                <Button variant="ghost" onClick={() => setShowIntake(false)}>
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={!briefState.complete}>
+                  Submit brief
+                </Button>
+              </div>
             </div>
           </form>
         </Modal>
