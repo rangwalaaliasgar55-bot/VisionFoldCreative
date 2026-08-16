@@ -36,9 +36,26 @@ so every `transition-*` utility in the codebase inherits the house ease for free
 | Depth | `components/Fx.tsx` → `Tilt` | max 7°, scale 1.02, glare 0→0.18 in 200 ms, enter 150 ms / leave 250 ms |
 | Carousel | `components/Fx.tsx` → `Reel3D` | RAF ring, base 0.012 °/ms, pointer drag, fling decay 0.965/frame, snap-on-hover, dots |
 | Compare | `components/Fx.tsx` → `SplitCompare` | `clip-path: inset()`, divergent RAW/graded LUTs, keyboard range, `touchmove` preventDefault |
-| Backdrop | `components/ThreeBackground.tsx` | Standard materials + hemisphere/gold/violet lights, linear fog 18→45, damped parallax |
+| Backdrop | `components/ThreeBackground.tsx` | Shaped-light nebula shader, 3 bokeh depth shells, lit smoked-glass forms, CSS beams/grain/vignette |
 | Globe | `components/ClientsGlobeSection.tsx` | Standard earth, fresnel atmosphere, billboarded HQ ring, additive arcs, inertial drag |
 | Chrome | `components/SiteChrome.tsx`, `components/ScrollProgress.tsx` | RAF-throttled header at 12 px, blur(16px), spring menu, `scaleX` progress spring |
+
+## 2b. The backdrop, layer by layer
+
+1. **Nebula plane** — fbm with domain warp, but the noise only *modulates two
+   elliptical lamps* (violet key top-left, amber bounce bottom-right) so it reads
+   as studio lighting through haze rather than a space texture. Edges are crushed
+   by an in-shader vignette so headlines always sit on near-black.
+2. **Bokeh dust** — three depth shells (fine grain far, dust mid, 11 big
+   out-of-focus orbs near the lens) with a soft canvas sprite, additive, warm
+   neutral palette. Parallax is real perspective, not a fake offset.
+3. **Glass forms** — a film-reel torus, a cut amber gem and a lens knot, shaded
+   with a two-lamp fresnel/spec shader: translucent bodies, bright rims,
+   glancing highlights. No wireframe, no black silhouettes.
+4. **CSS overlays** — two anamorphic beams, 5.5% film grain and a vignette,
+   all outside WebGL so they cost nothing.
+
+Scroll dollies the camera in ~5.5 units; the mouse floats it with a 0.012 rad roll.
 
 ## 3. Physics notes
 

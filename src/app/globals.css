@@ -337,6 +337,65 @@ select:focus-visible {
 }
 .auth-3d-card > * { transform: translateZ(18px); }
 
+
+/* ---- Cinematic backdrop overlays (paired with ThreeBackground) ---- */
+.vf-bg-beams {
+  overflow: hidden;
+  opacity: 0.45;
+}
+.vf-bg-beams::before,
+.vf-bg-beams::after {
+  content: "";
+  position: absolute;
+  top: -40%;
+  left: -20%;
+  width: 55%;
+  height: 190%;
+  background: linear-gradient(
+    100deg,
+    transparent 0%,
+    rgba(115, 87, 255, 0.09) 42%,
+    rgba(167, 139, 250, 0.06) 52%,
+    transparent 78%
+  );
+  transform: rotate(-14deg) translate3d(0, 0, 0);
+  filter: blur(6px);
+  animation: beam-drift 26s ease-in-out infinite alternate;
+  will-change: transform, opacity;
+}
+.vf-bg-beams::after {
+  left: auto;
+  right: -25%;
+  width: 48%;
+  background: linear-gradient(
+    80deg,
+    transparent 0%,
+    rgba(244, 166, 42, 0.075) 45%,
+    rgba(245, 215, 138, 0.045) 58%,
+    transparent 82%
+  );
+  transform: rotate(12deg) translate3d(0, 0, 0);
+  animation-duration: 34s;
+  animation-delay: -8s;
+}
+@keyframes beam-drift {
+  from { transform: rotate(-14deg) translate3d(-4%, -2%, 0); opacity: 0.5; }
+  to   { transform: rotate(-14deg) translate3d(6%, 3%, 0); opacity: 1; }
+}
+
+.vf-bg-grain {
+  opacity: 0.055;
+  mix-blend-mode: soft-light;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size: 180px 180px;
+}
+
+.vf-bg-vignette {
+  background:
+    radial-gradient(120% 90% at 50% 12%, transparent 38%, rgba(4, 7, 18, 0.55) 78%, rgba(4, 7, 18, 0.9) 100%),
+    linear-gradient(to bottom, rgba(4, 7, 18, 0.35) 0%, transparent 22%, transparent 72%, rgba(4, 7, 18, 0.6) 100%);
+}
+
 /* Admin application surface */
 .admin-surface {
   background:
@@ -367,6 +426,8 @@ select:focus-visible {
   .animate-pulseglow,
   .animate-scrollcue,
   .animate-spin-slow,
+  .vf-bg-beams::before,
+  .vf-bg-beams::after,
   .skeleton::after,
   .shimmer {
     animation: none !important;
