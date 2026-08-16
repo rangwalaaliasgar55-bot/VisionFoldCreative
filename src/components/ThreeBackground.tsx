@@ -10,7 +10,8 @@ import * as THREE from "three";
  *   1. A slow fbm nebula plane (deep violet / ember clouds, domain-warped).
  *   2. Three depth layers of soft bokeh dust — real perspective parallax,
  *      big out-of-focus orbs near the lens, fine grain far away.
- *   3. Fresnel "glass" forms: dark cores with glowing rim light. No wireframe.
+ *   3. "The Fold": two shader-creased sheets drawn as antialiased contour
+ *      lines of light — the brand mark, unfolding as you scroll.
  *   4. CSS light beams + film grain + vignette (free, and it sells the format).
  *
  * Scroll dollies the camera forward. Everything is damped, so 30/60/120Hz feel
@@ -31,7 +32,7 @@ export default function ThreeBackground({
 
     const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     const isMobile = window.innerWidth < 768;
-    const dustCount = particleCount ?? (isMobile ? 320 : 560);
+    const dustCount = particleCount ?? (isMobile ? 240 : 400);
 
     const scene = new THREE.Scene();
 
@@ -90,10 +91,9 @@ export default function ThreeBackground({
     const nebulaMat = new THREE.ShaderMaterial({
       uniforms: {
         uTime: { value: 0 },
-        uInk: { value: new THREE.Color(0x060914) },
+        uInk: { value: new THREE.Color(0x050812) },
         uViolet: { value: new THREE.Color(0x5b45d6) },
         uAmber: { value: new THREE.Color(0xd98b2a) },
-        uCyan: { value: new THREE.Color(0x2d7da8) },
       },
       vertexShader: `
         varying vec2 vUv;
@@ -108,7 +108,6 @@ export default function ThreeBackground({
         uniform vec3 uInk;
         uniform vec3 uViolet;
         uniform vec3 uAmber;
-        uniform vec3 uCyan;
         ${NOISE_GLSL}
 
         // A soft elliptical source — this is a lamp, not a cloud.
@@ -125,20 +124,20 @@ export default function ThreeBackground({
           vec2 w = vec2(fbm(p * 1.2 + t), fbm(p * 1.2 + vec2(2.3, 4.1) - t)) - 0.5;
           p += w * 0.20;
 
-          float key  = lamp(p, vec2(0.16, 0.86), vec2(0.55, 0.62), 2.0); // violet key, top-left
-          float warm = lamp(p, vec2(0.88, 0.16), vec2(0.48, 0.50), 2.1); // amber bounce, bottom-right
-          float fill = lamp(p, vec2(0.62, 0.62), vec2(0.70, 0.55), 2.4) * 0.5;
+          // Two lamps. That's the whole rig — a third hue only muddies it.
+          float key  = lamp(p, vec2(0.18, 0.88), vec2(0.52, 0.58), 2.0); // violet key, top-left
+          float warm = lamp(p, vec2(0.90, 0.14), vec2(0.42, 0.46), 2.2); // amber bounce, bottom-right
           float haze = fbm(p * 2.4 + vec2(t * 0.6, 0.0)) * 0.6 + 0.2;
+          float breath = 0.94 + 0.06 * sin(uTime * 0.11);
 
           vec3 col = uInk;
-          col += uViolet * key  * (0.14 + haze * 0.24);
-          col += uAmber  * warm * (0.07 + haze * 0.13);
-          col += uCyan   * fill * (0.02 + haze * 0.06);
-          col += vec3(0.35, 0.32, 0.55) * fbm(p * 5.0 - t) * 0.018;
+          col += uViolet * key  * (0.12 + haze * 0.22) * breath;
+          col += uAmber  * warm * (0.06 + haze * 0.11);
+          col += vec3(0.35, 0.32, 0.55) * fbm(p * 5.0 - t) * 0.014;
 
           // heavy edges so headlines always sit on near-black
           float vig = smoothstep(1.30, 0.25, length(vUv - vec2(0.5)) * 1.8);
-          col *= 0.28 + vig * 0.80;
+          col *= 0.27 + vig * 0.80;
 
           gl_FragColor = vec4(col, 1.0);
         }
@@ -233,68 +232,100 @@ export default function ThreeBackground({
     };
 
     // far grain · mid dust · near out-of-focus orbs
-    const dustFar = makeDust(dustCount, 0.15, 0.42, [95, 58, 40], -26);
-    const dustMid = makeDust(Math.round(dustCount * 0.22), 0.46, 0.34, [58, 34, 26], -6);
-    const dustNear = makeDust(isMobile ? 6 : 11, 3.6, 0.1, [42, 25, 10], 9, true);
+    const dustFar = makeDust(dustCount, 0.15, 0.38, [95, 58, 40], -26);
+    const dustMid = makeDust(Math.round(dustCount * 0.22), 0.46, 0.3, [58, 34, 26], -6);
+    const dustNear = makeDust(isMobile ? 5 : 9, 3.8, 0.09, [42, 25, 10], 9, true);
 
     /* ------------------------------------------------------------------ */
-    /* 3. Glass forms — dark bodies, glowing rims                          */
+    /* 3. The Fold — sheets of light creased by a shader                   */
     /* ------------------------------------------------------------------ */
-    const glassMaterial = (opts: {
-      base: number;
-      rim: number;
-      spec: number;
-      alpha: number;
-      diffuse: number;
-      specAmt: number;
+    const foldMaterial = (opts: {
+      colA: number;
+      colB: number;
+      lines: number;
+      opacity: number;
+      width: number;
+      wave: number;
+      twist: number;
+      phase: number;
     }) =>
       new THREE.ShaderMaterial({
         uniforms: {
-          uBase: { value: new THREE.Color(opts.base) },
-          uRim: { value: new THREE.Color(opts.rim) },
-          uSpec: { value: new THREE.Color(opts.spec) },
-          uAlpha: { value: opts.alpha },
-          uDiffuse: { value: opts.diffuse },
-          uSpecAmt: { value: opts.specAmt },
+          uTime: { value: 0 },
+          uFold: { value: 1.6 },
+          uWave: { value: opts.wave },
+          uTwist: { value: opts.twist },
+          uPhase: { value: opts.phase },
+          uColA: { value: new THREE.Color(opts.colA) },
+          uColB: { value: new THREE.Color(opts.colB) },
+          uLines: { value: opts.lines },
+          uOpacity: { value: opts.opacity },
+          uWidth: { value: opts.width },
         },
         vertexShader: `
+          uniform float uTime;
+          uniform float uFold;
+          uniform float uWave;
+          uniform float uTwist;
+          uniform float uPhase;
+          varying vec2 vUV;
           varying vec3 vN;
           varying vec3 vV;
           void main() {
-            vN = normalize(normalMatrix * normal);
-            vec4 mv = modelViewMatrix * vec4(position, 1.0);
+            vUV = uv;
+            float u = position.x;
+            float v = position.y;
+            float s = 1.3;
+            float ph = uTime * 0.22 + uPhase;
+
+            // analytic crease + two travelling waves, so normals stay exact
+            float z = uFold * (sqrt(u * u + s * s) - s)
+                    + uWave * sin(v * 0.55 + ph)
+                    + 0.20 * sin(u * 0.35 + v * 0.40 + ph);
+            float dzdu = uFold * u / sqrt(u * u + s * s)
+                    + 0.070 * cos(u * 0.35 + v * 0.40 + ph);
+            float dzdv = uWave * 0.55 * cos(v * 0.55 + ph)
+                    + 0.080 * cos(u * 0.35 + v * 0.40 + ph);
+
+            vec3 p = vec3(u, v + uTwist * u * 0.06, z);
+            vec3 n = normalize(vec3(-dzdu, -dzdv, 1.0));
+            vN = normalize(normalMatrix * n);
+            vec4 mv = modelViewMatrix * vec4(p, 1.0);
             vV = -mv.xyz;
             gl_Position = projectionMatrix * mv;
           }
         `,
         fragmentShader: `
+          varying vec2 vUV;
           varying vec3 vN;
           varying vec3 vV;
-          uniform vec3 uBase;
-          uniform vec3 uRim;
-          uniform vec3 uSpec;
-          uniform float uAlpha;
-          uniform float uDiffuse;
-          uniform float uSpecAmt;
+          uniform vec3 uColA;
+          uniform vec3 uColB;
+          uniform float uLines;
+          uniform float uOpacity;
+          uniform float uWidth;
           void main() {
-            vec3 N = normalize(vN);
-            vec3 V = normalize(vV);
+            // Contour stripes, antialiased by screen-space derivatives: where the
+            // fold compresses them they bloom into a wash instead of moiré.
+            float lines = vUV.y * uLines;
+            float d = abs(fract(lines) - 0.5);
+            float aa = fwidth(lines);
+            float core = 1.0 - smoothstep(0.0, max(aa * 1.3, 0.015) * uWidth, d);
 
-            // Two-lamp studio setup baked into the surface: gold key, violet rim.
-            vec3 L1 = normalize(vec3(0.55, 0.68, 0.48));
-            vec3 L2 = normalize(vec3(-0.72, -0.26, 0.42));
-            float d1 = max(dot(N, L1), 0.0);
-            float d2 = max(dot(N, L2), 0.0);
-            float spec = pow(max(dot(reflect(-L1, N), V), 0.0), 36.0);
-            float fres = pow(1.0 - clamp(abs(dot(N, V)), 0.0, 1.0), 2.0);
+            // dissolve at every border — no hard silhouette, ever
+            vec2 e = smoothstep(0.0, 0.26, vUV) * smoothstep(0.0, 0.26, 1.0 - vUV);
+            float mask = e.x * e.y;
 
-            vec3 body = uBase * (0.16 + uDiffuse * d1) + uRim * (0.30 * d2);
-            vec3 col = body + uSpec * spec * uSpecAmt + uRim * fres * 0.85;
-            float a = clamp(0.30 + fres * 0.65 + spec * 0.6, 0.0, 1.0) * uAlpha;
-            gl_FragColor = vec4(col, a);
+            float fres = pow(1.0 - abs(dot(normalize(vN), normalize(vV))), 1.6);
+            float crease = exp(-abs(vUV.x - 0.5) * 6.0);
+
+            vec3 col = mix(uColA, uColB, vUV.x);
+            float a = core * mask * (0.32 + fres * 0.85 + crease * 0.35) * uOpacity;
+            gl_FragColor = vec4(col * (0.65 + fres * 0.95 + crease * 0.5), a);
           }
         `,
         transparent: true,
+        blending: THREE.AdditiveBlending,
         depthWrite: false,
         side: THREE.DoubleSide,
       });
@@ -339,86 +370,99 @@ export default function ThreeBackground({
         side: THREE.BackSide,
       });
 
-    type Form = {
+    type FoldField = {
       mesh: THREE.Mesh;
-      rx: number;
-      ry: number;
+      mat: THREE.ShaderMaterial;
+      glow: THREE.ShaderMaterial;
+      drift: number;
       origY: number;
-      phase: number;
-      bob: number;
     };
-    const forms: Form[] = [];
+    const folds: FoldField[] = [];
 
-    const addForm = (
-      geo: THREE.BufferGeometry,
-      mat: THREE.ShaderMaterial,
-      pos: [number, number, number],
-      scale: number,
-      rx: number,
-      ry: number,
-      bob: number
-    ) => {
+    const addFold = (opts: {
+      size: [number, number];
+      pos: [number, number, number];
+      rot: [number, number, number];
+      colA: number;
+      colB: number;
+      lines: number;
+      opacity: number;
+      wave: number;
+      twist: number;
+      phase: number;
+      drift: number;
+    }) => {
+      const segU = isMobile ? 64 : 110;
+      const segV = isMobile ? 40 : 72;
+      const geo = new THREE.PlaneGeometry(opts.size[0], opts.size[1], segU, segV);
+
+      const mat = foldMaterial({
+        colA: opts.colA,
+        colB: opts.colB,
+        lines: opts.lines,
+        opacity: opts.opacity,
+        width: 1,
+        wave: opts.wave,
+        twist: opts.twist,
+        phase: opts.phase,
+      });
+      // Second pass with fat, faint stripes = bloom without a post-process pass.
+      const glow = foldMaterial({
+        colA: opts.colA,
+        colB: opts.colB,
+        lines: opts.lines,
+        opacity: opts.opacity * 0.42,
+        width: 6.5,
+        wave: opts.wave,
+        twist: opts.twist,
+        phase: opts.phase,
+      });
+
+      const x = opts.pos[0] * (isMobile ? 0.55 : 1);
+      const y = opts.pos[1] * (isMobile ? 0.85 : 1);
+
       const mesh = new THREE.Mesh(geo, mat);
-      // Narrow viewports pull the forms inboard so they stay in frame.
-      mesh.position.set(pos[0] * (isMobile ? 0.5 : 1), pos[1] * (isMobile ? 0.8 : 1), pos[2]);
-      mesh.scale.setScalar(scale);
-      mesh.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, 0);
+      mesh.position.set(x, y, opts.pos[2]);
+      mesh.rotation.set(...opts.rot);
+
+      const halo = new THREE.Mesh(geo, glow);
+      halo.renderOrder = -1;
+      mesh.add(halo);
 
       scene.add(mesh);
-      disposables.push(geo, mat);
-      forms.push({ mesh, rx, ry, origY: mesh.position.y, phase: pos[0] * 0.4, bob });
-      return mesh;
+      disposables.push(geo, mat, glow);
+      folds.push({ mesh, mat, glow, drift: opts.drift, origY: y });
     };
 
-    // A film-reel ring, a cut prism, and a lens knot — three, not six.
-    addForm(
-      new THREE.TorusGeometry(3.1, 0.55, 28, 120),
-      glassMaterial({
-        base: 0x1a1440,
-        rim: 0x8b74ff,
-        spec: 0xffffff,
-        alpha: 0.85,
-        diffuse: 0.42,
-        specAmt: 0.9,
-      }),
-      [-16, 3.4, -18],
-      1,
-      0.05,
-      0.07,
-      0.34
-    );
-    addForm(
-      new THREE.IcosahedronGeometry(2.8, 0),
-      glassMaterial({
-        base: 0x1e1406,
-        rim: 0xf4a62a,
-        spec: 0xfff3d8,
-        alpha: 0.5,
-        diffuse: 0.30,
-        specAmt: 0.5,
-      }),
-      [15, -4.6, -19],
-      1,
-      0.06,
-      0.045,
-      0.28
-    );
-    addForm(
-      new THREE.TorusKnotGeometry(1.5, 0.42, 128, 24),
-      glassMaterial({
-        base: 0x0f1f2e,
-        rim: 0x7ad4ff,
-        spec: 0xeaf6ff,
-        alpha: 0.62,
-        diffuse: 0.36,
-        specAmt: 0.7,
-      }),
-      [11.5, 6.8, -22],
-      1,
-      0.04,
-      0.09,
-      0.24
-    );
+    // Primary fold — violet key side, sweeping in from the left
+    addFold({
+      size: [26, 15],
+      pos: [-15, -1, -14],
+      rot: [-0.14, 0.85, 0.18],
+      colA: 0x7f68ff,
+      colB: 0xf9dcae,
+      lines: isMobile ? 34 : 48,
+      opacity: 0.9,
+      wave: 0.45,
+      twist: 0.55,
+      phase: 0,
+      drift: 0.34,
+    });
+
+    // Counter fold — amber bounce side, further back and quieter
+    addFold({
+      size: [19, 10],
+      pos: [16.5, 4, -19],
+      rot: [0.16, -0.9, -0.22],
+      colA: 0xf4a62a,
+      colB: 0x7357ff,
+      lines: isMobile ? 22 : 32,
+      opacity: 0.55,
+      wave: 0.4,
+      twist: 0.45,
+      phase: 1.7,
+      drift: 0.24,
+    });
 
     // The enveloping "studio wall" — camera sits inside it, so it reads as a
     // soft coloured haze pressing in from the edges of frame.
@@ -479,10 +523,20 @@ export default function ThreeBackground({
       dustNear.position.x = Math.sin(time * 0.07) * 1.4;
       dustNear.position.y = Math.cos(time * 0.05) * 0.9;
 
-      for (const f of forms) {
-        f.mesh.rotation.x += f.rx * dt;
-        f.mesh.rotation.y += f.ry * dt;
-        f.mesh.position.y = f.origY + Math.sin(time * 0.32 + f.phase) * f.bob * 3;
+      for (const f of folds) {
+        f.mat.uniforms.uTime.value = time;
+        f.glow.uniforms.uTime.value = time;
+        // Scroll unfolds the sheet — the story literally opens as you read.
+        const fold = 1.65 - scrollProgress * 0.85;
+        f.mat.uniforms.uFold.value = THREE.MathUtils.damp(
+          f.mat.uniforms.uFold.value,
+          fold,
+          2.2,
+          dt
+        );
+        f.glow.uniforms.uFold.value = f.mat.uniforms.uFold.value;
+        f.mesh.position.y = f.origY + Math.sin(time * 0.18 + f.drift * 6) * f.drift;
+        f.mesh.rotation.z += 0.004 * dt;
       }
       haze.rotation.y += 0.01 * dt;
 

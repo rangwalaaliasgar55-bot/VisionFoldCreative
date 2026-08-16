@@ -93,15 +93,15 @@ body {
 
 .bg-aurora {
   background:
-    radial-gradient(60rem 30rem at 15% 0%, rgba(115, 87, 255, 0.18), transparent 60%),
-    radial-gradient(50rem 26rem at 85% 10%, rgba(244, 166, 42, 0.08), transparent 60%),
-    radial-gradient(40rem 30rem at 50% 100%, rgba(91, 63, 212, 0.1), transparent 60%);
+    radial-gradient(60rem 30rem at 15% 0%, rgba(115, 87, 255, 0.12), transparent 60%),
+    radial-gradient(50rem 26rem at 85% 10%, rgba(244, 166, 42, 0.055), transparent 60%),
+    radial-gradient(40rem 30rem at 50% 100%, rgba(91, 63, 212, 0.07), transparent 60%);
 }
 
 .grid-bg {
   background-image:
-    linear-gradient(rgba(115, 87, 255, 0.06) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(115, 87, 255, 0.06) 1px, transparent 1px);
+    linear-gradient(rgba(115, 87, 255, 0.045) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(115, 87, 255, 0.045) 1px, transparent 1px);
   background-size: 48px 48px;
   mask-image: radial-gradient(ellipse 80% 60% at 50% 40%, black 30%, transparent 75%);
 }

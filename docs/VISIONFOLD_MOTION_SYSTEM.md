@@ -44,14 +44,18 @@ so every `transition-*` utility in the codebase inherits the house ease for free
 
 1. **Nebula plane** — fbm with domain warp, but the noise only *modulates two
    elliptical lamps* (violet key top-left, amber bounce bottom-right) so it reads
-   as studio lighting through haze rather than a space texture. Edges are crushed
+   as studio lighting through haze rather than a space texture. Two lamps only —
+   a third hue muddies it. The key breathes on an 0.11 Hz sine. Edges are crushed
    by an in-shader vignette so headlines always sit on near-black.
 2. **Bokeh dust** — three depth shells (fine grain far, dust mid, 11 big
    out-of-focus orbs near the lens) with a soft canvas sprite, additive, warm
    neutral palette. Parallax is real perspective, not a fake offset.
-3. **Glass forms** — a film-reel torus, a cut amber gem and a lens knot, shaded
-   with a two-lamp fresnel/spec shader: translucent bodies, bright rims,
-   glancing highlights. No wireframe, no black silhouettes.
+3. **The Fold** — the brand mark, rendered as light. Two shader-creased sheets
+   drawn as contour stripes (`fract` + `fwidth`, so they antialias themselves and
+   wash out instead of moiréing where the crease compresses them), each with a
+   fat faint second pass standing in for bloom. Borders dissolve via a uv mask,
+   so there is never a hard silhouette. **Scroll unfolds them** — `uFold` damps
+   from 1.65 to 0.8 across the page.
 4. **CSS overlays** — two anamorphic beams, 5.5% film grain and a vignette,
    all outside WebGL so they cost nothing.
 
