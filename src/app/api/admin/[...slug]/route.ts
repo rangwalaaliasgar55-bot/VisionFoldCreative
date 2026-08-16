@@ -36,6 +36,7 @@ import { DEFAULT_SETTINGS, getSettings, setSettings } from "@/lib/settings";
 import { parseCsv } from "@/lib/utils";
 import { searchBusinesses } from "@/lib/prospect";
 import { getAttention } from "@/lib/automations/run";
+import { announcementFor } from "@/lib/statusUpdates";
 import { runAutomations } from "@/lib/automations/run";
 import { listWaMessages, sendWhatsAppText, whatsappConfig, whatsappConnected } from "@/lib/whatsapp";
 import { randomBytes } from "crypto";
@@ -1144,7 +1145,36 @@ export async function PATCH(
       if (body.dueDate !== undefined) updateData.dueDate = body.dueDate ? String(body.dueDate) : null;
       updateData.updatedAt = new Date();
 
+      const [before] = await db.select().from(projects).where(eq(projects.id, id)).limit(1);
       const [updated] = await db.update(projects).set(updateData).where(eq(projects.id, id)).returning();
+
+      // Tell the client what changed, so they never have to ask. `silent: true`
+      // opts out for corrections and typo fixes.
+      if (before && updated && body.silent !== true) {
+        const announcement = announcementFor({
+          previous: { status: before.status, progress: before.progress },
+          next: { status: updateData.status, progress: updateData.progress },
+          projectTitle: updated.title,
+        });
+        if (announcement) {
+          try {
+            await db.insert(updates).values({
+              projectId: id,
+              title: announcement.title,
+              body: announcement.body,
+            });
+            await db.insert(messages).values({
+              clientId: updated.clientId,
+              sender: "studio",
+              body: announcement.body,
+              read: false,
+            });
+          } catch {
+            /* never fail the save because an announcement couldn't be written */
+          }
+        }
+      }
+
       return ok(updated);
     }
 

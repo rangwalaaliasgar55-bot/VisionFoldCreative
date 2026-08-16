@@ -9,10 +9,11 @@
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "check:shaders": "node scripts/check-shaders.mjs",
-    "verify": "npm run typecheck && npm run lint && npm run check:shaders && npm run check:social && npm run check:automations && npm run check:intake",
+    "verify": "npm run typecheck && npm run lint && npm run check:shaders && npm run check:social && npm run check:automations && npm run check:intake && npm run check:status",
     "check:social": "tsx scripts/check-social-seo.mjs",
     "check:automations": "tsx scripts/check-automations.mjs",
-    "check:intake": "tsx scripts/check-intake.mjs"
+    "check:intake": "tsx scripts/check-intake.mjs",
+    "check:status": "tsx scripts/check-status-updates.mjs"
   },
   "dependencies": {
     "@types/three": "^0.185.4",
