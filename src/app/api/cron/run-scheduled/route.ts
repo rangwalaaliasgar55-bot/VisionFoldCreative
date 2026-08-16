@@ -1,6 +1,8 @@
 import { bad } from "@/lib/auth";
 import type { CmsPage, CmsStore } from "@/lib/cmsTypes";
 import { getSetting, setSetting } from "@/lib/settings";
+import { automationsEnabled } from "@/lib/settings";
+import { runAutomations } from "@/lib/automations/run";
 import { NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic";
@@ -8,7 +10,8 @@ export const dynamic = "force-dynamic";
 const STORE_KEY = "cmsStore";
 
 /**
- * Vercel Cron: publish any CMS pages whose scheduledFor time has passed.
+ * Vercel Cron: publish scheduled CMS pages, then run the studio automations
+ * (overdue invoices, approval nudges, stale-project alerts).
  *
  * Auth: when CRON_SECRET (or JWT_SECRET as a fallback) is set, the request
  * must send `Authorization: Bearer <secret>`. Vercel Cron does this
@@ -24,15 +27,12 @@ async function runScheduled(request: Request) {
 
   try {
     const store = (await getSetting(STORE_KEY)) as CmsStore | null;
-    if (!store || !Array.isArray(store.pages)) {
-      return NextResponse.json({ ok: true, published: 0 });
-    }
 
     const now = Date.now();
     const nowIso = new Date().toISOString();
     let published = 0;
 
-    const pages = store.pages.map((page: CmsPage) => {
+    const pages = (store?.pages ?? []).map((page: CmsPage) => {
       if (
         page.status === "scheduled" &&
         page.scheduledFor &&
@@ -49,11 +49,27 @@ async function runScheduled(request: Request) {
       return page;
     });
 
-    if (published > 0) {
+    if (published > 0 && store) {
       await setSetting(STORE_KEY, { ...store, pages });
     }
 
-    return NextResponse.json({ ok: true, published, checkedAt: nowIso });
+    // Chase work nobody should have to remember: overdue invoices, cuts sitting
+    // unapproved, projects that have gone quiet. Never blocks publishing.
+    let automations: unknown = { skipped: true };
+    try {
+      if (await automationsEnabled()) {
+        const summary = await runAutomations();
+        automations = {
+          flagged: summary.items.length,
+          applied: summary.applied,
+          errors: summary.errors,
+        };
+      }
+    } catch (error) {
+      automations = { error: (error as Error).message };
+    }
+
+    return NextResponse.json({ ok: true, published, automations, checkedAt: nowIso });
   } catch (error: any) {
     return bad(error?.message || "Failed to run scheduled publishing", 500);
   }

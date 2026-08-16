@@ -6,6 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { AnimatePresence, m } from "framer-motion";
 import {
   Bell,
+  BellRing,
   Bot,
   ChevronRight,
   CircleHelp,
@@ -46,6 +47,7 @@ const NAV: NavGroup[] = [
     label: "Workspace",
     items: [
       { href: "/admin", label: "Dashboard", description: "Studio overview and activity", Icon: LayoutDashboard },
+      { href: "/admin/attention", label: "Needs you", description: "Chases, silences and slipped deadlines", Icon: BellRing },
       { href: "/admin/leads", label: "Leads", description: "Pipeline, proposals and follow-ups", Icon: Target, roles: ["admin", "editor"] },
       { href: "/admin/prospects", label: "Find businesses", description: "Google Maps prospecting", Icon: MapPin, roles: ["admin", "editor"] },
       { href: "/admin/whatsapp", label: "WhatsApp", description: "Automation, inbox and bot", Icon: MessageCircle, roles: ["admin", "editor"] },

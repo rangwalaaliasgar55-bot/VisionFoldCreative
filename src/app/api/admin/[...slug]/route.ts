@@ -35,6 +35,8 @@ import { ensureSeed, resetSeed } from "@/lib/seed";
 import { DEFAULT_SETTINGS, getSettings, setSettings } from "@/lib/settings";
 import { parseCsv } from "@/lib/utils";
 import { searchBusinesses } from "@/lib/prospect";
+import { getAttention } from "@/lib/automations/run";
+import { runAutomations } from "@/lib/automations/run";
 import { listWaMessages, sendWhatsAppText, whatsappConfig, whatsappConnected } from "@/lib/whatsapp";
 import { randomBytes } from "crypto";
 
@@ -83,6 +85,12 @@ export async function GET(
     const path = slug.join("/");
     const url = new URL(req.url);
     if (!canAccess(admin.role, path)) return bad("Your role does not have access to this area.", 403);
+
+    // Attention queue — everything that needs a human, in one place.
+    if (path === "attention") {
+      const evaluation = await getAttention();
+      return ok({ items: evaluation.items, counts: evaluation.counts });
+    }
 
     // 1. Dashboard
     if (path === "dashboard") {
@@ -500,6 +508,16 @@ export async function POST(
     const path = slug.join("/");
     const body = await readBody<Record<string, any>>(req);
     if (!canAccess(admin.role, path, true)) return bad("Your role cannot perform this action.", 403);
+
+    // Run the chase automations on demand (the cron does this hourly).
+    if (path === "attention/run") {
+      const summary = await runAutomations();
+      return ok({
+        applied: summary.applied,
+        flagged: summary.items.length,
+        errors: summary.errors,
+      });
+    }
 
     if (path === "settings") {
       const pairs = body.pairs;
