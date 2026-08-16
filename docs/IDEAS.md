@@ -89,7 +89,7 @@ generic filler, nothing already built. Pick from it in any order.
 | 55 | Page-load "shutter" transition | Brand-appropriate — you fold stories into motion. | M |
 | 56 | Animated number counters on case-study metrics | The Counter component already exists. | S |
 | 57 | Audio-reactive backdrop on the showreel page | Only where sound is already playing. | L |
-| 58 | Reduced-data mode (skip WebGL on slow connections) | `navigator.connection` — respect people's data. | S |
+| 58 | ~~Reduced-data mode~~ **DONE** | Save-Data and 2G skip WebGL entirely; CSS atmosphere remains. | ✅ |
 
 ## F. Accessibility
 
@@ -146,7 +146,7 @@ generic filler, nothing already built. Pick from it in any order.
 | 92 | Structured request logging | Debugging live issues is guesswork right now. | M |
 | 93 | Database backups with a tested restore | An untested backup isn't a backup. | M · blocked |
 | 94 | Proper migrations instead of `CREATE TABLE IF NOT EXISTS` | Schema changes are currently risky by design. | M |
-| 95 | Audit log surfaced in the UI | The `activity` table is written but never read. | S |
+| 95 | ~~Audit log surfaced in the UI~~ **DONE** | `/admin/activity` with filtering and colour-coded verbs. | ✅ |
 | 96 | Soft deletes and a restore window | One misclick currently means permanent loss. | M |
 
 ## J. Growth & measurement

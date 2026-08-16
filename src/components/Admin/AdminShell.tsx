@@ -16,6 +16,7 @@ import {
   FileText,
   FolderKanban,
   Globe,
+  History,
   Image as ImageIcon,
   LayoutDashboard,
   MapPin,
@@ -55,6 +56,7 @@ const NAV: NavGroup[] = [
       { href: "/admin/projects", label: "Projects", description: "Production, reviews and delivery", Icon: FolderKanban },
       { href: "/admin/invoices", label: "Finance", description: "Invoices, payments and expenses", Icon: Receipt, roles: ["admin", "accountant"] },
       { href: "/admin/team", label: "Team & roles", description: "Staff access and permissions", Icon: ShieldCheck, roles: ["admin"] },
+      { href: "/admin/activity", label: "Activity", description: "Audit trail of every action", Icon: History, roles: ["admin", "accountant"] },
     ],
   },
   {

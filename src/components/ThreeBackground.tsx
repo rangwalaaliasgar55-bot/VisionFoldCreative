@@ -32,6 +32,20 @@ export default function ThreeBackground({
     if (!host) return;
 
     const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    // Data saver or a genuinely slow connection: skip WebGL altogether. The CSS
+    // beams, grain and vignette still render, so the page keeps its atmosphere
+    // for a fraction of the bytes and battery.
+    const connection = (
+      navigator as Navigator & {
+        connection?: { saveData?: boolean; effectiveType?: string };
+      }
+    ).connection;
+    if (connection?.saveData || /^(slow-)?2g$/.test(connection?.effectiveType || "")) {
+      host.style.opacity = "0";
+      return;
+    }
+
     const isMobile = window.innerWidth < 768;
     const dustCount = particleCount ?? (isMobile ? 240 : 400);
 
