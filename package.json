@@ -7,7 +7,9 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "check:shaders": "node scripts/check-shaders.mjs",
+    "verify": "npm run typecheck && npm run lint && npm run check:shaders"
   },
   "dependencies": {
     "@types/three": "^0.185.4",
@@ -25,6 +27,7 @@
     "three": "^0.185.1"
   },
   "devDependencies": {
+    "@shaderfrog/glsl-parser": "^7.0.1",
     "@tailwindcss/postcss": "4.1.17",
     "@types/node": "22.19.15",
     "@types/pg": "8.18.0",

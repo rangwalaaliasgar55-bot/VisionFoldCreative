@@ -55,7 +55,10 @@ so every `transition-*` utility in the codebase inherits the house ease for free
    wash out instead of moiréing where the crease compresses them), each with a
    fat faint second pass standing in for bloom. Borders dissolve via a uv mask,
    so there is never a hard silhouette. **Scroll unfolds them** — `uFold` damps
-   from 1.65 to 0.8 across the page.
+   from 1.65 to 0.8 across the page — and a thin glint rakes across the crease
+   every ~13 s. The two lamps in the nebula drift with the pointer, so the room's
+   light answers the viewer. The canvas fades up over 900 ms on first frame
+   instead of popping in.
 4. **CSS overlays** — two anamorphic beams, 5.5% film grain and a vignette,
    all outside WebGL so they cost nothing.
 
@@ -79,7 +82,15 @@ Scroll dollies the camera in ~5.5 units; the mouse floats it with a 0.012 rad ro
 - Counters land on their final value immediately; the globe stops auto-spinning but
   stays draggable.
 
-## 5. Budget
+## 5. Verifying shaders
+
+GLSL lives in template literals, so neither TypeScript nor `next build` can see a
+typo in it — a broken shader is silently a blank backdrop. `npm run check:shaders`
+parses every shader block in the WebGL components (resolving `${NOISE_GLSL}`-style
+interpolation and prepending three.js's injected uniforms/attributes) and exits
+non-zero on a parse error. `npm run verify` runs typecheck + lint + that gate.
+
+## 5b. Budget
 
 framer-motion is loaded through `LazyMotion` + `domAnimation` (`components/MotionProvider.tsx`),
 so layout projection and drag never ship. Motion JS totals ≈ 40 KB gzipped

@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import * as THREE from "three";
+import { CSS_EASE } from "@/lib/motion";
 
 /**
  * VisionFold studio backdrop — "anamorphic dust & glass".
@@ -91,6 +92,7 @@ export default function ThreeBackground({
     const nebulaMat = new THREE.ShaderMaterial({
       uniforms: {
         uTime: { value: 0 },
+        uMouse: { value: new THREE.Vector2(0, 0) },
         uInk: { value: new THREE.Color(0x050812) },
         uViolet: { value: new THREE.Color(0x5b45d6) },
         uAmber: { value: new THREE.Color(0xd98b2a) },
@@ -105,6 +107,7 @@ export default function ThreeBackground({
       fragmentShader: `
         varying vec2 vUv;
         uniform float uTime;
+        uniform vec2 uMouse;
         uniform vec3 uInk;
         uniform vec3 uViolet;
         uniform vec3 uAmber;
@@ -125,8 +128,11 @@ export default function ThreeBackground({
           p += w * 0.20;
 
           // Two lamps. That's the whole rig — a third hue only muddies it.
-          float key  = lamp(p, vec2(0.18, 0.88), vec2(0.52, 0.58), 2.0); // violet key, top-left
-          float warm = lamp(p, vec2(0.90, 0.14), vec2(0.42, 0.46), 2.2); // amber bounce, bottom-right
+          // They drift with the pointer, so the room's light answers the viewer.
+          vec2 keyPos  = vec2(0.18, 0.88) + uMouse * vec2(0.045, -0.030);
+          vec2 warmPos = vec2(0.90, 0.14) - uMouse * vec2(0.035, -0.022);
+          float key  = lamp(p, keyPos,  vec2(0.52, 0.58), 2.0); // violet key, top-left
+          float warm = lamp(p, warmPos, vec2(0.42, 0.46), 2.2); // amber bounce, bottom-right
           float haze = fbm(p * 2.4 + vec2(t * 0.6, 0.0)) * 0.6 + 0.2;
           float breath = 0.94 + 0.06 * sin(uTime * 0.11);
 
@@ -261,6 +267,7 @@ export default function ThreeBackground({
           uLines: { value: opts.lines },
           uOpacity: { value: opts.opacity },
           uWidth: { value: opts.width },
+          uSweep: { value: -0.4 },
         },
         vertexShader: `
           uniform float uTime;
@@ -304,6 +311,7 @@ export default function ThreeBackground({
           uniform float uLines;
           uniform float uOpacity;
           uniform float uWidth;
+          uniform float uSweep;
           void main() {
             // Contour stripes, antialiased by screen-space derivatives: where the
             // fold compresses them they bloom into a wash instead of moiré.
@@ -319,9 +327,12 @@ export default function ThreeBackground({
             float fres = pow(1.0 - abs(dot(normalize(vN), normalize(vV))), 1.6);
             float crease = exp(-abs(vUV.x - 0.5) * 6.0);
 
+            // a slow rake of light travelling across the sheet
+            float sweep = exp(-pow((vUV.x - uSweep) * 9.5, 2.0));
+
             vec3 col = mix(uColA, uColB, vUV.x);
-            float a = core * mask * (0.32 + fres * 0.85 + crease * 0.35) * uOpacity;
-            gl_FragColor = vec4(col * (0.65 + fres * 0.95 + crease * 0.5), a);
+            float a = core * mask * (0.32 + fres * 0.85 + crease * 0.35 + sweep * 0.30) * uOpacity;
+            gl_FragColor = vec4(col * (0.65 + fres * 0.95 + crease * 0.5) + vec3(0.55, 0.5, 0.42) * sweep * 0.16, a);
           }
         `,
         transparent: true,
@@ -411,7 +422,7 @@ export default function ThreeBackground({
         colA: opts.colA,
         colB: opts.colB,
         lines: opts.lines,
-        opacity: opts.opacity * 0.42,
+        opacity: opts.opacity * 0.34,
         width: 6.5,
         wave: opts.wave,
         twist: opts.twist,
@@ -442,7 +453,7 @@ export default function ThreeBackground({
       colA: 0x7f68ff,
       colB: 0xf9dcae,
       lines: isMobile ? 34 : 48,
-      opacity: 0.9,
+      opacity: 0.72,
       wave: 0.45,
       twist: 0.55,
       phase: 0,
@@ -457,7 +468,7 @@ export default function ThreeBackground({
       colA: 0xf4a62a,
       colB: 0x7357ff,
       lines: isMobile ? 22 : 32,
-      opacity: 0.55,
+      opacity: 0.45,
       wave: 0.4,
       twist: 0.45,
       phase: 1.7,
@@ -477,6 +488,7 @@ export default function ThreeBackground({
     /* Motion                                                              */
     /* ------------------------------------------------------------------ */
     const mouse = { x: 0, y: 0 };
+    const smoothMouse = { x: 0, y: 0 };
     let scrollProgress = 0;
 
     const readScroll = () => {
@@ -515,6 +527,7 @@ export default function ThreeBackground({
       time += dt;
 
       nebulaMat.uniforms.uTime.value = time;
+      nebulaMat.uniforms.uMouse.value.set(smoothMouse.x, smoothMouse.y);
 
       // Dust breathes and drifts, never freezes
       dustFar.rotation.y += 0.006 * dt;
@@ -523,9 +536,14 @@ export default function ThreeBackground({
       dustNear.position.x = Math.sin(time * 0.07) * 1.4;
       dustNear.position.y = Math.cos(time * 0.05) * 0.9;
 
+      // 0 -> 1.4 every ~13s, so the rake crosses then rests off-sheet
+      const sweep = ((time * 0.075) % 1.0) * 1.4 - 0.2;
+
       for (const f of folds) {
         f.mat.uniforms.uTime.value = time;
         f.glow.uniforms.uTime.value = time;
+        f.mat.uniforms.uSweep.value = sweep;
+        f.glow.uniforms.uSweep.value = sweep;
         // Scroll unfolds the sheet — the story literally opens as you read.
         const fold = 1.65 - scrollProgress * 0.85;
         f.mat.uniforms.uFold.value = THREE.MathUtils.damp(
@@ -550,13 +568,18 @@ export default function ThreeBackground({
         2.6,
         dt
       );
+      smoothMouse.x = THREE.MathUtils.damp(smoothMouse.x, mouse.x, 2.0, dt);
+      smoothMouse.y = THREE.MathUtils.damp(smoothMouse.y, mouse.y, 2.0, dt);
       camera.rotation.z = THREE.MathUtils.damp(camera.rotation.z, mouse.x * 0.012, 2.0, dt);
       camera.lookAt(0, camera.position.y * 0.25, -6);
 
       nebula.position.x = -camera.position.x * 0.35;
       nebula.position.y = -camera.position.y * 0.35;
 
-      if (!contextLost) renderer.render(scene, camera);
+      if (!contextLost) {
+        renderer.render(scene, camera);
+        if (host.style.opacity !== "1") host.style.opacity = "1";
+      }
     };
 
     const play = () => {
@@ -590,8 +613,12 @@ export default function ThreeBackground({
     renderer.domElement.addEventListener("webglcontextlost", onContextLost);
     renderer.domElement.addEventListener("webglcontextrestored", onContextRestored);
 
-    if (reduced) renderer.render(scene, camera);
-    else play();
+    if (reduced) {
+      renderer.render(scene, camera);
+      host.style.opacity = "1";
+    } else {
+      play();
+    }
 
     return () => {
       pause();
@@ -614,6 +641,7 @@ export default function ThreeBackground({
         ref={hostRef}
         aria-hidden
         className={`pointer-events-none fixed inset-0 -z-10 overflow-hidden ${className}`}
+        style={{ opacity: 0, transition: `opacity 900ms ${CSS_EASE}` }}
       />
       {/* Anamorphic beams + film grain + vignette: pure CSS, zero GPU cost */}
       <div aria-hidden className="vf-bg-beams pointer-events-none fixed inset-0 -z-10" />
