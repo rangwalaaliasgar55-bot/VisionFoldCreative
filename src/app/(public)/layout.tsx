@@ -5,6 +5,7 @@ import { Countdown } from "@/components/Fx";
 import { Logo, SiteFooter, SiteHeader } from "@/components/SiteChrome";
 import ScrollProgress from "@/components/ScrollProgress";
 import SmoothScroll from "@/components/SmoothScroll";
+import ThreeBackground from "@/components/ThreeBackground";
 import VisionRunner from "@/components/VisionRunner";
 import FloatingWhatsApp from "@/components/FloatingWhatsApp";
 import LiveTracker from "@/components/LiveTracker";
@@ -51,6 +52,7 @@ export default async function PublicLayout({ children }: { children: ReactNode }
 
   return (
     <>
+      <ThreeBackground />
       <SmoothScroll />
       <ScrollProgress />
       <SiteHeader title={String(settings.siteTitle)} />

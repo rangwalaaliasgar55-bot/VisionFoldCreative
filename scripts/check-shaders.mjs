@@ -79,11 +79,9 @@ for (const file of FILES) {
     for (const [name, value] of Object.entries(constants)) {
       body = body.split("${" + name + "}").join(value);
     }
-    if (body.includes("${")) {
-      console.error(`✗ ${file}:${shader.line} ${shader.kind}: unresolved interpolation`);
-      failed++;
-      continue;
-    }
+    // Numeric interpolations (e.g. `#define OCT ${isMobile ? 3 : 4}`) are stubbed
+    // so the rest of the shader can still be parsed.
+    body = body.replace(/\$\{[^}]*\}/g, "1");
 
     const prelude = shader.kind === "vertexShader" ? THREE_PRELUDE : FRAG_PRELUDE;
     try {

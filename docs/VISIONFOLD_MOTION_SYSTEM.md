@@ -36,7 +36,7 @@ so every `transition-*` utility in the codebase inherits the house ease for free
 | Depth | `components/Fx.tsx` → `Tilt` | max 7°, scale 1.02, glare 0→0.18 in 200 ms, enter 150 ms / leave 250 ms |
 | Carousel | `components/Fx.tsx` → `Reel3D` | RAF ring, base 0.012 °/ms, pointer drag, fling decay 0.965/frame, snap-on-hover, dots |
 | Compare | `components/Fx.tsx` → `SplitCompare` | `clip-path: inset()`, divergent RAW/graded LUTs, keyboard range, `touchmove` preventDefault |
-| Backdrop | `components/ThreeBackground.tsx` | Shaped-light nebula shader, 3 bokeh depth shells, lit smoked-glass forms, CSS beams/grain/vignette |
+| Backdrop | `components/ThreeBackground.tsx` (mounted once in the public layout) | Shaped-light nebula shader, 3 bokeh depth shells, lit smoked-glass forms, CSS beams/grain/vignette |
 | Globe | `components/ClientsGlobeSection.tsx` | Standard earth, fresnel atmosphere, billboarded HQ ring, additive arcs, inertial drag |
 | Chrome | `components/SiteChrome.tsx`, `components/ScrollProgress.tsx` | RAF-throttled header at 12 px, blur(16px), spring menu, `scaleX` progress spring |
 
@@ -71,6 +71,20 @@ Scroll dollies the camera in ~5.5 units; the mouse floats it with a 0.012 rad ro
 - 3D scenes pause via `IntersectionObserver` + `visibilitychange`, cap DPR
   (1.25 backdrop / 1.5 globe), and survive `webglcontextlost`.
 - Only `transform` and `opacity` (plus `clip-path` on the compare slider) animate.
+
+## 3b. Input parity
+
+Every gesture in the site has a keyboard equivalent, because a drag-only control
+is a broken control:
+
+- **Reel3D** — focusable; `←`/`→` step card by card (damped glide), `Home` returns
+  to the first cut, and the auto-spin pauses while it holds focus.
+- **Globe** — focusable canvas with `role="img"` and a label; arrow keys rotate,
+  feeding the same inertia/clamp path as the pointer drag.
+- **SplitCompare** — a transparent `<input type="range">` (pointer-events off, so
+  it never fights the drag) drives the wipe; the frame shows a visible ring while
+  it holds focus. On touch, the gesture is only claimed once it is clearly
+  horizontal — a vertical swipe that starts on the image still scrolls the page.
 
 ## 4. Reduced motion
 

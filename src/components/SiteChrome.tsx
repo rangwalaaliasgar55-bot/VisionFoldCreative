@@ -96,9 +96,9 @@ export function SiteHeader({ title }: { title: string }) {
       style={{
         transform: "translateZ(0)",
         willChange: scrolled ? "transform" : undefined,
-        backdropFilter: scrolled ? "blur(16px)" : "blur(0px)",
-        WebkitBackdropFilter: scrolled ? "blur(16px)" : "blur(0px)",
-        transition: `padding ${DUR.chrome}s ${CSS_EASE}, background-color ${DUR.chrome}s ${CSS_EASE}, border-color ${DUR.chrome}s ${CSS_EASE}, box-shadow ${DUR.chrome}s ${CSS_EASE}, backdrop-filter ${DUR.chrome}s ${CSS_EASE}`,
+        backdropFilter: scrolled ? "blur(16px)" : undefined,
+        WebkitBackdropFilter: scrolled ? "blur(16px)" : undefined,
+        transition: `padding ${DUR.chrome}s ${CSS_EASE}, background-color ${DUR.chrome}s ${CSS_EASE}, border-color ${DUR.chrome}s ${CSS_EASE}, box-shadow ${DUR.chrome}s ${CSS_EASE}`,
       }}
     >
       <div className="mx-auto flex max-w-7xl items-center justify-between px-5 sm:px-8">

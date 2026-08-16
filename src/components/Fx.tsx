@@ -37,18 +37,14 @@ export function Reveal({
 }) {
   const reduced = usePrefersReducedMotion();
 
-  if (reduced) {
-    return <div className={`vf-reveal ${className}`}>{children}</div>;
-  }
-
   return (
     <m.div
       className={`vf-reveal ${className}`}
       variants={revealVariants(variant)}
-      initial="hidden"
+      initial={reduced ? "visible" : "hidden"}
       whileInView="visible"
       viewport={VIEWPORT}
-      transition={revealTransition(delay / 1000)}
+      transition={reduced ? { duration: 0 } : revealTransition(delay / 1000)}
       style={{ willChange: "transform, opacity" }}
     >
       {children}
@@ -304,6 +300,8 @@ export function Reel3D({
       velocity: 0,
       dragging: false,
       hovering: false,
+      focused: false,
+      snapTo: null as number | null,
       lastX: 0,
       moved: 0,
     };
@@ -320,10 +318,17 @@ export function Reel3D({
       const f = ms / 16.6667;
 
       if (!state.dragging) {
-        if (Math.abs(state.velocity) > 0.02) {
+        if (state.snapTo !== null) {
+          // keyboard step: glide to the requested card, then release
+          state.angle = damp(state.angle, state.snapTo, 7, ms / 1000);
+          if (Math.abs(state.angle - state.snapTo) < 0.05) {
+            state.angle = state.snapTo;
+            state.snapTo = null;
+          }
+        } else if (Math.abs(state.velocity) > 0.02) {
           state.angle += state.velocity * f;
           state.velocity = decay(state.velocity, 0.965, ms / 1000);
-        } else if (state.hovering) {
+        } else if (state.hovering || state.focused) {
           // Snag: settle onto the nearest card and hold it for inspection
           state.velocity = 0;
           const target = Math.round(state.angle / step) * step;
@@ -342,6 +347,27 @@ export function Reel3D({
       }
     };
     raf = requestAnimationFrame(loop);
+
+    const step2 = (dir: number) => {
+      const from = state.snapTo ?? Math.round(state.angle / step) * step;
+      state.snapTo = from + dir * step;
+      state.velocity = 0;
+    };
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "ArrowLeft") {
+        e.preventDefault();
+        step2(-1);
+      } else if (e.key === "ArrowRight") {
+        e.preventDefault();
+        step2(1);
+      } else if (e.key === "Home") {
+        e.preventDefault();
+        state.snapTo = 0;
+        state.velocity = 0;
+      }
+    };
+    const onFocus = () => (state.focused = true);
+    const onBlur = () => (state.focused = false);
 
     const onEnter = () => (state.hovering = true);
     const onLeave = () => {
@@ -384,6 +410,9 @@ export function Reel3D({
       }
     };
 
+    stage.addEventListener("keydown", onKeyDown);
+    stage.addEventListener("focus", onFocus);
+    stage.addEventListener("blur", onBlur);
     stage.addEventListener("pointerenter", onEnter);
     stage.addEventListener("pointerleave", onLeave);
     stage.addEventListener("pointerdown", onDown);
@@ -393,6 +422,9 @@ export function Reel3D({
 
     return () => {
       cancelAnimationFrame(raf);
+      stage.removeEventListener("keydown", onKeyDown);
+      stage.removeEventListener("focus", onFocus);
+      stage.removeEventListener("blur", onBlur);
       stage.removeEventListener("pointerenter", onEnter);
       stage.removeEventListener("pointerleave", onLeave);
       stage.removeEventListener("pointerdown", onDown);
@@ -408,7 +440,11 @@ export function Reel3D({
     <div className="relative">
       <div
         ref={stageRef}
-        className="relative mx-auto h-[300px] w-full max-w-5xl touch-pan-y select-none sm:h-[420px]"
+        tabIndex={0}
+        role="group"
+        aria-roledescription="carousel"
+        aria-label="Featured work — drag to spin, or use the left and right arrow keys"
+        className="relative mx-auto h-[300px] w-full max-w-5xl touch-pan-y select-none rounded-3xl focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-brand-500 sm:h-[420px]"
         style={{ perspective: "1800px", cursor: "grab" }}
       >
         <div className="pointer-events-none absolute inset-0 z-10 bg-gradient-to-r from-ink via-transparent to-ink" />
@@ -466,7 +502,7 @@ export function Reel3D({
         ))}
       </div>
       <p className="mt-3 text-center text-xs text-slate-500">
-        Drag to spin · hover to snap and inspect · click any project to view details
+        Drag to spin · hover to snap and inspect · arrow keys step card by card
       </p>
     </div>
   );
@@ -482,6 +518,7 @@ export function SplitCompare({
   title?: string;
 }) {
   const [pos, setPos] = useState(50);
+  const [focused, setFocused] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const dragging = useRef(false);
 
@@ -496,16 +533,41 @@ export function SplitCompare({
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
+    // Only claim the gesture once it's clearly horizontal — a vertical swipe
+    // that starts on the image must still scroll the page.
+    let startX = 0;
+    let startY = 0;
+    let axis: "none" | "x" | "y" = "none";
+
+    const onTouchStart = (e: TouchEvent) => {
+      if (!e.touches.length) return;
+      startX = e.touches[0].clientX;
+      startY = e.touches[0].clientY;
+      axis = "none";
+    };
     const onTouchMove = (e: TouchEvent) => {
       if (!e.touches.length) return;
-      e.preventDefault(); // stop the page from scrolling mid-compare
+      const dx = e.touches[0].clientX - startX;
+      const dy = e.touches[0].clientY - startY;
+      if (axis === "none") {
+        if (Math.abs(dx) < 6 && Math.abs(dy) < 6) return;
+        axis = Math.abs(dx) > Math.abs(dy) ? "x" : "y";
+      }
+      if (axis !== "x") return;
+      e.preventDefault();
       moveTo(e.touches[0].clientX);
     };
+    const onTouchEnd = () => {
+      axis = "none";
+    };
+
+    el.addEventListener("touchstart", onTouchStart, { passive: true });
     el.addEventListener("touchmove", onTouchMove, { passive: false });
-    el.addEventListener("touchstart", onTouchMove, { passive: false });
+    el.addEventListener("touchend", onTouchEnd, { passive: true });
     return () => {
+      el.removeEventListener("touchstart", onTouchStart);
       el.removeEventListener("touchmove", onTouchMove);
-      el.removeEventListener("touchstart", onTouchMove);
+      el.removeEventListener("touchend", onTouchEnd);
     };
   }, []);
 
@@ -537,8 +599,10 @@ export function SplitCompare({
           dragging.current = true;
           moveTo(e.clientX);
         }}
-        className="relative aspect-video w-full cursor-ew-resize select-none overflow-hidden rounded-2xl border border-white/15 bg-black shadow-2xl"
-        style={{ touchAction: "pan-y" }}
+        className={`relative aspect-video w-full cursor-ew-resize select-none overflow-hidden rounded-2xl border bg-black shadow-2xl ${
+          focused ? "border-brand-400/70 ring-2 ring-brand-500/40" : "border-white/15"
+        }`}
+        style={{ touchAction: "pan-y", transition: `border-color ${DUR.hoverIn}s ${CSS_EASE}` }}
       >
         {/* Graded master — the base layer */}
         <img
@@ -593,6 +657,8 @@ export function SplitCompare({
           value={Math.round(pos)}
           onChange={(e) => setPos(Number(e.target.value))}
           aria-label="Compare raw footage with the graded master"
+          onFocus={() => setFocused(true)}
+          onBlur={() => setFocused(false)}
           className="absolute inset-0 z-20 h-full w-full opacity-0"
           style={{ pointerEvents: "none" }}
         />

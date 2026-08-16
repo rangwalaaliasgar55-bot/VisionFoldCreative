@@ -335,6 +335,23 @@ export function ClientsGlobeSection() {
       }
     };
 
+    // Keyboard parity for the drag gesture.
+    const onKeyDown = (e: KeyboardEvent) => {
+      const stepK = 0.22;
+      if (e.key === "ArrowLeft") drag.vx = stepK * 0.35;
+      else if (e.key === "ArrowRight") drag.vx = -stepK * 0.35;
+      else if (e.key === "ArrowUp") drag.rotX = Math.max(-0.6, drag.rotX - stepK * 0.4);
+      else if (e.key === "ArrowDown") drag.rotX = Math.min(0.6, drag.rotX + stepK * 0.4);
+      else return;
+      e.preventDefault();
+    };
+    renderer.domElement.tabIndex = 0;
+    renderer.domElement.setAttribute("role", "img");
+    renderer.domElement.setAttribute(
+      "aria-label",
+      "Interactive globe of VisionFold client cities. Drag, or use the arrow keys to rotate."
+    );
+    renderer.domElement.addEventListener("keydown", onKeyDown);
     renderer.domElement.addEventListener("pointerdown", onPointerDown);
     renderer.domElement.addEventListener("pointermove", onPointerMove);
     renderer.domElement.addEventListener("pointerup", onPointerUp);
@@ -435,6 +452,7 @@ export function ClientsGlobeSection() {
       io.disconnect();
       document.removeEventListener("visibilitychange", onVisibility);
       window.removeEventListener("resize", onResize);
+      renderer.domElement.removeEventListener("keydown", onKeyDown);
       renderer.domElement.removeEventListener("pointerdown", onPointerDown);
       renderer.domElement.removeEventListener("pointermove", onPointerMove);
       renderer.domElement.removeEventListener("pointerup", onPointerUp);

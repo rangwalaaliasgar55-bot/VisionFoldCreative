@@ -47,10 +47,14 @@ export default function SmoothScroll() {
       document.documentElement.classList.remove("lenis", "lenis-smooth");
     };
 
+    const onPrefChange = () => (mq.matches ? stop() : start());
     start();
-    mq.addEventListener("change", () => (mq.matches ? stop() : start()));
+    mq.addEventListener("change", onPrefChange);
 
-    return stop;
+    return () => {
+      mq.removeEventListener("change", onPrefChange);
+      stop();
+    };
   }, []);
 
   return null;

@@ -3,7 +3,6 @@ import { db } from "@/db";
 import { categories, clients, portfolio, posts, ratings } from "@/db/schema";
 import { desc, eq, getTableColumns } from "drizzle-orm";
 import { getSettings } from "@/lib/settings";
-import ThreeBackground from "@/components/ThreeBackground";
 import { ClientsGlobeSection } from "@/components/ClientsGlobeSection";
 import { Counter, Reel3D, Reveal, SplitCompare, Stars, Tilt } from "@/components/Fx";
 import {
@@ -74,8 +73,6 @@ export default async function HomePage() {
 
   return (
     <>
-      <ThreeBackground />
-
       <section className="bg-aurora relative overflow-hidden pb-24 pt-20 sm:pt-28">
         <div className="grid-bg pointer-events-none absolute inset-0" />
         <div className="relative mx-auto max-w-7xl px-5 text-center sm:px-8">

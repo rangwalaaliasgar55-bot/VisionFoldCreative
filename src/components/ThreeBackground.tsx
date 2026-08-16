@@ -80,7 +80,7 @@ export default function ThreeBackground({
       float fbm(vec2 p) {
         float v = 0.0;
         float a = 0.5;
-        for (int i = 0; i < 4; i++) {
+        for (int i = 0; i < FBM_OCTAVES; i++) {
           v += a * vnoise(p);
           p *= 2.02;
           a *= 0.5;
@@ -105,6 +105,7 @@ export default function ThreeBackground({
         }
       `,
       fragmentShader: `
+        #define FBM_OCTAVES ${isMobile ? 3 : 4}
         varying vec2 vUv;
         uniform float uTime;
         uniform vec2 uMouse;
@@ -502,6 +503,8 @@ export default function ThreeBackground({
       mouse.y = (e.clientY / window.innerHeight) * 2 - 1;
     };
     const onResize = () => {
+      // DPR can change when a window moves between displays.
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.25));
       camera.aspect = host.clientWidth / Math.max(host.clientHeight, 1);
       camera.updateProjectionMatrix();
       renderer.setSize(host.clientWidth, host.clientHeight);
