@@ -1,0 +1,72 @@
+# Publishing to YouTube & Instagram — what's actually required
+
+Short version: **the SEO half is done and free; the posting half is gated by
+Google and Meta, not by code.** This document is the honest path from where the
+Social Studio is today to true one-click publishing.
+
+## What ships today (no setup, no keys, no server)
+
+`src/lib/social/seo.ts` + `/admin/social`:
+
+- Type what the video is about → YouTube titles (5 options), description with
+  hook, bullets, chapters, links and CTA, tag list packed to the 500-character
+  budget, Instagram caption, and a tiered hashtag set for the first comment.
+- Everything is generated **in the browser**, deterministically, with no network
+  call and no API key. It works offline.
+- Every field is validated against the real platform ceilings, and the thumbnail
+  is checked against YouTube's rules (≥1280×720, 16:9, <2 MB, JPG/PNG/WEBP)
+  before you ever open the upload page.
+- `Copy` per field, or `Export pack` for a JSON file.
+- Regression-tested by `npm run check:social` (5 briefs × 9 platform assertions).
+
+## Why "just log in and post" can't work from a website
+
+| | YouTube Data API v3 | Instagram Content Publishing API |
+| --- | --- | --- |
+| Account type | Any channel | **Business or Creator only**, linked to a Facebook Page |
+| App setup | Google Cloud project + OAuth 2.0 client | Meta app + `instagram_content_publish`, `pages_read_engagement` |
+| Human review | **Mandatory API audit.** Until it passes, every upload is forced to `private` regardless of what you request | **App Review** before publishing for accounts you don't own |
+| Media source | Multipart upload of the file bytes | Meta **fetches a public URL** — you cannot POST the bytes |
+| Quota | Upload = 1600 units of 10,000/day → **~6 uploads/day** | 50 posts / 24 h per account |
+| Browser calls | Blocked (no CORS, secrets can't be shipped) | Blocked (same) |
+
+Both flows need a confidential client — an OAuth client secret plus a long-lived
+refresh token — which by definition cannot live in the browser. This app already
+has a server (Next.js route handlers + Postgres), so that part is fine; the
+blockers are the account types and the two review processes.
+
+## Enabling it, in order
+
+1. **YouTube**
+   - Google Cloud console → new project → enable *YouTube Data API v3*.
+   - Create an OAuth 2.0 Client (type: Web), redirect URI
+     `https://<your-domain>/api/admin/social/youtube/callback`.
+   - Set `YOUTUBE_CLIENT_ID` and `YOUTUBE_CLIENT_SECRET`. The Social Studio
+     switches its YouTube badge to *Credentials set* automatically.
+   - Submit the **API audit** (Google asks for a demo video of your flow).
+     Expect a couple of weeks. Uploads stay private until it clears.
+   - Scope needed: `https://www.googleapis.com/auth/youtube.upload`.
+
+2. **Instagram**
+   - Convert the account to Business or Creator and link a Facebook Page.
+   - Meta for Developers → new app → add *Instagram Graph API*.
+   - Redirect URI `https://<your-domain>/api/admin/social/instagram/callback`,
+     then set `META_APP_ID` and `META_APP_SECRET`.
+   - Submit **App Review** for `instagram_content_publish`.
+   - Publishing is two steps: create a media container pointing at a **public**
+     video/image URL, poll until `status_code=FINISHED`, then publish it. The
+     site's media library can serve those URLs.
+
+3. **Token storage** — persist the refresh tokens server-side (a
+   `social_accounts` table keyed by provider), never in `localStorage`. Refresh
+   on use; treat them as secrets in logs and backups.
+
+## Recommended interim workflow
+
+1. Generate the pack in `/admin/social`.
+2. `Export pack` (JSON) or copy field by field.
+3. Upload in YouTube Studio / Instagram and paste. The metadata is already
+   inside every limit, so nothing gets truncated or rejected.
+
+This is the same end result as automation for a studio publishing a few videos a
+week — without waiting on two review queues, and without a daily upload cap.

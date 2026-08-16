@@ -25,6 +25,7 @@ import {
   Receipt,
   Search,
   Settings2,
+  Share2,
   ShieldCheck,
   Target,
   Users,
@@ -62,6 +63,7 @@ const NAV: NavGroup[] = [
       { href: "/admin/portfolio", label: "Portfolio", description: "Work, reels and case studies", Icon: ImageIcon, roles: ["admin", "editor"] },
       { href: "/admin/media", label: "Media library", description: "Manage reusable site assets", Icon: FileImage, roles: ["admin", "editor"] },
       { href: "/admin/site", label: "Site editor", description: "Content, appearance and settings", Icon: Globe, roles: ["admin", "editor"] },
+      { href: "/admin/social", label: "Social studio", description: "Offline SEO packs for YouTube and Instagram", Icon: Share2, roles: ["admin", "editor"] },
     ],
   },
   {
@@ -75,6 +77,7 @@ const NAV: NavGroup[] = [
 const ALL_ITEMS = NAV.flatMap((group) => group.items);
 
 const QUICK_ACTIONS: NavItem[] = [
+  { href: "/admin/social", label: "Generate social SEO", description: "YouTube + Instagram pack from one brief", Icon: Share2, roles: ["admin", "editor"] },
   { href: "/admin/blog", label: "Write a post", description: "Create, optimize and publish", Icon: FileText, roles: ["admin", "editor"] },
   { href: "/admin/portfolio", label: "Add portfolio work", description: "Publish a new case study", Icon: ImageIcon, roles: ["admin", "editor"] },
   { href: "/admin/leads", label: "Capture a lead", description: "Add a prospect to the pipeline", Icon: Target, roles: ["admin", "editor"] },
