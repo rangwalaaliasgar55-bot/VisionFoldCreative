@@ -38,13 +38,13 @@ export default async function WorkPage() {
         <Reveal delay={150}>
           <div className="mx-auto grid max-w-3xl grid-cols-3 gap-4">
             {[
-              { v: Number(settings.statsProjects || 420), s: "+", l: "Delivered" },
-              { v: 9, s: "", l: "Countries" },
-              { v: 5, s: "/5", l: "Avg. rating" },
+              { v: Number(settings.statsYears || 2), s: "", l: "Years editing", d: 0 },
+              { v: Number(settings.statsCountries || 12), s: "", l: "Countries", d: 0 },
+              { v: Number(settings.statsRating || 4.9), s: "/5", l: "Avg. rating", d: 1 },
             ].map((x) => (
               <div key={x.l} className="glass rounded-2xl py-5 text-center">
                 <div className="font-display text-2xl font-bold text-white sm:text-3xl">
-                  <Counter to={x.v} suffix={x.s} />
+                  <Counter to={x.v} suffix={x.s} decimals={x.d} />
                 </div>
                 <div className="mt-1 text-[10px] uppercase tracking-widest text-slate-500">{x.l}</div>
               </div>

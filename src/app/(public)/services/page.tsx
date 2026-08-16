@@ -15,56 +15,56 @@ import {
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Services & Pricing",
-  description: "Video editing services and transparent pricing: brand films, YouTube editing, music videos, ads and more.",
+  title: "Services",
+  description: "Video editing services: brand films, YouTube editing, music videos, ads and more — every project quoted individually.",
 };
 
 const SERVICES = [
   {
     Icon: Clapperboard,
     title: "Brand Films",
-    price: "$2,400+",
-    unit: "per film",
+    price: "Custom quote",
+    unit: "custom",
     desc: "Launch films, about films and founder stories cut to cinema standard.",
     perks: ["Story-first beat sheet", "Motion graphics included", "Film-grade color", "2 revision rounds", "All aspect ratios"],
   },
   {
     Icon: MonitorPlay,
     title: "YouTube Editing",
-    price: "$350+",
-    unit: "per video",
+    price: "Custom quote",
+    unit: "custom",
     desc: "Long-form edits engineered for retention, plus a monthly retainer option.",
     perks: ["Retention pacing & hooks", "Sound design & music", "Chapter cards & end screens", "48h–72h turnaround", "Monthly retainer discounts"],
   },
   {
     Icon: Music,
     title: "Music Videos",
-    price: "$1,800+",
-    unit: "per video",
+    price: "Custom quote",
+    unit: "custom",
     desc: "Rhythm cuts and cinematic grade that make the song feel bigger.",
     perks: ["Beat-synced cutting", "VFX cleanup", "Lyric video option", "Premiere teaser cut", "Vertical edits included"],
   },
   {
     Icon: Megaphone,
     title: "Commercials & Ads",
-    price: "$1,500+",
-    unit: "per campaign",
+    price: "Custom quote",
+    unit: "custom",
     desc: "Platform-ready ad packs delivered in days, optimized to convert.",
     perks: ["16:9 + 9:16 + 1:1", "Subtitle pass", "Hook variations", "3-day delivery", "Platform QC"],
   },
   {
     Icon: Heart,
     title: "Wedding Cinema",
-    price: "$1,200+",
-    unit: "per film",
+    price: "Custom quote",
+    unit: "custom",
     desc: "Ceremony films and teasers edited into stories worth rewatching.",
     perks: ["Ceremony + highlight film", "Cinematic grade", "Licensed music", "Teaser in 7 days", "USB + cloud delivery"],
   },
   {
     Icon: Mic,
     title: "Podcast Editing",
-    price: "$450+",
-    unit: "per episode",
+    price: "Custom quote",
+    unit: "custom",
     desc: "Full episode cleanup plus a clip engine for Shorts and Reels.",
     perks: ["Audio repair & mixing", "Multicam switching", "Clip engine (3+ clips)", "Caption files", "Weekly scheduling"],
   },
@@ -85,7 +85,7 @@ const FAQ = [
   },
   {
     q: "Do you work with remote clients?",
-    a: "Everywhere. Roughly 80% of our clients are outside California. Timezone is never an excuse — we work async with a 24h response promise.",
+    a: "Everywhere. We serve clients across 12 countries. Timezone is never an excuse — we work async with a 24h response promise.",
   },
   {
     q: "What if I don't like the first cut?",
@@ -104,9 +104,9 @@ export default async function ServicesPage() {
       <section className="mx-auto max-w-7xl px-5 pb-24 pt-20 sm:px-8 space-y-20">
         <Reveal>
           <div className="mx-auto max-w-2xl text-center">
-            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-cyan-300">Services & pricing</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-cyan-300">Services</p>
             <h1 className="font-display mt-3 text-4xl font-bold text-white sm:text-6xl">
-              Transparent pricing, <span className="text-gradient">cinema-grade output</span>
+              Custom quotes, <span className="text-gradient">cinema-grade output</span>
             </h1>
             <p className="mt-4 text-slate-400">
               Every service includes structured revision rounds, a review link and delivery in every
@@ -122,7 +122,7 @@ export default async function ServicesPage() {
               <Tilt max={6} className="h-full">
                 <div className="glass card-glow flex h-full flex-col rounded-3xl p-6">
                   <div className="flex items-start justify-between">
-                    <div className="grid h-12 w-12 place-items-center rounded-2xl bg-gradient-to-br from-[#7357FF]/30 to-[#F4A62A]/15 text-brand-300">
+                    <div className="grid h-12 w-12 place-items-center rounded-2xl bg-gradient-to-br from-[#7357FF]/30 to-[#F4A62A]/10 text-brand-300">
                       <Icon size={22} />
                     </div>
                     <div className="text-right">
@@ -151,6 +151,15 @@ export default async function ServicesPage() {
             </Reveal>
           ))}
         </div>
+
+        {/* Long-form custom-rate note */}
+        <Reveal>
+          <p className="mx-auto max-w-3xl text-center text-sm leading-relaxed text-slate-400">
+            <span className="font-semibold text-white">Long-form rates are custom.</span> Every film, episode and
+            campaign is quoted individually — the final price depends on the footage length, complexity, revision
+            rounds and turnaround — and every rate is confirmed with you before we start.
+          </p>
+        </Reveal>
 
         {/* Interactive Rates & Investment Estimator */}
         <Reveal>

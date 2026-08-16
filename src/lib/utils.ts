@@ -60,7 +60,7 @@ export function money(value: unknown): number {
 
 export function fmtMoney(n: number | string | null | undefined): string {
   const v = money(n);
-  return v.toLocaleString("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 });
+  return v.toLocaleString("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 });
 }
 
 export function fmtDate(d: string | Date | null | undefined): string {

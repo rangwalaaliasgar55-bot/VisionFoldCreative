@@ -17,7 +17,7 @@ import {
   useApi,
 } from "@/components/AdminUI";
 import { fmtDate, timeAgo } from "@/lib/utils";
-import { KeyRound, MessageSquare, Plus, Send, X } from "lucide-react";
+import { KeyRound, MessageSquare, Plus, Search, Send, X } from "lucide-react";
 
 type ClientRow = {
   id: number;
@@ -121,6 +121,17 @@ export default function AdminClientsPage() {
     }
   }
 
+  const [query, setQuery] = useState("");
+  const filteredClients = (clients || []).filter((c) => {
+    const q = query.trim().toLowerCase();
+    if (!q) return true;
+    return (
+      c.name.toLowerCase().includes(q) ||
+      c.email.toLowerCase().includes(q) ||
+      (c.company || "").toLowerCase().includes(q)
+    );
+  });
+
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -128,19 +139,32 @@ export default function AdminClientsPage() {
           <h1 className="font-display text-2xl font-bold text-white">Clients</h1>
           <p className="text-sm text-slate-500">Portal accounts, status and direct chat</p>
         </div>
-        <Button onClick={() => setShowAdd(true)}>
-          <Plus size={14} /> Add client
-        </Button>
+        <div className="flex items-center gap-2">
+          <div className="relative">
+            <Search size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+            <input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search name, email, company…"
+              className="h-9 w-56 rounded-xl border border-white/10 bg-white/5 pl-9 pr-3 text-sm text-white placeholder:text-slate-500 outline-none transition-colors focus:border-brand-400/60 sm:w-64"
+            />
+          </div>
+          <Button onClick={() => setShowAdd(true)}>
+            <Plus size={14} /> Add client
+          </Button>
+        </div>
       </div>
 
       {loading ? (
         <Spinner />
-      ) : !clients || clients.length === 0 ? (
-        <Empty title="No clients yet" desc="Convert a lead or add a client manually to start a project." />
+      ) : !filteredClients.length ? (
+        query.trim()
+          ? <Empty title="No matches" desc="No clients match your search." />
+          : <Empty title="No clients yet" desc="Convert a lead or add a client manually to start a project." />
       ) : (
         <div className="grid gap-6 xl:grid-cols-[1fr_380px]">
           <div className="space-y-3">
-            {clients.map((c) => (
+            {filteredClients.map((c) => (
               <div key={c.id} className="glass flex flex-wrap items-center gap-4 rounded-2xl p-4">
                 <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-brand-600 to-cy-500 font-display text-lg font-bold text-white">
                   {c.name[0]?.toUpperCase()}
@@ -263,7 +287,7 @@ export default function AdminClientsPage() {
         {reset && (
           <div className="text-sm">
             <p className="text-slate-400">Temporary password for <span className="font-semibold text-white">{reset.name}</span>:</p>
-            <div className="mt-3 rounded-xl border border-cyan-400/20 bg-cyan-500/5 p-4 text-center font-mono text-lg text-cyan-200">
+            <div className="mt-3 rounded-xl border border-amber-400/20 bg-amber-500/5 p-4 text-center font-mono text-lg text-amber-200">
               {reset.password}
             </div>
           </div>

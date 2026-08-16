@@ -13,10 +13,12 @@ import Link from "next/link";
 export function Reveal({
   children,
   delay = 0,
+  variant = "up",
   className = "",
 }: {
   children: ReactNode;
   delay?: number;
+  variant?: "up" | "left" | "right" | "scale" | "fade";
   className?: string;
 }) {
   const ref = useRef<HTMLDivElement>(null);
@@ -31,17 +33,29 @@ export function Reveal({
           io.disconnect();
         }
       },
-      { threshold: 0.1 }
+      { threshold: 0.12, rootMargin: "0px 0px -8% 0px" }
     );
     io.observe(el);
     return () => io.disconnect();
   }, []);
+
+  const hidden =
+    variant === "left"
+      ? "-translate-x-10 opacity-0"
+      : variant === "right"
+      ? "translate-x-10 opacity-0"
+      : variant === "scale"
+      ? "scale-95 opacity-0"
+      : variant === "fade"
+      ? "opacity-0"
+      : "translate-y-8 opacity-0";
+
   return (
     <div
       ref={ref}
       style={{ transitionDelay: `${delay}ms` }}
       className={`transition-all duration-700 ease-out will-change-transform ${
-        on ? "translate-y-0 opacity-100" : "translate-y-8 opacity-0"
+        on ? "translate-x-0 translate-y-0 scale-100 opacity-100" : hidden
       } ${className}`}
     >
       {children}
@@ -118,15 +132,17 @@ export function Counter({
   suffix = "",
   duration = 1600,
   className = "",
+  decimals = 0,
 }: {
   to: number;
   prefix?: string;
   suffix?: string;
   duration?: number;
   className?: string;
+  decimals?: number;
 }) {
   const ref = useRef<HTMLSpanElement>(null);
-  const [value, setValue] = useState(0);
+  const [progress, setProgress] = useState(0);
   const started = useRef(false);
   useEffect(() => {
     const el = ref.current;
@@ -139,7 +155,7 @@ export function Counter({
           const tick = (now: number) => {
             const p = Math.min(1, (now - start) / duration);
             const eased = 1 - Math.pow(1 - p, 3);
-            setValue(Math.round(to * eased));
+            setProgress(eased);
             if (p < 1) requestAnimationFrame(tick);
           };
           requestAnimationFrame(tick);
@@ -154,7 +170,10 @@ export function Counter({
   return (
     <span ref={ref} className={className}>
       {prefix}
-      {value.toLocaleString()}
+      {(to * progress).toLocaleString("en-US", {
+        minimumFractionDigits: decimals,
+        maximumFractionDigits: decimals,
+      })}
       {suffix}
     </span>
   );
@@ -330,7 +349,7 @@ export function SplitCompare({
 
         {/* Raw Layer with Clip Path */}
         <div
-          className="absolute inset-y-0 right-0 overflow-hidden border-l-2 border-cyan-400"
+          className="absolute inset-y-0 right-0 overflow-hidden border-l-2 border-amber-400"
           style={{ width: `${100 - sliderPos}%` }}
         >
           <img
@@ -364,42 +383,28 @@ export function SplitCompare({
 }
 
 export function RatesCalculator() {
-  const [serviceType, setServiceType] = useState<"brand" | "youtube" | "commercial" | "music" | "podcast">("brand");
+  const [serviceType, setServiceType] = useState<"short" | "brand" | "youtube" | "commercial" | "music" | "podcast">("brand");
   const [videoCount, setVideoCount] = useState(1);
   const [rawFootageHours, setRawFootageHours] = useState(2);
   const [needsMotionGfx, setNeedsMotionGfx] = useState(true);
   const [fastTurnaround, setFastTurnaround] = useState(false);
 
-  const baseRates = {
-    brand: 2400,
-    youtube: 350,
-    commercial: 1500,
-    music: 1800,
-    podcast: 450,
-  };
-
-  const calculatedTotal = Math.round(
-    baseRates[serviceType] * videoCount +
-      (rawFootageHours > 2 ? (rawFootageHours - 2) * 150 : 0) +
-      (needsMotionGfx ? 250 * videoCount : 0) +
-      (fastTurnaround ? 400 * videoCount : 0)
-  );
-
   return (
     <div className="glass card-glow mx-auto max-w-3xl rounded-3xl p-6 sm:p-8 space-y-6">
       <div className="text-center space-y-2">
         <div className="inline-flex items-center gap-2 rounded-full bg-brand-500/10 px-3.5 py-1 text-xs font-semibold text-brand-300 border border-brand-400/20">
-          <Sparkles size={13} /> Transparent Pricing Calculator
+          <Sparkles size={13} /> Custom Quote Builder
         </div>
-        <h3 className="font-display text-2xl font-bold text-white sm:text-3xl">Estimate Your Project Investment</h3>
-        <p className="text-xs text-slate-400">Instant studio rate estimate with no surprise hidden fees.</p>
+        <h3 className="font-display text-2xl font-bold text-white sm:text-3xl">Tell Us About Your Project</h3>
+        <p className="text-xs text-slate-400">Answer a few questions — we&rsquo;ll send a custom quote within 24 hours.</p>
       </div>
 
       <div className="space-y-4">
         <div>
           <label className="text-xs font-semibold uppercase tracking-wider text-slate-400 block mb-2">Service Type</label>
-          <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
             {[
+              { id: "short", label: "Shorts" },
               { id: "brand", label: "Brand Film" },
               { id: "youtube", label: "YouTube Cut" },
               { id: "commercial", label: "Ad Suite" },
@@ -485,16 +490,15 @@ export function RatesCalculator() {
 
       <div className="rounded-2xl border border-white/10 bg-panel p-5 flex flex-wrap items-center justify-between gap-4">
         <div>
-          <p className="text-xs uppercase tracking-wider text-slate-400">Estimated Studio Investment</p>
-          <p className="font-display text-3xl sm:text-4xl font-bold text-gradient">
-            ${calculatedTotal.toLocaleString()}
-          </p>
+          <p className="text-xs uppercase tracking-wider text-slate-400">Your custom quote</p>
+          <p className="font-display text-2xl sm:text-3xl font-bold text-gradient">Priced to your brief</p>
+          <p className="mt-1 text-xs text-slate-400">Every rate is confirmed with you before we start — no hidden fees.</p>
         </div>
         <Link
-          href={`/contact?service=${serviceType}&budget=${calculatedTotal}`}
+          href={`/contact?service=${serviceType}`}
           className="rounded-full bg-brand-600 px-7 py-3 text-sm font-bold text-white shadow-lg shadow-brand-500/30 hover:bg-brand-500 transition-transform hover:scale-105"
         >
-          Lock In This Rate →
+          Request custom quote →
         </Link>
       </div>
     </div>

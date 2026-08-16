@@ -19,6 +19,7 @@ import {
   PenTool,
   PlayCircle,
   Sparkles,
+  Zap,
 } from "lucide-react";
 import { fmtDate } from "@/lib/utils";
 import { ensureSeed } from "@/lib/seed";
@@ -26,12 +27,13 @@ import { ensureSeed } from "@/lib/seed";
 export const dynamic = "force-dynamic";
 
 const SERVICES = [
-  { Icon: Clapperboard, title: "Brand Films", desc: "Launch films and brand stories that make people feel something — cut, graded and mixed to cinema standard.", price: "from $2,400" },
-  { Icon: MonitorPlay, title: "YouTube Editing", desc: "Retention-first edits with pacing, sound design and hooks engineered to hold watch-time.", price: "from $350 / video" },
-  { Icon: Music, title: "Music Videos", desc: "Rhythm cuts, film-grade color and VFX cleanup that make the song hit harder.", price: "from $1,800" },
-  { Icon: Megaphone, title: "Commercials & Ads", desc: "Platform-ready ad packs — 16:9, 9:16, 1:1 with subtitles — shipped in days, not weeks.", price: "from $1,500" },
-  { Icon: Heart, title: "Wedding Cinema", desc: "Ceremony films and teasers edited into stories you'll rewatch for decades.", price: "from $1,200" },
-  { Icon: Mic, title: "Podcast Editing", desc: "Full episode cleanup plus a clip engine that turns every episode into Shorts and Reels.", price: "from $450 / episode" },
+  { Icon: Clapperboard, title: "Brand Films", desc: "Launch films and brand stories that make people feel something — cut, graded and mixed to cinema standard.", price: "Custom quote" },
+  { Icon: MonitorPlay, title: "YouTube Editing", desc: "Retention-first edits with pacing, sound design and hooks engineered to hold watch-time.", price: "Custom quote" },
+  { Icon: Music, title: "Music Videos", desc: "Rhythm cuts, film-grade color and VFX cleanup that make the song hit harder.", price: "Custom quote" },
+  { Icon: Megaphone, title: "Commercials & Ads", desc: "Platform-ready ad packs — 16:9, 9:16, 1:1 with subtitles — shipped in days, not weeks.", price: "Custom quote" },
+  { Icon: Heart, title: "Wedding Cinema", desc: "Ceremony films and teasers edited into stories you'll rewatch for decades.", price: "Custom quote" },
+  { Icon: Mic, title: "Podcast Editing", desc: "Full episode cleanup plus a clip engine that turns every episode into Shorts and Reels.", price: "Custom quote" },
+  { Icon: Zap, title: "Shorts & Reels", desc: "Vertical edits for Instagram, Shorts and TikTok — hook, captions, sound design. Delivered in 24 hours.", price: "Custom quote" },
 ];
 
 const PROCESS = [
@@ -115,14 +117,14 @@ export default async function HomePage() {
           <Reveal delay={400}>
             <div className="mx-auto mt-14 grid max-w-3xl grid-cols-2 gap-4 sm:grid-cols-4">
               {[
-                { value: Number(settings.statsYears || 8), suffix: "+", label: "Years editing" },
-                { value: Number(settings.statsProjects || 420), suffix: "+", label: "Projects delivered" },
-                { value: Number(settings.statsClients || 160), suffix: "+", label: "Happy clients" },
-                { value: Number(settings.statsAwards || 14), suffix: "", label: "Awards & nods" },
+                { value: Number(settings.statsYears || 2), suffix: "", label: "Years editing" },
+                { value: Number(settings.statsRating || 4.9), suffix: "/5", label: "Client rating", decimals: 1 },
+                { value: Number(settings.statsCountries || 12), suffix: "", label: "Countries served" },
+                { value: Number(settings.statsTurnaround || 24), suffix: "h", label: "Turnaround time" },
               ].map((s) => (
                 <div key={s.label} className="glass rounded-2xl px-4 py-5">
                   <div className="font-display text-3xl font-bold text-white sm:text-4xl">
-                    <Counter to={s.value} suffix={s.suffix} />
+                    <Counter to={s.value} suffix={s.suffix} decimals={s.decimals || 0} />
                   </div>
                   <div className="mt-1 text-xs uppercase tracking-widest text-slate-500">{s.label}</div>
                 </div>
@@ -131,7 +133,7 @@ export default async function HomePage() {
           </Reveal>
           <div className="mt-16 flex justify-center">
             <div className="animate-scrollcue h-10 w-6 rounded-full border border-white/20 p-1.5">
-              <div className="mx-auto h-2 w-1 rounded-full bg-cyan-300" />
+              <div className="mx-auto h-2 w-1 rounded-full bg-amber-300" />
             </div>
           </div>
         </div>
@@ -189,7 +191,7 @@ export default async function HomePage() {
 
       {/* Before / After Color Grade & VFX Interactive Split */}
       <section className="mx-auto max-w-7xl px-5 py-12 sm:px-8">
-        <Reveal>
+        <Reveal variant="scale">
           <div className="mb-8 text-center">
             <p className="text-xs font-semibold uppercase tracking-[0.3em] text-cyan-300">Optical Standards</p>
             <h2 className="font-display mt-2 text-3xl font-bold text-white sm:text-5xl">
@@ -214,7 +216,7 @@ export default async function HomePage() {
           </Reveal>
           <div className="process-timeline relative z-10 mt-12 grid gap-5 md:grid-cols-2 lg:grid-cols-4">
             {PROCESS.map(({ Icon, step, title, desc }, i) => (
-              <Reveal key={step} delay={i * 90}>
+              <Reveal key={step} delay={i * 90} variant={i % 2 === 0 ? "left" : "right"}>
                 <div className="group relative h-full overflow-hidden rounded-3xl border border-white/8 bg-panel p-6 transition-colors hover:border-brand-400/40">
                   <span className="font-display absolute -right-2 -top-6 text-7xl font-bold text-white/4 transition-colors group-hover:text-brand-500/10">
                     {step}
@@ -368,7 +370,7 @@ export default async function HomePage() {
               </Link>
               <Link
                 href="/portal"
-                className="glass rounded-full border border-white/15 px-8 py-4 text-sm font-bold uppercase tracking-wider text-[#F6F3EC] transition-all hover:border-[#7357FF]/50 hover:text-white"
+                className="glass rounded-full border border-white/15 px-8 py-4 text-sm font-bold uppercase tracking-wider text-[#F6F3EC] transition-all hover:border-[#F4A62A]/50 hover:text-white"
               >
                 Open Client Portal
               </Link>

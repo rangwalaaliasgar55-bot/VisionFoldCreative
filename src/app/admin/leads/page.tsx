@@ -25,6 +25,7 @@ import {
   CheckCircle2,
   Copy,
   DollarSign,
+  FileSpreadsheet,
   Mail,
   MessageSquare,
   Phone,
@@ -45,21 +46,26 @@ type LeadRow = {
   budget: string;
   message: string;
   notes: string;
-  status: "new" | "contacted" | "won" | "lost";
+  status: "new" | "contacted" | "won" | "lost" | "done";
   source: string;
   createdAt: string;
 };
 
 export default function AdminLeadsPage() {
   const { data: leads, loading, reload } = useApi<LeadRow[]>("/api/admin/leads");
-  const [filter, setFilter] = useState<string>("all");
+  const [filter, setFilter] = useState<string>("active");
   const [search, setSearch] = useState<string>("");
   const [showAdd, setShowAdd] = useState(false);
+  const [showImport, setShowImport] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const [importText, setImportText] = useState<string>("");
+  const [importResult, setImportResult] = useState<{ inserted: number; skipped: number } | null>(null);
   const [editingLead, setEditingLead] = useState<LeadRow | null>(null);
   const [converting, setConverting] = useState<number | null>(null);
   const [aiProposalLead, setAiProposalLead] = useState<LeadRow | null>(null);
   const [proposalText, setProposalText] = useState<string>("");
   const [generatingProposal, setGeneratingProposal] = useState(false);
+  const [aiSource, setAiSource] = useState<"ai" | "template">("template");
 
   const [form, setForm] = useState({
     name: "",
@@ -76,7 +82,8 @@ export default function AdminLeadsPage() {
   const filtered = useMemo(() => {
     if (!leads) return [];
     return leads.filter((l) => {
-      const matchFilter = filter === "all" || l.status === filter;
+      const matchFilter =
+        filter === "done" ? l.status === "done" : filter === "active" ? l.status !== "done" : l.status === filter;
       const matchSearch =
         search === "" ||
         l.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -88,13 +95,15 @@ export default function AdminLeadsPage() {
   }, [leads, filter, search]);
 
   const stats = useMemo(() => {
-    if (!leads) return { total: 0, new: 0, contacted: 0, won: 0, conversion: 0 };
-    const total = leads.length;
-    const newL = leads.filter((l) => l.status === "new").length;
-    const contacted = leads.filter((l) => l.status === "contacted").length;
-    const won = leads.filter((l) => l.status === "won").length;
+    if (!leads) return { total: 0, new: 0, contacted: 0, won: 0, done: 0, conversion: 0 };
+    const active = leads.filter((l) => l.status !== "done");
+    const total = active.length;
+    const newL = active.filter((l) => l.status === "new").length;
+    const contacted = active.filter((l) => l.status === "contacted").length;
+    const won = active.filter((l) => l.status === "won").length;
+    const done = leads.filter((l) => l.status === "done").length;
     const conversion = total > 0 ? Math.round((won / total) * 100) : 0;
-    return { total, new: newL, contacted, won, conversion };
+    return { total, new: newL, contacted, won, done, conversion };
   }, [leads]);
 
   async function handleAdd(e: React.FormEvent) {
@@ -123,11 +132,45 @@ export default function AdminLeadsPage() {
   async function handleUpdateStatus(lead: LeadRow, nextStatus: LeadRow["status"]) {
     try {
       await api(`/api/admin/leads/${lead.id}`, { method: "PATCH", json: { status: nextStatus } });
-      toast(`Lead status set to ${nextStatus}`);
+      toast(nextStatus === "done" ? "Lead marked done and removed from the active pipeline." : `Lead status set to ${nextStatus}`);
       reload();
     } catch {
       toast("Failed to update status", "err");
     }
+  }
+
+  async function handleMarkDone(lead: LeadRow) {
+    await handleUpdateStatus(lead, "done");
+  }
+
+  async function handleImport() {
+    if (!importText.trim()) {
+      toast("Paste CSV rows or upload a file first.", "err");
+      return;
+    }
+    setImporting(true);
+    setImportResult(null);
+    try {
+      const res = await api<{ inserted: number; skipped: number }>("/api/admin/leads/import", {
+        json: { csv: importText },
+      });
+      setImportResult(res);
+      toast(`Imported ${res.inserted} leads (${res.skipped} skipped).`);
+      setImportText("");
+      reload();
+    } catch (err) {
+      toast(err instanceof Error ? err.message : "Import failed", "err");
+    } finally {
+      setImporting(false);
+    }
+  }
+
+  async function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const text = await file.text();
+    setImportText(text);
+    toast(`Loaded "${file.name}" — ${text.split("\n").length} lines. Review then click Import.`);
   }
 
   async function handleSaveNotes(e: React.FormEvent) {
@@ -172,13 +215,14 @@ export default function AdminLeadsPage() {
       const res = await api<{ text: string; source: string }>("/api/ai/assist", {
         json: {
           kind: "reply_lead",
-          input: `Client Name: ${lead.name}, Service: ${lead.service}, Budget: ${lead.budget}, Inquired: "${lead.message}"`,
+          input: `Client Name: ${lead.name}, Service: ${lead.service}, Budget: ${lead.budget || "not specified"}, Inquired: "${lead.message || lead.notes}"`,
         },
       });
       setProposalText(res.text);
+      setAiSource(res.source === "ai" ? "ai" : "template");
     } catch {
       setProposalText(
-        `Hi ${lead.name},\n\nThank you for reaching out to VisionFold Creative regarding your ${lead.service} project!\n\nWe've reviewed your brief: "${lead.message}". We would love to take on this cut and deliver studio-grade cinema color, sound design, and pacing.\n\nCould you share a Google Drive/Dropbox link to your raw footage and your target delivery deadline? We'll provide a milestone schedule within 24 hours.\n\nBest,\nAliasgar & VisionFold Studio Team`
+        `Hi ${lead.name},\n\nThank you for reaching out to VisionFold Creative regarding your ${lead.service} project!\n\nWe've reviewed your brief: "${lead.message}". We would love to take on this cut and deliver studio-grade cinema color, sound design, and pacing.\n\nCould you share a Google Drive/Dropbox link to your raw footage and your target delivery deadline? We'll provide a milestone schedule within 24 hours.\n\nBest,\nVisionFold Studio Team`
       );
     } finally {
       setGeneratingProposal(false);
@@ -203,9 +247,14 @@ export default function AdminLeadsPage() {
           <h1 className="font-display text-2xl font-bold text-white">Leads & Inquiries CRM</h1>
           <p className="text-sm text-slate-500">Track prospective clients, send proposals, and convert into projects</p>
         </div>
-        <Button onClick={() => setShowAdd(true)}>
-          <Plus size={15} /> Add new lead
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={() => { setImportResult(null); setImportText(""); setShowImport(true); }}>
+            <FileSpreadsheet size={15} /> Import sheet
+          </Button>
+          <Button onClick={() => setShowAdd(true)}>
+            <Plus size={15} /> Add new lead
+          </Button>
+        </div>
       </div>
 
       {/* KPI Stats */}
@@ -235,7 +284,7 @@ export default function AdminLeadsPage() {
       {/* Controls */}
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/8 bg-panel p-4">
         <div className="flex flex-wrap gap-1.5">
-          {(["all", "new", "contacted", "won", "lost"] as const).map((st) => (
+          {(["active", "new", "contacted", "won", "lost", "done"] as const).map((st) => (
             <button
               key={st}
               onClick={() => setFilter(st)}
@@ -245,7 +294,7 @@ export default function AdminLeadsPage() {
                   : "bg-white/5 text-slate-400 hover:bg-white/10 hover:text-white"
               }`}
             >
-              {st} {st !== "all" && leads ? `(${leads.filter((l) => l.status === st).length})` : ""}
+              {st} {leads ? `(${st === "active" ? leads.filter((l) => l.status !== "done").length : leads.filter((l) => l.status === st).length})` : ""}
             </button>
           ))}
         </div>
@@ -327,7 +376,20 @@ export default function AdminLeadsPage() {
                     <option value="contacted">Contacted</option>
                     <option value="won">Won</option>
                     <option value="lost">Lost</option>
+                    <option value="done">Done</option>
                   </Select>
+
+                  {/* Mark Done */}
+                  {lead.status !== "done" && (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => handleMarkDone(lead)}
+                      title="Mark this lead as done — it leaves the active pipeline"
+                    >
+                      <CheckCircle2 size={13} /> Done
+                    </Button>
+                  )}
 
                   {/* AI Proposal */}
                   <Button
@@ -355,7 +417,7 @@ export default function AdminLeadsPage() {
                   {cleanPhone && (
                     <a
                       href={`https://wa.me/${cleanPhone}?text=${encodeURIComponent(
-                        `Hi ${lead.name}, Aliasgar here from VisionFold Creative regarding your ${lead.service} inquiry!`
+                        `Hi ${lead.name}, this is the VisionFold Creative studio team regarding your ${lead.service} inquiry!`
                       )}`}
                       target="_blank"
                       rel="noopener noreferrer"
@@ -479,6 +541,7 @@ export default function AdminLeadsPage() {
                 <option value="contacted">Contacted</option>
                 <option value="won">Won</option>
                 <option value="lost">Lost</option>
+                <option value="done">Done</option>
               </Select>
             </Field>
             <Field label="Internal Notes & History">
@@ -508,12 +571,23 @@ export default function AdminLeadsPage() {
           wide
         >
           <div className="space-y-4">
-            <div className="rounded-xl border border-cyan-400/20 bg-cyan-500/5 p-3 text-xs text-slate-300">
+            <div className="rounded-xl border border-amber-400/20 bg-amber-500/5 p-3 text-xs text-slate-300">
               <p className="font-semibold text-cyan-300">Lead Context</p>
               <p className="mt-0.5">
                 Service: <strong>{aiProposalLead.service}</strong> · Budget: <strong>{aiProposalLead.budget || "Not specified"}</strong>
               </p>
-              <p className="mt-1 text-slate-400">“{aiProposalLead.message}”</p>
+              <p className="mt-1 text-slate-400">“{aiProposalLead.message || aiProposalLead.notes}”</p>
+            </div>
+
+            <div className="rounded-xl border border-brand-400/20 bg-brand-500/5 p-3 text-xs text-slate-400">
+              <p className="font-semibold text-brand-300">
+                {aiSource === "ai" ? "Generated by AI" : "AI not connected — using a smart template"}
+              </p>
+              <p className="mt-1 leading-relaxed">
+                {aiSource === "ai"
+                  ? "Drafted by your studio AI with these instructions: sound like a real, experienced producer — no corporate fluff, reference their actual brief, ask 1–2 concrete questions, under 110 words, clear next step. Edit below before sending."
+                  : "Set NVIDIA_API_KEY or GEMINI_API_KEY in Vercel to enable true AI drafting. Until then you get a professional, editable template."}
+              </p>
             </div>
 
             {generatingProposal ? (
@@ -557,6 +631,53 @@ export default function AdminLeadsPage() {
           </div>
         </Modal>
       )}
+
+      {/* Import Spreadsheet Modal */}
+      <Modal open={showImport} onClose={() => setShowImport(false)} title="Import Leads from Spreadsheet" wide>
+        <div className="space-y-4">
+          <div className="rounded-xl border border-brand-400/20 bg-brand-500/5 p-3 text-xs leading-relaxed text-slate-400">
+            <p className="font-semibold text-brand-300">No small limits — paste or upload a big sheet</p>
+            <p className="mt-1">
+              Accepts CSV (comma-separated). Column headers can be <strong>name, email, phone, service, budget, message, notes</strong> —
+              only <strong>name</strong> is required (and either email or phone). Rows are deduped by email/phone and imported in
+              batches (up to 10,000 rows at a time). Duplicate/empty rows are skipped and reported.
+            </p>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <label className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-xs font-semibold text-white transition hover:bg-white/10">
+              <FileSpreadsheet size={14} />
+              Upload .csv file
+              <input type="file" accept=".csv,.tsv,text/csv,text/plain" className="hidden" onChange={handleFileUpload} />
+            </label>
+            <span className="text-[11px] text-slate-500">or paste below</span>
+          </div>
+
+          <Field label="Paste CSV rows (first line = headers)">
+            <Textarea
+              rows={10}
+              value={importText}
+              onChange={(e) => setImportText(e.target.value)}
+              placeholder={"name,email,phone,service,budget,message\nRohan Sharma,rohan@brand.com,+91 90000 00000,YouTube Editing,₹50k,Weekly vlogs"}
+              className="font-mono text-xs"
+            />
+          </Field>
+
+          {importResult && (
+            <div className="rounded-xl border border-emerald-400/20 bg-emerald-500/5 p-3 text-xs text-slate-300">
+              ✅ Imported <strong>{importResult.inserted}</strong> leads
+              {importResult.skipped ? ` · skipped ${importResult.skipped} (duplicate/empty)` : ""}.
+            </div>
+          )}
+
+          <div className="flex justify-end gap-2 border-t border-white/8 pt-3">
+            <Button variant="ghost" onClick={() => setShowImport(false)}>Cancel</Button>
+            <Button onClick={handleImport} disabled={importing || !importText.trim()}>
+              {importing ? "Importing…" : "Import leads"}
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }

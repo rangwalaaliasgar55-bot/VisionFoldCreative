@@ -21,11 +21,42 @@ import {
   users,
   webhooks,
 } from "@/db/schema";
-import { count } from "drizzle-orm";
-import { hashPassword } from "@/lib/auth";
+import { count, eq } from "drizzle-orm";
+import { hashPassword, verifyPassword } from "@/lib/auth";
 import { DEFAULT_SETTINGS } from "@/lib/settings";
 
 let seedPromise: Promise<void> | null = null;
+
+/** Admin credential source of truth (env override, else the studio default). */
+export function getAdminCredentials() {
+  const email = (process.env.ADMIN_EMAIL || "visionfoldcreative@gmail.com").toLowerCase();
+  const password = process.env.ADMIN_PASSWORD || "aliasgar134";
+  return { email, password };
+}
+
+/**
+ * Always ensure the owner account can sign in, regardless of DB state:
+ * - creates the admin if missing
+ * - upgrades accounts still sitting on the legacy 'demo1234' seed default
+ * (runs on every request via ensureSeed — idempotent and cheap)
+ */
+export async function ensureAdmin() {
+  const { email, password } = getAdminCredentials();
+  const rows = await db.select().from(users).where(eq(users.email, email)).limit(1);
+  const admin = rows[0];
+  if (!admin) {
+    await db
+      .insert(users)
+      .values({ email, name: "VisionFold Studio", passwordHash: hashPassword(password), role: "admin" });
+    return;
+  }
+  if (password !== "demo1234" && verifyPassword("demo1234", admin.passwordHash)) {
+    await db
+      .update(users)
+      .set({ passwordHash: hashPassword(password), name: admin.name || "VisionFold Studio" })
+      .where(eq(users.id, admin.id));
+  }
+}
 
 export async function ensureSeed() {
   if (!seedPromise) {
@@ -38,6 +69,7 @@ export async function ensureSeed() {
     });
   }
   await seedPromise;
+  await ensureAdmin();
 }
 
 export async function resetSeed() {
@@ -87,11 +119,13 @@ async function runSeed(force: boolean) {
 
     // 2. Users (Admin) — credentials come from ADMIN_EMAIL / ADMIN_PASSWORD.
     const isProd = process.env.NODE_ENV === "production" || Boolean(process.env.VERCEL);
-    const adminEmail = (process.env.ADMIN_EMAIL || "visionfoldcreative@gmail.com").toLowerCase();
-    const adminPassword = process.env.ADMIN_PASSWORD || "demo1234";
+    // Demo people (fake clients/leads/messages/activity) only seed when asked for,
+    // or in local development. Production stays clean of placeholder names.
+    const seedDemo = process.env.SEED_DEMO === "true" || !isProd;
+    const { email: adminEmail, password: adminPassword } = getAdminCredentials();
     if (isProd && !process.env.ADMIN_PASSWORD) {
       console.warn(
-        "[seed] WARNING: ADMIN_PASSWORD env var is not set — the well-known demo password is active. " +
+        "[seed] WARNING: ADMIN_PASSWORD env var is not set — the default admin password is active. " +
         "Set ADMIN_PASSWORD (and rotate it) in your deployment environment."
       );
     }
@@ -99,18 +133,17 @@ async function runSeed(force: boolean) {
     await db.insert(users).values([
       {
         email: adminEmail,
-        name: "VisionFold Owner",
-        passwordHash: adminHash,
-        role: "admin",
-      },
-      {
-        email: "admin@visionfold.com",
-        name: "Studio Lead",
+        name: "VisionFold Studio",
         passwordHash: adminHash,
         role: "admin",
       },
     ]);
 
+    // Hoisted ids — referenced by later demo sections (ratings, activity, annotations, deliverables)
+    let c1 = 1, c2 = 2, c3 = 3, c4 = 4;
+    let p1 = 1, p2 = 2, p3 = 3, p4 = 4;
+
+    if (seedDemo) {
     // 3. Clients (demo accounts — override-able via CLIENT_DEMO_PASSWORD)
     const clientHash = hashPassword(process.env.CLIENT_DEMO_PASSWORD || "demo1234");
     const clientRows = await db
@@ -155,10 +188,10 @@ async function runSeed(force: boolean) {
       ])
       .returning();
 
-    const c1 = clientRows[0]?.id ?? 1;
-    const c2 = clientRows[1]?.id ?? 2;
-    const c3 = clientRows[2]?.id ?? 3;
-    const c4 = clientRows[3]?.id ?? 4;
+    c1 = clientRows[0]?.id ?? 1;
+    c2 = clientRows[1]?.id ?? 2;
+    c3 = clientRows[2]?.id ?? 3;
+    c4 = clientRows[3]?.id ?? 4;
 
     // 4. Projects
     const projectRows = await db
@@ -172,7 +205,7 @@ async function runSeed(force: boolean) {
           status: "review",
           progress: 85,
           dueDate: "2026-08-25",
-          budget: "2800.00",
+          budget: "230000.00",
         },
         {
           clientId: c2,
@@ -182,7 +215,7 @@ async function runSeed(force: boolean) {
           status: "in_progress",
           progress: 60,
           dueDate: "2026-09-02",
-          budget: "4500.00",
+          budget: "375000.00",
         },
         {
           clientId: c3,
@@ -192,7 +225,7 @@ async function runSeed(force: boolean) {
           status: "revision",
           progress: 90,
           dueDate: "2026-08-20",
-          budget: "1650.00",
+          budget: "135000.00",
         },
         {
           clientId: c4,
@@ -202,7 +235,7 @@ async function runSeed(force: boolean) {
           status: "completed",
           progress: 100,
           dueDate: "2026-08-10",
-          budget: "850.00",
+          budget: "70000.00",
         },
         {
           clientId: c1,
@@ -212,15 +245,15 @@ async function runSeed(force: boolean) {
           status: "intake",
           progress: 20,
           dueDate: "2026-09-15",
-          budget: "2200.00",
+          budget: "180000.00",
         },
       ])
       .returning();
 
-    const p1 = projectRows[0]?.id ?? 1;
-    const p2 = projectRows[1]?.id ?? 2;
-    const p3 = projectRows[2]?.id ?? 3;
-    const p4 = projectRows[3]?.id ?? 4;
+    p1 = projectRows[0]?.id ?? 1;
+    p2 = projectRows[1]?.id ?? 2;
+    p3 = projectRows[2]?.id ?? 3;
+    p4 = projectRows[3]?.id ?? 4;
 
     // 5. Updates
     await db.insert(updates).values([
@@ -284,7 +317,7 @@ async function runSeed(force: boolean) {
       {
         clientId: c2,
         sender: "client",
-        body: "Hi Aliasgar, we just uploaded the additional 8K B-roll clips for the robotic arm demo.",
+        body: "Hi VisionFold team, we just uploaded the additional 8K B-roll clips for the robotic arm demo.",
         read: true,
       },
       {
@@ -369,7 +402,7 @@ async function runSeed(force: boolean) {
         email: "david@vertexgames.com",
         phone: "+1 (555) 620-1192",
         service: "Commercials & Ads",
-        budget: "$3,000 - $5,000",
+        budget: "₹2,50,000 - ₹4,00,000",
         message: "We need a cinematic gameplay trailer for our upcoming Unreal Engine 5 sci-fi RPG launch.",
         notes: "High potential. Sent preliminary brief questionnaire.",
         status: "contacted",
@@ -380,7 +413,7 @@ async function runSeed(force: boolean) {
         email: "amara@soundscapemedia.co",
         phone: "+1 (555) 819-4402",
         service: "Music Video",
-        budget: "$2,000 - $3,500",
+        budget: "₹1,60,000 - ₹2,80,000",
         message: "Shooting a high-fashion Afro-fusion music video in London next month. Looking for rhythmic editing and film color.",
         notes: "Followed up with showreel link.",
         status: "new",
@@ -391,7 +424,7 @@ async function runSeed(force: boolean) {
         email: "liam@techstackpod.io",
         phone: "+1 (555) 304-9912",
         service: "Podcast Editing",
-        budget: "$1,500 / month",
+        budget: "₹1,20,000 / month",
         message: "Need 4 full podcast episodes per month plus 20 viral Shorts/Reels extracted with burned-in subtitles.",
         notes: "Quote accepted, converting to client soon.",
         status: "won",
@@ -402,13 +435,15 @@ async function runSeed(force: boolean) {
         email: "chloe@luxemaison.fr",
         phone: "+33 6 12 34 56 78",
         service: "Brand Films",
-        budget: "$6,000+",
+        budget: "₹5,00,000+",
         message: "Paris Fashion Week recap film and 10 social teasers for luxury perfume brand.",
         notes: "Call scheduled for Thursday.",
         status: "contacted",
         source: "website",
       },
     ]);
+
+    }
 
     // 9. Portfolio
     await db.insert(portfolio).values([
@@ -468,37 +503,40 @@ async function runSeed(force: boolean) {
       },
     ]);
 
-    // 10. Ratings
+    if (seedDemo) {
+    // 10. Ratings (demo reviews stay hidden — only real client reviews are public)
     await db.insert(ratings).values([
       {
         clientId: c1,
         projectId: p1,
         stars: 5,
-        comment: "Aliasgar and the VisionFold team elevated our music video beyond expectations. The sound design and color grading are pure Hollywood quality.",
-        visible: true,
+        comment: "The VisionFold team elevated our music video beyond expectations. The sound design and color grading are pure Hollywood quality.",
+        visible: false,
       },
       {
         clientId: c2,
         projectId: p2,
         stars: 5,
         comment: "Flawless communication and lightning-fast revision rounds. Our hardware launch film got 1.4M views in the first 48 hours.",
-        visible: true,
+        visible: false,
       },
       {
         clientId: c3,
         projectId: p3,
         stars: 5,
         comment: "The hook pacing and kinetic text generated a 3.8x ROAS on our Meta ad spend. VisionFold is our secret weapon.",
-        visible: true,
+        visible: false,
       },
       {
         clientId: c4,
         projectId: p4,
         stars: 5,
         comment: "Average watch-time on our YouTube channel jumped from 38% to 64% after switching to VisionFold edits. Highly recommend!",
-        visible: true,
+        visible: false,
       },
     ]);
+
+    }
 
     // 11. Categories & Posts (WordPress Headless CMS)
     const catRows = await db
@@ -695,10 +733,11 @@ Eliminate 50-email revision chains. Time-stamped pinpoint feedback keeps the ent
       },
     ]);
 
+    if (seedDemo) {
     // 14. Activity Log
     await db.insert(activity).values([
       {
-        actor: "Aliasgar",
+        actor: "Studio",
         action: "Exported Render",
         details: "Rendered 4K ProRes master for Cyberpunk Neon Beat (v2).",
       },
@@ -715,9 +754,11 @@ Eliminate 50-email revision chains. Time-stamped pinpoint feedback keeps the ent
       {
         actor: "System",
         action: "Invoice Paid",
-        details: "Invoice VF-2026-003 marked paid ($1,650.00).",
+        details: "Invoice VF-2026-003 marked paid (₹1,35,000).",
       },
     ]);
+
+    }
 
     // 15. Quotas & Limits
     await db.insert(quotas).values({
@@ -731,6 +772,7 @@ Eliminate 50-email revision chains. Time-stamped pinpoint feedback keeps the ent
       alertThresholdPercent: 80,
     });
 
+    if (seedDemo) {
     // 16. Frame Annotations
     await db.insert(frameAnnotations).values([
       {
@@ -786,6 +828,8 @@ Eliminate 50-email revision chains. Time-stamped pinpoint feedback keeps the ent
         downloadUrl: "https://assets.mixkit.co/videos/preview/mixkit-young-woman-running-on-the-beach-at-sunset-41484-large.mp4",
       },
     ]);
+
+    }
 
     // 18. Webhooks
     await db.insert(webhooks).values([

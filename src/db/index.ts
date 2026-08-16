@@ -236,6 +236,25 @@ CREATE TABLE IF NOT EXISTS webhooks (
   last_triggered_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+CREATE TABLE IF NOT EXISTS visitors (
+  id TEXT PRIMARY KEY,
+  path TEXT NOT NULL DEFAULT '/',
+  first_seen TIMESTAMPTZ DEFAULT NOW(),
+  last_seen TIMESTAMPTZ DEFAULT NOW(),
+  page_views INTEGER NOT NULL DEFAULT 1
+);
+
+CREATE TABLE IF NOT EXISTS wa_messages (
+  id SERIAL PRIMARY KEY,
+  "from" TEXT NOT NULL,
+  "to" TEXT NOT NULL DEFAULT '',
+  direction TEXT NOT NULL DEFAULT 'inbound',
+  body TEXT NOT NULL DEFAULT '',
+  status TEXT NOT NULL DEFAULT 'received',
+  auto_replied BOOLEAN NOT NULL DEFAULT false,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
 `;
 
 function wrapQuery(origQuery: any) {
@@ -312,3 +331,6 @@ if (databaseUrl) {
 
 export const pool = clientPool;
 export const db = drizzle(pool, { schema });
+
+/** True when DATABASE_URL is absent and data lives in per-instance memory. */
+export const isMemoryDb = !databaseUrl;

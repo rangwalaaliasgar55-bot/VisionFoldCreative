@@ -3,6 +3,10 @@ import { getSettings } from "@/lib/settings";
 import { readSession } from "@/lib/auth";
 import { Countdown } from "@/components/Fx";
 import { Logo, SiteFooter, SiteHeader } from "@/components/SiteChrome";
+import ScrollProgress from "@/components/ScrollProgress";
+import VisionRunner from "@/components/VisionRunner";
+import FloatingWhatsApp from "@/components/FloatingWhatsApp";
+import LiveTracker from "@/components/LiveTracker";
 
 export const dynamic = "force-dynamic";
 
@@ -46,9 +50,13 @@ export default async function PublicLayout({ children }: { children: ReactNode }
 
   return (
     <>
+      <ScrollProgress />
       <SiteHeader title={String(settings.siteTitle)} />
-      <main className="min-h-screen pt-16">{children}</main>
+      <main className="animate-page-in min-h-screen pt-16">{children}</main>
       <SiteFooter settings={settings} />
+      <VisionRunner />
+      <FloatingWhatsApp number={String(settings.whatsapp || "")} />
+      <LiveTracker />
     </>
   );
 }

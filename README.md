@@ -27,7 +27,7 @@
 <tr><td width="50%">
 
 ### 🎬 Public marketing site
-Cinematic dark-first design (ink · violet · amber), Three.js hero with an interactive client globe, editorial blog, services & portfolio pages, CMS-driven custom pages at `/p/[slug]`, contact → lead pipeline, newsletter, and a WordPress-compatible API surface (`/api/wp/v2/*`) for SEO tooling.
+Cinematic dark-first design (ink · violet · amber), Three.js hero with an interactive client globe (drag to rotate), scroll-triggered reveal animations + reading-progress bar, editorial blog, services & portfolio pages, CMS-driven custom pages at `/p/[slug]`, contact → lead pipeline, newsletter, and a WordPress-compatible API surface (`/api/wp/v2/*`) for SEO tooling. A floating WhatsApp chat button (real studio number) and a brand-themed easter egg — **VisionFold Runner** (a dino-style mini game) — keep visitors engaged.
 
 </td><td width="50%">
 
@@ -79,7 +79,16 @@ npm run build && npm run typecheck && npm run lint
 | `PAYMENT_CHECKOUT_URL` | ➖ | Hosted checkout base URL for portal invoices. **Invoices are never marked paid from the browser.** |
 | `RESEND_API_KEY`, `RESEND_FROM_EMAIL`, `NOTIFICATION_EMAIL` | ➖ | Outbound inquiry emails. |
 | `CLIENT_DEMO_PASSWORD` | ➖ | Password for seeded demo clients (default `demo1234` — dev only). |
+| `SEED_DEMO` | ➖ | Set `"true"` to seed sample people (clients/leads/messages/reviews). Production stays clean by default. |
+| `GOOGLE_PLACES_API_KEY` | ➖ | Powers `/admin/prospects` — search businesses on Google Maps to pitch. |
+| `WHATSAPP_TOKEN` + `WHATSAPP_PHONE_NUMBER_ID` | ➖ | WhatsApp Cloud API (send messages + webhook inbox). |
+| `WHATSAPP_BUSINESS_NUMBER` | ➖ | Your number in E.164 (`+917725004639`). |
+| `WHATSAPP_VERIFY_TOKEN` | ➖ | Webhook verification secret (any value you pick). |
+| `WHATSAPP_AUTO_REPLY` | ➖ | `"true"` to let the AI auto-answer inbound WhatsApp messages. |
 | `APP_URL` | ➖ | Canonical URL used in metadata/emails. |
+
+> **Default admin (first seed):** `visionfoldcreative@gmail.com` / `aliasgar134` — set `ADMIN_EMAIL` + `ADMIN_PASSWORD` to override, and rotate it after first login.
+> **Demo portal (requires `SEED_DEMO=true`):** `client@visionfold.com` / `demo1234`.
 
 ### Database setup (Supabase)
 

@@ -324,10 +324,10 @@ export function ClientsGlobeSection() {
 
         <div className="mb-8 grid grid-cols-2 gap-3 sm:grid-cols-4 max-w-3xl mx-auto">
           {[
-            { label: "15+ Countries", sub: "Global Clients" },
-            { label: "Indore & Global", sub: "Production HQ" },
-            { label: "420+ Projects", sub: "Master Delivered" },
-            { label: "24h SLA", sub: "Async Turnaround" },
+            { label: "12 Countries", sub: "Global Clients" },
+            { label: "2 Years", sub: "Editing Experience" },
+            { label: "4.9/5", sub: "Client Rating" },
+            { label: "24h", sub: "Turnaround" },
           ].map((s) => (
             <div key={s.label} className="glass rounded-2xl p-4 text-center">
               <p className="font-display text-xl font-bold text-white">{s.label}</p>

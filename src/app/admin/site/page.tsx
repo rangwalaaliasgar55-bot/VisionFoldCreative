@@ -54,15 +54,35 @@ export default function AdminSitePage() {
   const [pw, setPw] = useState({ current: "", next: "" });
 
   const [hero, setHero] = useState<Settings | null>(null);
-  if (settings && !hero) setHero({ ...settings });
+  const [heroSource, setHeroSource] = useState<Settings | null>(null);
+  if (settings && settings !== heroSource) {
+    setHeroSource(settings);
+    setHero({ ...settings });
+  }
 
   const [maintenance, setMaintenance] = useState<Settings | null>(null);
-  if (settings && !maintenance)
+  const [maintenanceSource, setMaintenanceSource] = useState<Settings | null>(null);
+  if (settings && settings !== maintenanceSource) {
+    setMaintenanceSource(settings);
     setMaintenance({
       maintenanceOn: settings.maintenanceOn,
       maintenanceMessage: settings.maintenanceMessage,
       maintenanceEndsAt: settings.maintenanceEndsAt,
     });
+  }
+
+  const [memoryMode, setMemoryMode] = useState(false);
+
+  // Warn when the app runs on in-memory storage (no DATABASE_URL) — edits would not persist.
+  useEffect(() => {
+    const initial = window.setTimeout(() => {
+      fetch("/api/health")
+        .then((res) => (res.ok ? res.json() : null))
+        .then((h: any) => setMemoryMode(h?.storage === "memory"))
+        .catch(() => {});
+    }, 0);
+    return () => clearTimeout(initial);
+  }, []);
 
   const [mediaForm, setMediaForm] = useState({ name: "", url: "", type: "image" });
 
@@ -180,6 +200,17 @@ export default function AdminSitePage() {
         <p className="text-sm text-slate-500">Edit content live, configure plan quotas, manage media, and customize branding</p>
       </div>
 
+      {memoryMode && (
+        <div className="rounded-2xl border border-amber-400/30 bg-amber-500/10 p-4 text-xs leading-relaxed text-amber-200">
+          <p className="font-semibold">⚠️ Running on in-memory storage — your edits will not persist.</p>
+          <p className="mt-1 text-amber-200/80">
+            <code className="font-mono">DATABASE_URL</code> is not set in Vercel, so the site falls back to temporary memory and
+            resets on every deploy/cold start. That&rsquo;s why changes you publish here don&rsquo;t stick on the live site.
+            Set <code className="font-mono">DATABASE_URL</code> to your Supabase connection string (port 6543), then redeploy.
+          </p>
+        </div>
+      )}
+
       <Tabs
         tabs={["Live Editor", "Plan & Quotas", "Maintenance", "Media Library", "Account & Data"]}
         active={tab}
@@ -204,9 +235,9 @@ export default function AdminSitePage() {
                   <Input value={hero.heroCta} onChange={(e) => set("heroCta", e.target.value)} />
                 </Field>
                 <div className="grid grid-cols-2 gap-3">
-                  {(["statsYears", "statsProjects", "statsClients", "statsAwards"] as const).map((k) => (
+                  {(["statsYears", "statsRating", "statsCountries", "statsTurnaround"] as const).map((k) => (
                     <Field key={k} label={k.replace("stats", "")}>
-                      <Input type="number" value={hero[k]} onChange={(e) => set(k, Number(e.target.value))} />
+                      <Input type="number" step={k === "statsRating" ? "0.1" : "1"} value={hero[k]} onChange={(e) => set(k, Number(e.target.value))} />
                     </Field>
                   ))}
                 </div>
@@ -260,12 +291,12 @@ export default function AdminSitePage() {
                 <div className="mt-8 grid grid-cols-4 gap-3">
                   {[
                     [hero.statsYears, "Years"],
-                    [hero.statsProjects, "Projects"],
-                    [hero.statsClients, "Clients"],
-                    [hero.statsAwards, "Awards"],
+                    [`${hero.statsRating}/5`, "Rating"],
+                    [hero.statsCountries, "Countries"],
+                    [`${hero.statsTurnaround}h`, "Turnaround"],
                   ].map(([v, l]) => (
                     <div key={String(l)} className="glass rounded-xl py-3">
-                      <p className="font-display text-xl font-bold text-white">{v}+</p>
+                      <p className="font-display text-xl font-bold text-white">{v}</p>
                       <p className="text-[9px] uppercase tracking-widest text-slate-500">{l}</p>
                     </div>
                   ))}
