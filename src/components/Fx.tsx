@@ -11,6 +11,7 @@ import { Film, Sliders, Sparkles, Star } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 import { VideoLightbox, parseVideo, type ParsedVideo } from "@/components/VideoLightbox";
+import { workPath } from "@/lib/slug";
 import {
   CSS_EASE,
   DUR,
@@ -880,16 +881,7 @@ export function PortfolioFilterGrid({
           >
           <Tilt max={7} className="h-full">
             <Link
-              href={item.videoUrl || "/contact"}
-              target={item.videoUrl && !parseVideo(item.videoUrl) ? "_blank" : undefined}
-              rel={item.videoUrl && !parseVideo(item.videoUrl) ? "noopener noreferrer" : undefined}
-              onClick={(e) => {
-                const video = parseVideo(item.videoUrl);
-                if (!video) return; // not embeddable — let the link behave normally
-                e.preventDefault();
-                setPlaying({ video, title: item.title });
-              }}
-              aria-haspopup={parseVideo(item.videoUrl) ? "dialog" : undefined}
+              href={workPath(item)}
               className="group block h-full overflow-hidden rounded-3xl border border-white/8 bg-panel transition-all hover:border-brand-400/40"
             >
               <div className="relative h-60 overflow-hidden bg-ink">
@@ -901,12 +893,24 @@ export function PortfolioFilterGrid({
                   className="object-cover transition-transform duration-700 group-hover:scale-110"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent" />
-                {item.videoUrl ? (
-                  <div className="absolute inset-0 grid place-items-center opacity-0 transition-opacity duration-300 group-hover:opacity-100">
-                    <div className="glow-ring grid h-14 w-14 place-items-center rounded-full bg-brand-600/90 text-white backdrop-blur shadow-2xl transition-transform group-hover:scale-110">
+                {parseVideo(item.videoUrl) ? (
+                  <button
+                    type="button"
+                    aria-label={`Play ${item.title}`}
+                    aria-haspopup="dialog"
+                    onClick={(e) => {
+                      // Play in place; the card itself still goes to the case study.
+                      e.preventDefault();
+                      e.stopPropagation();
+                      const video = parseVideo(item.videoUrl);
+                      if (video) setPlaying({ video, title: item.title });
+                    }}
+                    className="absolute inset-0 grid place-items-center opacity-0 transition-opacity duration-300 group-hover:opacity-100 focus-visible:opacity-100"
+                  >
+                    <span className="glow-ring grid h-14 w-14 place-items-center rounded-full bg-brand-600/90 text-white shadow-2xl backdrop-blur transition-transform group-hover:scale-110">
                       <Film size={22} className="text-white" />
-                    </div>
-                  </div>
+                    </span>
+                  </button>
                 ) : null}
                 <span className="absolute left-4 top-4 rounded-full bg-black/60 px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-cyan-300 backdrop-blur-md">
                   {item.category}
@@ -925,7 +929,7 @@ export function PortfolioFilterGrid({
                 <div className="flex items-center justify-between border-t border-white/8 pt-3 text-[11px] text-slate-500">
                   <span>Year: {item.year}</span>
                   <span className="text-cyan-300 font-semibold group-hover:translate-x-0.5 transition-transform">
-                    {parseVideo(item.videoUrl) ? "Play master cut ▸" : "View Master Cut →"}
+                    Read the case study →
                   </span>
                 </div>
               </div>

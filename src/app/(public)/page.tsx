@@ -22,6 +22,8 @@ import {
   Zap,
 } from "lucide-react";
 import { fmtDate } from "@/lib/utils";
+import { workPath } from "@/lib/slug";
+import { Faq } from "@/components/Faq";
 import { ensureSeed } from "@/lib/seed";
 
 export const dynamic = "force-dynamic";
@@ -69,7 +71,7 @@ export default async function HomePage() {
     title: w.title,
     thumbnailUrl: w.thumbnailUrl,
     category: w.category,
-    href: "/work",
+    href: workPath(w),
   }));
 
   return (
@@ -348,6 +350,13 @@ export default async function HomePage() {
           </div>
         </section>
       )}
+
+      {/* FAQ — answers the questions that otherwise arrive one email at a time */}
+      <section className="mx-auto max-w-7xl px-5 py-20 sm:px-8">
+        <Reveal>
+          <Faq />
+        </Reveal>
+      </section>
 
       {/* CTA Box */}
       <section className="mx-auto max-w-7xl px-5 pb-8 sm:px-8">

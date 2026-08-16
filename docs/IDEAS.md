@@ -12,7 +12,7 @@ generic filler, nothing already built. Pick from it in any order.
 
 | # | Item | Why | Effort |
 | --- | --- | --- | --- |
-| 1 | Case-study pages `/work/[slug]` | Portfolio items have no URL today. Nothing to send a prospect, nothing to index. | M |
+| 1 | ~~Case-study pages `/work/[slug]`~~ **DONE** | Every project now has a shareable, indexed URL. | ✅ |
 | 2 | Packages page with three real prices | "Custom quote" filters out everyone who just wants a ballpark. | M · blocked |
 | 3 | Instant estimate range in the quote builder | A range beats silence; you keep the final say. | M · blocked |
 | 4 | Shareable quote links | Encode the config in a URL so a client can forward it internally. | S |
@@ -20,7 +20,7 @@ generic filler, nothing already built. Pick from it in any order.
 | 6 | Delivery-date estimator | "Brief today → first cut by the 14th" is more persuasive than "3–5 days". | S |
 | 7 | Real client logos replacing the placeholder marquee | The current names are invented; real ones are proof. | S · blocked |
 | 8 | Video testimonials | Fifteen seconds of a client talking beats any star rating on a site selling video. | M · blocked |
-| 9 | FAQ section with `FAQPage` schema | Answers objections and wins rich results. | S |
+| 9 | ~~FAQ section with `FAQPage` schema~~ **DONE** | Nine real answers on the home page, with schema. | ✅ |
 | 10 | "Freelancer vs us vs agency" comparison table | Names the alternatives instead of pretending they don't exist. | S |
 | 11 | WhatsApp CTA prefilled with the quote spec | Removes retyping for the people who prefer chat. | S |
 | 12 | Booking embed for people who do want a call | "No calls required" shouldn't mean "no calls possible". | S |
@@ -37,7 +37,7 @@ generic filler, nothing already built. Pick from it in any order.
 | 18 | Metrics block ("watch time +40%") | Numbers convert marketers. | S |
 | 19 | Client quote pulled into the case study | Third-party voice inside your own argument. | S |
 | 20 | Related projects at the foot of each page | Keeps people moving through the work. | S |
-| 21 | `CreativeWork` + `VideoObject` structured data | Video rich results in search. | S |
+| 21 | ~~`CreativeWork` + `VideoObject` structured data~~ **DONE** | Shipped with the case-study pages. | ✅ |
 | 22 | Auto-generated OG image per project | Links to your work look designed when shared. | M |
 | 23 | Filter by industry as well as format | Prospects self-identify by their sector, not by "16:9". | S |
 | 24 | Password-protected private case studies | Some client work can't be public — show it selectively. | M |
@@ -84,7 +84,7 @@ generic filler, nothing already built. Pick from it in any order.
 | 50 | Scroll-scrubbed before/after on case studies | The grade reveals itself as you read. | M |
 | 51 | Pinned section headers while scrolling | Editorial-magazine feel, cheap to do. | M |
 | 52 | Hero video loop behind the headline | Real work outperforms generated geometry. | M · blocked |
-| 53 | Reel cards linking to their case study | Turns the home page into a funnel. | S |
+| 53 | ~~Reel cards linking to their case study~~ **DONE** | The 3D reel and the work grid both link through. | ✅ |
 | 54 | Magnetic cursor on primary CTAs | Subtle pull toward the one action that matters. | S |
 | 55 | Page-load "shutter" transition | Brand-appropriate — you fold stories into motion. | M |
 | 56 | Animated number counters on case-study metrics | The Counter component already exists. | S |
@@ -123,7 +123,7 @@ generic filler, nothing already built. Pick from it in any order.
 
 | # | Item | Why | Effort |
 | --- | --- | --- | --- |
-| 77 | Vercel cron schedule for the automations | They work, but only when you click *Run now*. | S |
+| 77 | ~~Vercel cron schedule~~ **ALREADY EXISTED** | `vercel.json` runs the job daily at 06:00 UTC. | ✅ |
 | 78 | Saved reply snippets in the admin | You answer the same five questions weekly. | S |
 | 79 | Lead scoring (budget, service, completeness) | Reply to the best briefs first. | M |
 | 80 | Proposal generator from a lead | Brief → formatted proposal → PDF. | L |
@@ -164,11 +164,11 @@ generic filler, nothing already built. Pick from it in any order.
 
 **Next five, in order:**
 
-1. **#1 case-study pages** — biggest SEO and sales gain available, blocked on nothing
-2. **#77 cron schedule** — five minutes, makes the automations actually autonomous
+1. ~~#1 case-study pages~~ ✅ done
+2. ~~#53 reel → case study~~ ✅ done
 3. **#39 ISR** — every page hit currently queries the database
-4. **#53 reel → case study** — one line once #1 exists, turns the home page into a funnel
-5. **#89 + #90 tests and CI** — locks in everything built so far
+4. **#89 + #90 tests and CI** — locks in everything built so far
+5. **#22 auto-generated OG images** — case-study links now exist to be shared
 
 **Highest value that needs you first:** #2 packages pricing (a business decision),
 #7 real client logos, #8 video testimonials, #82 payment links.

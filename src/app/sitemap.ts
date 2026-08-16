@@ -1,8 +1,9 @@
 import type { MetadataRoute } from "next";
 import { db } from "@/db";
-import { posts } from "@/db/schema";
+import { portfolio, posts } from "@/db/schema";
 import { desc, eq } from "drizzle-orm";
 import { getSetting } from "@/lib/settings";
+import { workPath } from "@/lib/slug";
 import type { CmsStore } from "@/lib/cmsTypes";
 
 export const dynamic = "force-dynamic";
@@ -43,6 +44,23 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     /* database unavailable — still serve the static map */
   }
 
+  let workRoutes: MetadataRoute.Sitemap = [];
+  try {
+    const rows = await db
+      .select({ id: portfolio.id, title: portfolio.title, createdAt: portfolio.createdAt })
+      .from(portfolio)
+      .orderBy(desc(portfolio.createdAt))
+      .limit(300);
+    workRoutes = rows.map((row) => ({
+      url: `${SITE}${workPath(row)}`,
+      lastModified: row.createdAt ?? new Date(),
+      changeFrequency: "monthly" as const,
+      priority: 0.8,
+    }));
+  } catch {
+    /* ignore */
+  }
+
   let pageRoutes: MetadataRoute.Sitemap = [];
   try {
     const store = (await getSetting("cmsStore")) as CmsStore | null;
@@ -58,5 +76,5 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     /* ignore */
   }
 
-  return [...staticRoutes, ...postRoutes, ...pageRoutes];
+  return [...staticRoutes, ...workRoutes, ...postRoutes, ...pageRoutes];
 }
