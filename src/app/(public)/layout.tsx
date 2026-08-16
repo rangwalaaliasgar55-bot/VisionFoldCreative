@@ -8,6 +8,7 @@ import SmoothScroll from "@/components/SmoothScroll";
 import ThreeBackground from "@/components/ThreeBackground";
 import VisionRunner from "@/components/VisionRunner";
 import FloatingWhatsApp from "@/components/FloatingWhatsApp";
+import SiteGuide from "@/components/SiteGuide";
 import LiveTracker from "@/components/LiveTracker";
 import { JsonLd, organizationSchema, websiteSchema } from "@/components/Seo";
 
@@ -68,6 +69,7 @@ export default async function PublicLayout({ children }: { children: ReactNode }
       <SiteFooter settings={settings} />
       <VisionRunner />
       <FloatingWhatsApp number={String(settings.whatsapp || "")} />
+      <SiteGuide />
       <LiveTracker />
     </>
   );
