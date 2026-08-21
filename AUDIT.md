@@ -264,7 +264,51 @@ build compiles new routes (`/feed.xml`, `/robots.txt`, `/sitemap.xml`).
 - Polling cadence now adapts: **3s while chatting**, 8s elsewhere.
 - Pulsing "Live · auto-updating" indicator in the chat header.
 
-## 11. Recommended next steps
+## 11. Platform 3.0 — the money loop, backend hardening, integration tests
+
+### Complete revenue loop (the missing business-critical piece)
+- **`POST /api/admin/invoices/:id/send`** — sends an invoice to the client:
+  portal message + branded email containing the signed `/pay` capability link.
+  Safe to re-send; logged to the activity feed. One-click "Send" button in Finance.
+- **`POST /api/webhooks/payment`** — the only automatic path that marks an
+  invoice paid. Provider-agnostic, HMAC-SHA256 signed
+  (`X-VF-Pay-Signature` over the raw body), idempotent (replays acknowledged,
+  never double-processed), and **transactional**: status flip + receipt portal
+  message + activity land together or not at all. Fires `invoice.paid`
+  webhook fan-out + thank-you email.
+- Secret: `PAYMENT_WEBHOOK_SECRET` (falls back to `JWT_SECRET` for testing).
+
+### Backend hardening (real fixes)
+1. **Rate limiting moved to Postgres** — the old in-process Map reset on every
+   serverless invocation, making login/contact throttling a no-op in prod.
+   New `rate_limits` table + sliding-window limiter with memory fallback and
+   automatic expired-window sweeps. Applied to login, registration, contact,
+   newsletter and search.
+2. **CSRF origin validation** — every mutating handler across admin/CMS/
+   social/AI/portal/public routes now rejects requests whose `Origin` header
+   doesn't match the deployment host (403). Non-browser callers (cron,
+   provider webhooks) are unaffected — they authenticate via secrets/HMAC.
+3. **Transactions on critical writes** — lead→client→project conversion is now
+   all-or-nothing (`db.transaction`); payment processing likewise.
+4. **Retention pruning in cron** — visitors >30d, activity >120d (digests kept),
+   expired rate-limit rows: analytics tables can no longer grow unbounded.
+
+### Integration test suite — first in repo history (7 tests)
+Real route handlers executed against the real SQL layer (pg-mem) with a
+mocked request-scoped cookie store:
+- wrong password rejected without setting a session · unauthenticated admin
+  access → 401
+- RBAC: accountant blocked from blog, editor blocked from settings writes
+- portal ownership: client B cannot mint links for client A's invoice
+- payment webhook: tampered payload → 401 · valid signature → paid · replay → duplicate
+- lead conversion produces client+project+won-status atomically
+
+**Total suite: 26 tests green.**
+
+E2E verified live: send invoice → link minted · signed webhook flips status →
+replay dedupes · cross-origin mutation blocked (403) while same-origin passes.
+
+## 12. Recommended next steps
 - Add `next.config.ts` `images.remotePatterns` if you want `next/image` everywhere.
 - LinkedIn native video upload requires the partner video API — current build
   attaches the video as a rich link post (documented in `linkedin.ts`).

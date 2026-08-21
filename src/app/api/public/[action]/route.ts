@@ -1,6 +1,8 @@
 import { db } from "@/db";
 import { leads, newsletter } from "@/db/schema";
-import { bad, loginThrottled, ok, readBody, requestIp } from "@/lib/auth";
+import { bad, ok, readBody, requestIp } from "@/lib/auth";
+import { throttled } from "@/lib/ratelimit";
+import { originCheck } from "@/lib/security";
 import { emitEvent } from "@/lib/events";
 import { emailConfigured, emailShell, sendEmail } from "@/lib/email";
 import { getSetting } from "@/lib/settings";
@@ -13,11 +15,13 @@ export async function POST(
   req: Request,
   ctx: { params: Promise<{ action: string }> }
 ) {
+  const csrf = originCheck(req);
+  if (csrf) return csrf;
   const { action } = await ctx.params;
 
   if (action === "contact") {
     // Basic spam protection: 12 submissions / 15 min / IP.
-    if (loginThrottled(`contact:${requestIp(req)}`)) {
+    if (await throttled(`contact:${requestIp(req)}`, 12)) {
       return bad("Too many submissions. Please try again later.", 429);
     }
     const body = await readBody<Record<string, any>>(req);
@@ -74,7 +78,7 @@ export async function POST(
   }
 
   if (action === "newsletter") {
-    if (loginThrottled(`newsletter:${requestIp(req)}`)) {
+    if (await throttled(`newsletter:${requestIp(req)}`, 12)) {
       return bad("Too many attempts. Please try again later.", 429);
     }
     const body = await readBody<{ email?: string }>(req);

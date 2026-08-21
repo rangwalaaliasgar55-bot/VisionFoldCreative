@@ -123,21 +123,6 @@ export async function readBody<T>(req: Request): Promise<T> {
   }
 }
 
-const attempts = new Map<string, { count: number; resetAt: number }>();
-const WINDOW_MS = 15 * 60 * 1000;
-const MAX_ATTEMPTS = 12;
-
-export function loginThrottled(ip: string): boolean {
-  const now = Date.now();
-  const entry = attempts.get(ip);
-  if (!entry || entry.resetAt < now) {
-    attempts.set(ip, { count: 1, resetAt: now + WINDOW_MS });
-    return false;
-  }
-  entry.count += 1;
-  return entry.count > MAX_ATTEMPTS;
-}
-
 export function requestIp(req: Request): string {
   return (
     req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||

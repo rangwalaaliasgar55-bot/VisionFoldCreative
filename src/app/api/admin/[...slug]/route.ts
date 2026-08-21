@@ -34,6 +34,13 @@ import {
 import { ensureSeed, resetSeed } from "@/lib/seed";
 import { runAutomationById, runAutomations } from "@/lib/automations";
 import { emitEvent } from "@/lib/events";
+import { originCheck } from "@/lib/security";
+import { payLink } from "@/lib/paytoken";
+import { emailConfigured, emailShell, sendEmail } from "@/lib/email";
+
+function fmtMoneyStr(value: unknown): string {
+  return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(Number(value || 0));
+}
 import { DEFAULT_SETTINGS, getSettings, setSettings } from "@/lib/settings";
 import { parseCsv } from "@/lib/utils";
 import { searchBusinesses } from "@/lib/prospect";
@@ -496,6 +503,8 @@ export async function POST(
   req: Request,
   ctx: { params: Promise<{ slug: string[] }> }
 ) {
+  const csrf = originCheck(req);
+  if (csrf) return csrf;
   try {
     const admin = await getAdmin();
     const { slug } = await ctx.params;
@@ -734,6 +743,51 @@ export async function POST(
       return ok(newInv);
     }
 
+    // Send an invoice to the client: portal message + email with a signed
+    // payment link. Safe to call repeatedly (e.g. polite re-send).
+    if (slug.length === 3 && slug[0] === "invoices" && slug[2] === "send") {
+      const id = Number(slug[1]);
+      const rows = await db
+        .select({ invoice: invoices, clientName: clients.name, clientEmail: clients.email })
+        .from(invoices)
+        .innerJoin(clients, eq(invoices.clientId, clients.id))
+        .where(eq(invoices.id, id))
+        .limit(1);
+      const row = rows[0];
+      if (!row) return bad("Invoice not found.", 404);
+      if (row.invoice.status === "paid") return bad("This invoice is already paid.");
+
+      const link = payLink(row.invoice.id);
+      const label = row.invoice.number || `INV-${row.invoice.id}`;
+      const note = `Invoice ${label} for ${fmtMoneyStr(row.invoice.amount)} is ready${row.invoice.dueDate ? ` — due ${row.invoice.dueDate}` : ""}. Pay securely here: ${link}`;
+
+      await db.insert(messages).values({ clientId: row.invoice.clientId, sender: "admin", body: note, read: false });
+
+      let emailed = false;
+      if (emailConfigured() && row.clientEmail) {
+        emailed = await sendEmail({
+          to: row.clientEmail,
+          subject: `Invoice ${label} from VisionFold Creative`,
+          html: emailShell(
+            `Invoice ${label}`,
+            `<p>Hi ${row.clientName.split(" ")[0]},</p>
+             <p>Invoice <b>${label}</b> for <b>${fmtMoneyStr(row.invoice.amount)}</b>${
+               row.invoice.dueDate ? ` is due on <b>${row.invoice.dueDate}</b>` : ""
+             }.</p>
+             <p><a href="${link}" style="display:inline-block;background:#7357FF;color:#fff;text-decoration:none;padding:12px 26px;border-radius:999px;font-weight:bold;">View & pay securely →</a></p>
+             <p style="font-size:12px;color:#98A1B3;">The link opens your private invoice page — no login needed.</p>`
+          ),
+        });
+      }
+
+      await db.insert(activity).values({
+        actor: admin.email,
+        action: "invoice.sent",
+        details: `${label} sent to ${row.clientName}${emailed ? " via portal + email" : " via portal"}`,
+      });
+      return ok({ ok: true, sent: true, emailed, link });
+    }
+
     if (path === "expenses") {
       const amount = Number(body.amount || 0);
       const description = String(body.description || "").trim();
@@ -889,35 +943,41 @@ export async function POST(
       // Generate a one-time password; never use a well-known default.
       const tempPassword = `vf_${randomBytes(5).toString("hex")}`;
       const clientPass = hashPassword(tempPassword);
-      const [newClient] = await db
-        .insert(clients)
-        .values({
-          name: leadRow.name,
-          email: leadRow.email,
-          phone: leadRow.phone,
-          company: leadRow.name + " Media",
-          passwordHash: clientPass,
-          status: "active",
-          notes: `Converted from lead #${leadId}. Initial message: ${leadRow.message}`,
-        })
-        .returning();
 
-      const [newProject] = await db
-        .insert(projects)
-        .values({
-          clientId: newClient.id,
-          title: `${leadRow.service} Project`,
-          service: leadRow.service,
-          description: leadRow.message,
-          status: "intake",
-          progress: 10,
-          budget: leadRow.budget.replace(/[^0-9.]/g, "") || "1500.00",
-        })
-        .returning();
+      // All-or-nothing: client + project + lead status land together, so a
+      // mid-flight failure can't leave an orphaned client or a lost lead.
+      const result = await db.transaction(async (tx) => {
+        const [newClient] = await tx
+          .insert(clients)
+          .values({
+            name: leadRow.name,
+            email: leadRow.email,
+            phone: leadRow.phone,
+            company: leadRow.name + " Media",
+            passwordHash: clientPass,
+            status: "active",
+            notes: `Converted from lead #${leadId}. Initial message: ${leadRow.message}`,
+          })
+          .returning();
 
-      await db.update(leads).set({ status: "won" }).where(eq(leads.id, leadId));
+        const [newProject] = await tx
+          .insert(projects)
+          .values({
+            clientId: newClient.id,
+            title: `${leadRow.service} Project`,
+            service: leadRow.service,
+            description: leadRow.message,
+            status: "intake",
+            progress: 10,
+            budget: leadRow.budget.replace(/[^0-9.]/g, "") || "1500.00",
+          })
+          .returning();
 
-      return ok({ ok: true, clientId: newClient.id, projectId: newProject.id, tempPassword });
+        await tx.update(leads).set({ status: "won" }).where(eq(leads.id, leadId));
+        return { clientId: newClient.id, projectId: newProject.id };
+      });
+
+      return ok({ ok: true, ...result, tempPassword });
     }
 
     // Blog Posts & Categories
@@ -1033,6 +1093,8 @@ export async function PATCH(
   req: Request,
   ctx: { params: Promise<{ slug: string[] }> }
 ) {
+  const csrf = originCheck(req);
+  if (csrf) return csrf;
   try {
     const admin = await getAdmin();
     const { slug } = await ctx.params;
@@ -1235,6 +1297,8 @@ export async function DELETE(
   req: Request,
   ctx: { params: Promise<{ slug: string[] }> }
 ) {
+  const csrf = originCheck(req);
+  if (csrf) return csrf;
   try {
     const admin = await getAdmin();
     const { slug } = await ctx.params;

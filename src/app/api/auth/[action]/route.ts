@@ -1,8 +1,8 @@
-import { bad, clearSession, hashPassword, isStaffRole, loginThrottled, ok, readBody, requestIp, setSessionCookie } from "@/lib/auth";
+import { bad, clearSession, hashPassword, isStaffRole, ok, readBody, requestIp, setSessionCookie, verifyPassword } from "@/lib/auth";
+import { throttled } from "@/lib/ratelimit";
 import { db } from "@/db";
 import { activity, clients, messages, users } from "@/db/schema";
 import { eq } from "drizzle-orm";
-import { verifyPassword } from "@/lib/auth";
 import { ensureSeed } from "@/lib/seed";
 
 export const dynamic = "force-dynamic";
@@ -37,7 +37,7 @@ export async function POST(
     const name = String(body.name || "").trim().slice(0, 120);
     const email = String(body.email || "").trim().toLowerCase().slice(0, 254);
     const password = String(body.password || "");
-    if (loginThrottled(`register:${requestIp(req)}`)) return bad("Too many attempts. Try again later.", 429);
+    if (await throttled(`register:${requestIp(req)}`)) return bad("Too many attempts. Try again later.", 429);
     if (name.length < 2) return bad("Please enter your full name.");
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return bad("Enter a valid email address.");
     if (password.length < 8 || password.length > 128) return bad("Password must be between 8 and 128 characters.");
@@ -71,7 +71,7 @@ export async function POST(
     const role = body.role === "client" ? "client" : "admin";
 
     if (!email || !password) return bad("Email and password are required.");
-    if (loginThrottled(requestIp(req))) {
+    if (await throttled(`login:${requestIp(req)}`)) {
       return bad("Too many attempts. Try again in 15 minutes.", 429);
     }
 

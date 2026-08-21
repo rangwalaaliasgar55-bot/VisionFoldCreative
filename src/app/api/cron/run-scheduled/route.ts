@@ -92,13 +92,54 @@ async function runScheduled(request: Request) {
     /* ditto */
   }
 
+  // Job 5 — retention: keep analytics tables from growing forever.
+  let pruned = { visitors: 0, activity: 0, rateLimits: 0 };
+  try {
+    pruned.visitors = await pruneOlderThan(visitorsTable, 30);
+    pruned.activity = await pruneActivity(120);
+    pruned.rateLimits = await pruneExpiredRateLimits();
+  } catch {
+    /* ditto */
+  }
+
   return NextResponse.json({
     ok: true,
     published: 0,
     social: { published: socialPublished, snapshotsCaptured, insightsGenerated },
     automations: { effects: automationEffects, ran: automationsRan },
+    pruned,
     checkedAt: nowIso,
   });
+}
+
+import { db } from "@/db";
+import { activity as activityTable, rateLimits as rateLimitsTable, visitors as visitorsTable } from "@/db/schema";
+import { lt, and, ne, sql } from "drizzle-orm";
+
+async function pruneOlderThan(
+  table: typeof visitorsTable,
+  days: number
+): Promise<number> {
+  const cutoff = new Date(Date.now() - days * 86_400_000);
+  const gone = await db.delete(table).where(lt(table.lastSeen, cutoff)).returning({ id: table.id });
+  return gone.length;
+}
+
+async function pruneActivity(days: number): Promise<number> {
+  const cutoff = new Date(Date.now() - days * 86_400_000);
+  const gone = await db
+    .delete(activityTable)
+    .where(and(lt(activityTable.createdAt, cutoff), ne(activityTable.action, "digest.daily")))
+    .returning({ id: activityTable.id });
+  return gone.length;
+}
+
+async function pruneExpiredRateLimits(): Promise<number> {
+  const gone = await db
+    .delete(rateLimitsTable)
+    .where(sql`${rateLimitsTable.resetAt} < NOW()`)
+    .returning({ key: rateLimitsTable.key });
+  return gone.length;
 }
 
 export async function GET(request: Request) {

@@ -1,4 +1,5 @@
 import { bad, ok, readBody, requireStaff } from "@/lib/auth";
+import { originCheck } from "@/lib/security";
 import { BLOCK_CATALOG, DEFAULT_CMS_STORE, type CmsBlock, type CmsPage, type CmsRevision, type CmsStore } from "@/lib/cmsTypes";
 import { getSetting, setSetting } from "@/lib/settings";
 
@@ -85,6 +86,8 @@ export async function GET(_req: Request, ctx: { params: Promise<{ path?: string[
 }
 
 export async function POST(req: Request, ctx: { params: Promise<{ path?: string[] }> }) {
+  const csrf = originCheck(req);
+  if (csrf) return csrf;
   const admin = await authorize();
   if (!admin) return bad("Unauthorized", 401);
   const path = (await ctx.params).path || [];
@@ -169,6 +172,8 @@ export async function POST(req: Request, ctx: { params: Promise<{ path?: string[
 }
 
 export async function PUT(req: Request, ctx: { params: Promise<{ path?: string[] }> }) {
+  const csrf = originCheck(req);
+  if (csrf) return csrf;
   const admin = await authorize();
   if (!admin) return bad("Unauthorized", 401);
   const path = (await ctx.params).path || [];
@@ -202,7 +207,9 @@ export async function PUT(req: Request, ctx: { params: Promise<{ path?: string[]
   return ok({ page });
 }
 
-export async function DELETE(_req: Request, ctx: { params: Promise<{ path?: string[] }> }) {
+export async function DELETE(req: Request, ctx: { params: Promise<{ path?: string[] }> }) {
+  const csrf = originCheck(req);
+  if (csrf) return csrf;
   const admin = await authorize();
   if (!admin) return bad("Unauthorized", 401);
   const path = (await ctx.params).path || [];

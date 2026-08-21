@@ -2,6 +2,7 @@ import { db } from "@/db";
 import { deliverables, invoices, messages, projects, ratings, updates } from "@/db/schema";
 import { and, eq, inArray, isNull, sql } from "drizzle-orm";
 import { bad, hashPassword, ok, readBody, requireClient, verifyPassword } from "@/lib/auth";
+import { originCheck } from "@/lib/security";
 import { payLink } from "@/lib/paytoken";
 import { clients } from "@/db/schema";
 
@@ -81,6 +82,8 @@ export async function POST(
   req: Request,
   ctx: { params: Promise<{ action: string }> }
 ) {
+  const csrf = originCheck(req);
+  if (csrf) return csrf;
   try {
     const client = await getClient();
     const { action } = await ctx.params;

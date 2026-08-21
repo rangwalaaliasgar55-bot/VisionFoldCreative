@@ -491,12 +491,19 @@ create table if not exists public.social_insights (
 );
 create index if not exists social_insights_post_idx on public.social_insights (post_id);
 
+create table if not exists public.rate_limits (
+  key text primary key,
+  count integer not null default 0,
+  reset_at timestamptz not null
+);
+
 alter table public.visitors    enable row level security;
 alter table public.wa_messages enable row level security;
 alter table public.social_accounts enable row level security;
 alter table public.social_posts     enable row level security;
 alter table public.social_metrics   enable row level security;
 alter table public.social_insights  enable row level security;
+alter table public.rate_limits      enable row level security;
 
 commit;
 

@@ -20,7 +20,7 @@ import {
   useApi,
 } from "@/components/AdminUI";
 import { fmtDate, fmtMoney, money } from "@/lib/utils";
-import { CheckCircle2, Link2, Plus } from "lucide-react";
+import { CheckCircle2, Link2, Plus, Send } from "lucide-react";
 
 type InvoiceRow = {
   id: number;
@@ -101,6 +101,16 @@ export default function AdminInvoicesPage() {
       toast("Payment link copied — send it to the client");
     } catch {
       toast("Failed to build payment link", "err");
+    }
+  }
+
+  async function sendInvoice(inv: InvoiceRow) {
+    try {
+      const res = await api<{ emailed: boolean; link: string }>(`/api/admin/invoices/${inv.id}/send`, { json: {} });
+      toast(res.emailed ? "Sent — portal message + email delivered" : "Sent — portal message delivered (add Resend keys for email)");
+      reload();
+    } catch (err) {
+      toast(err instanceof Error ? err.message : "Failed to send", "err");
     }
   }
 
@@ -194,9 +204,14 @@ export default function AdminInvoicesPage() {
                     <td className="px-4 py-3">
                       <div className="flex justify-end gap-1">
                         {inv.status !== "paid" && (
-                          <Button size="sm" variant="outline" onClick={() => markPaid(inv)}>
-                            <CheckCircle2 size={13} /> Paid
-                          </Button>
+                          <>
+                            <Button size="sm" variant="ghost" onClick={() => sendInvoice(inv)} title="Send to client">
+                              <Send size={13} />
+                            </Button>
+                            <Button size="sm" variant="outline" onClick={() => markPaid(inv)}>
+                              <CheckCircle2 size={13} /> Paid
+                            </Button>
+                          </>
                         )}
                         <Button size="sm" variant="ghost" onClick={() => copyPayLink(inv)}>
                           <Link2 size={13} />

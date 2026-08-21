@@ -443,3 +443,13 @@ export type SocialAccount = typeof socialAccounts.$inferSelect;
 export type SocialPost = typeof socialPosts.$inferSelect;
 export type SocialMetric = typeof socialMetrics.$inferSelect;
 export type SocialInsight = typeof socialInsights.$inferSelect;
+
+/** Durable sliding-window counters — survives serverless cold starts,
+ *  unlike the previous in-process throttle that reset on every invocation. */
+export const rateLimits = pgTable("rate_limits", {
+  key: text("key").primaryKey(),
+  count: integer("count").notNull().default(0),
+  resetAt: timestamp("reset_at", { withTimezone: true }).notNull(),
+});
+
+export type RateLimitRow = typeof rateLimits.$inferSelect;

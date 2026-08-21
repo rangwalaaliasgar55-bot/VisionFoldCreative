@@ -8,6 +8,7 @@ import {
   type SocialPost,
 } from "@/db/schema";
 import { bad, ok, readBody, requireStaff } from "@/lib/auth";
+import { originCheck } from "@/lib/security";
 import { desc, eq } from "drizzle-orm";
 import {
   SOCIAL_PLATFORMS,
@@ -123,6 +124,8 @@ export async function GET(_req: Request, ctx: { params: Promise<{ path?: string[
 }
 
 export async function POST(req: Request, ctx: { params: Promise<{ path?: string[] }> }) {
+  const csrf = originCheck(req);
+  if (csrf) return csrf;
   const staff = await authorize();
   if (!staff) return bad("Unauthorized", 401);
   const path = (await ctx.params).path || [];
@@ -275,6 +278,8 @@ export async function POST(req: Request, ctx: { params: Promise<{ path?: string[
 }
 
 export async function PATCH(req: Request, ctx: { params: Promise<{ path?: string[] }> }) {
+  const csrf = originCheck(req);
+  if (csrf) return csrf;
   const staff = await authorize();
   if (!staff) return bad("Unauthorized", 401);
   const path = (await ctx.params).path || [];
@@ -300,7 +305,9 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ path?: string
   return ok({ ok: true });
 }
 
-export async function DELETE(_req: Request, ctx: { params: Promise<{ path?: string[] }> }) {
+export async function DELETE(req: Request, ctx: { params: Promise<{ path?: string[] }> }) {
+  const csrf = originCheck(req);
+  if (csrf) return csrf;
   const staff = await authorize();
   if (!staff) return bad("Unauthorized", 401);
   const path = (await ctx.params).path || [];

@@ -316,6 +316,12 @@ CREATE TABLE IF NOT EXISTS social_insights (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 CREATE INDEX IF NOT EXISTS social_insights_post_idx ON social_insights (post_id);
+
+CREATE TABLE IF NOT EXISTS rate_limits (
+  key TEXT PRIMARY KEY,
+  count INTEGER NOT NULL DEFAULT 0,
+  reset_at TIMESTAMPTZ NOT NULL
+);
 `;
 
 function wrapQuery(origQuery: any) {

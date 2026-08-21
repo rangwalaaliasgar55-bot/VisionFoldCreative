@@ -1,4 +1,5 @@
 import { bad, ok, readBody, requireStaff } from "@/lib/auth";
+import { originCheck } from "@/lib/security";
 import { assist, getAiStatus, getInsights } from "@/lib/ai";
 
 export const dynamic = "force-dynamic";
@@ -12,6 +13,8 @@ export async function POST(
   req: Request,
   ctx: { params: Promise<{ action: string }> }
 ) {
+  const csrf = originCheck(req);
+  if (csrf) return csrf;
   const admin = await requireStaff(["admin", "editor"]);
   if (!admin) return bad("Unauthorized", 401);
   const { action } = await ctx.params;
