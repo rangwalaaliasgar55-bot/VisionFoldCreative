@@ -161,7 +161,7 @@ export async function generate(prompt: string, system?: string): Promise<string 
   return null;
 }
 
-async function gatherStats() {
+export async function gatherStats() {
   const dayAgo = new Date(Date.now() - 30 * 86400_000);
   const weekAgo = new Date(Date.now() - 7 * 86400_000);
   const newLeads = await db.select({ n: sql<number>`count(*)::int` }).from(leads).where(gte(leads.createdAt, dayAgo));
@@ -179,6 +179,10 @@ async function gatherStats() {
     .select({ n: sql<number>`count(*)::int` })
     .from(invoices)
     .where(and(lt(invoices.dueDate, new Date().toISOString().slice(0, 10)), sql`${invoices.status} <> 'paid'`));
+  const outstandingRow = await db
+    .select({ total: sql<number>`coalesce(sum(${invoices.amount}), 0)::float` })
+    .from(invoices)
+    .where(sql`${invoices.status} <> 'paid'`);
   return {
     newLeads30d: newLeads[0]?.n ?? 0,
     newLeads7d: weekLeads[0]?.n ?? 0,
@@ -186,6 +190,7 @@ async function gatherStats() {
     unreadClientMessages: unread[0]?.n ?? 0,
     avgRating: Number(avgRating[0]?.a ?? 0).toFixed(1),
     overdueInvoices: overdue[0]?.n ?? 0,
+    outstanding: Number(outstandingRow[0]?.total ?? 0),
   };
 }
 

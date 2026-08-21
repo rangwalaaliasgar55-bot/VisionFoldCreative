@@ -239,7 +239,32 @@ build compiles new routes (`/feed.xml`, `/robots.txt`, `/sitemap.xml`).
 - Dashboard KPI grid, action center and AI insights retained; pulse strip
   fetches lazily only for admins.
 
-## 10. Recommended next steps
+## 10. Platform 2.2 — case studies, printable invoices, email digest, live chat
+
+### Portfolio case-study pages (`/work/[slug]`)
+- Every portfolio card now opens a **full case-study page**:
+  `/work/<id>-<title-slug>` (deterministic id-prefixed URLs — no DB migration).
+- YouTube embeds, native video players and poster fallbacks; category/year/
+  featured badges; "More master cuts" related strip; conversion CTA.
+- SEO: per-page `generateMetadata` + OpenGraph image, all case studies added
+  to `sitemap.xml` (16 URLs on seeded data).
+
+### Printable invoice PDFs
+- `/pay/<id>` gained a "Download / print PDF" button with a dedicated
+  `@media print` stylesheet (white document, controls hidden) — clients can
+  save or print a clean invoice without any PDF dependency.
+
+### Daily studio email digest
+- The Daily Business Digest automation now also **emails the owner** when
+  Resend is configured: leads (7d), active projects, overdue invoices,
+  outstanding balance, unread messages + today's focus list.
+- New stat exposed: outstanding balance (`gatherStats().outstanding`).
+
+### Live chat polish (portal)
+- Polling cadence now adapts: **3s while chatting**, 8s elsewhere.
+- Pulsing "Live · auto-updating" indicator in the chat header.
+
+## 11. Recommended next steps
 - Add `next.config.ts` `images.remotePatterns` if you want `next/image` everywhere.
 - LinkedIn native video upload requires the partner video API — current build
   attaches the video as a rich link post (documented in `linkedin.ts`).

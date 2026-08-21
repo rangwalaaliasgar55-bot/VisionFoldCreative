@@ -11,7 +11,7 @@ import {
   type Automation,
 } from "@/db/schema";
 import { and, eq, gte, ne, sql } from "drizzle-orm";
-import { rulesInsights } from "@/lib/ai";
+import { gatherStats, rulesInsights } from "@/lib/ai";
 import { automationsEnabled } from "@/lib/settings";
 import { captureSnapshots, generateDueInsights } from "@/lib/social";
 import { emailConfigured, emailShell, sendEmail } from "@/lib/email";
@@ -269,13 +269,51 @@ async function runReviewRequests(config: Record<string, unknown>): Promise<numbe
 async function runDailyDigest(): Promise<number> {
   const today = new Date().toISOString().slice(0, 10);
   if (await alreadyDone("digest.daily", `#D${today}#`, new Date(Date.now() - 20 * 3600_000))) return 0;
-  const items = await rulesInsights();
+  const [items, stats] = await Promise.all([rulesInsights(), gatherStats()]);
+
+  // Written record in the activity feed (always).
   await db.insert(activity).values({
     actor: "automation",
     action: "digest.daily",
     details: `#D${today}# Daily digest — ${items.join(" | ")}`,
   });
-  return 1;
+
+  // Morning email to the owner when Resend is configured.
+  let emailed = false;
+  if (emailConfigured()) {
+    const to = process.env.NOTIFICATION_EMAIL || String((await getSettingValue("email")) || "");
+    if (to) {
+      emailed = await sendEmail({
+        to,
+        subject: `Studio digest — ${stats.newLeads7d} new leads, ${fmtUsd(stats.outstanding)} outstanding`,
+        html: emailShell(
+          "Your studio, this morning",
+          `<table style="width:100%;font-size:13px;color:#C9CFDB;">
+            <tr><td style="padding:4px 0;">New leads (7d)</td><td style="text-align:right;font-weight:bold;color:#fff;">${stats.newLeads7d}</td></tr>
+            <tr><td style="padding:4px 0;">Active projects</td><td style="text-align:right;font-weight:bold;color:#fff;">${stats.activeProjects}</td></tr>
+            <tr><td style="padding:4px 0;">Overdue invoices</td><td style="text-align:right;font-weight:bold;color:${Number(stats.overdueInvoices) > 0 ? "#f87171" : "#fff"};">${stats.overdueInvoices}</td></tr>
+            <tr><td style="padding:4px 0;">Outstanding</td><td style="text-align:right;font-weight:bold;color:#fff;">${fmtUsd(stats.outstanding)}</td></tr>
+            <tr><td style="padding:4px 0;">Unread client messages</td><td style="text-align:right;font-weight:bold;color:#fff;">${stats.unreadClientMessages}</td></tr>
+          </table>
+          <p style="margin-top:18px;font-size:12px;letter-spacing:.15em;color:#F4A62A;font-weight:bold;">TODAY'S FOCUS</p>
+          <ul style="padding-left:16px;margin:6px 0 0;">${items.map((i) => `<li style="margin-bottom:6px;">${i}</li>`).join("")}</ul>`
+        ),
+      });
+    }
+  }
+
+  return emailed ? 2 : 1;
+}
+
+async function getSettingValue(key: string): Promise<unknown> {
+  const { getSetting } = await import("@/lib/settings");
+  return getSetting(key);
+}
+
+function fmtUsd(value: unknown): string {
+  return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(
+    Number(value || 0)
+  );
 }
 
 async function runSocialSync(): Promise<number> {

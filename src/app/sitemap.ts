@@ -1,8 +1,9 @@
 import type { MetadataRoute } from "next";
 import { db } from "@/db";
-import { posts } from "@/db/schema";
+import { portfolio, posts } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import type { CmsStore } from "@/lib/cmsTypes";
+import { portfolioPath } from "@/lib/portfolio";
 import { getSetting } from "@/lib/settings";
 
 export const dynamic = "force-dynamic";
@@ -49,7 +50,17 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         priority: 0.6,
       }));
 
-    return [...staticRoutes, ...blogRoutes, ...cmsRoutes];
+    const work = await db
+      .select({ id: portfolio.id, title: portfolio.title, createdAt: portfolio.createdAt })
+      .from(portfolio);
+    const workRoutes: MetadataRoute.Sitemap = work.map((item) => ({
+      url: `${base}${portfolioPath(item.id, item.title)}`,
+      lastModified: item.createdAt ?? new Date(),
+      changeFrequency: "monthly",
+      priority: 0.6,
+    }));
+
+    return [...staticRoutes, ...blogRoutes, ...cmsRoutes, ...workRoutes];
   } catch {
     return staticRoutes;
   }

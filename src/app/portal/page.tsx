@@ -132,12 +132,14 @@ export default function ClientPortalPage() {
 
   useEffect(() => {
     const initial = window.setTimeout(() => void loadData(), 0);
-    const interval = window.setInterval(() => void loadData(), 8000);
+    // Faster heartbeat while the client is actively chatting.
+    const period = tab === "messages" ? 3000 : 8000;
+    const interval = window.setInterval(() => void loadData(), period);
     return () => {
       window.clearTimeout(initial);
       window.clearInterval(interval);
     };
-  }, [loadData]);
+  }, [loadData, tab]);
 
   useEffect(() => {
     if (chatScrollRef.current) {
@@ -702,11 +704,18 @@ export default function ClientPortalPage() {
       )}
 
       {/* 2. LIVE STUDIO CHAT TAB */}
-      {tab === "messages" && (
+      {      tab === "messages" && (
         <Card
           title="Direct Studio Chat"
           desc="Real-time communication for cuts, creative direction and file transfers"
         >
+          <div className="mb-3 flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-emerald-300">
+            <span className="relative flex h-2 w-2">
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-60" />
+              <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-400" />
+            </span>
+            Live · auto-updating every 3s
+          </div>
           <div className="flex h-[480px] flex-col justify-between rounded-2xl border border-white/8 bg-ink/50 p-4">
             <div ref={chatScrollRef} className="scrollbar-thin flex-1 space-y-3 overflow-y-auto pr-2">
               {messages.map((msg) => {

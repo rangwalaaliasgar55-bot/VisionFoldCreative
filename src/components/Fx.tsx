@@ -9,6 +9,7 @@ import {
 } from "react";
 import { Check, Film, Sliders, Sparkles, Star } from "lucide-react";
 import Link from "next/link";
+import { portfolioPath } from "@/lib/portfolio";
 
 export function Reveal({
   children,
@@ -548,9 +549,7 @@ export function PortfolioFilterGrid({
         {filtered.map((item) => (
           <Tilt key={item.id} max={7} className="h-full">
             <Link
-              href={item.videoUrl || "/contact"}
-              target={item.videoUrl ? "_blank" : undefined}
-              rel={item.videoUrl ? "noopener noreferrer" : undefined}
+              href={portfolioPath(item.id, item.title)}
               className="group block h-full overflow-hidden rounded-3xl border border-white/8 bg-panel transition-all hover:border-brand-400/40"
             >
               <div className="relative h-60 overflow-hidden bg-ink">

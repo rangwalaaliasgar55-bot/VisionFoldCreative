@@ -3,6 +3,7 @@ import { clients, invoices, projects } from "@/db/schema";
 import { verifyPayToken } from "@/lib/paytoken";
 import { eq } from "drizzle-orm";
 import Link from "next/link";
+import { PrintButton } from "./PrintButton";
 
 export const dynamic = "force-dynamic";
 
@@ -109,7 +110,7 @@ export default async function PayPage({
           <p className="mt-4 rounded-xl bg-white/[0.03] p-3 text-xs leading-relaxed text-slate-400">{invoice.notes}</p>
         )}
 
-        <div className="mt-7">
+        <div className="mt-7 no-print">
           {paid ? (
             <p className="rounded-xl border border-emerald-400/20 bg-emerald-400/[0.06] py-3 text-center text-sm font-semibold text-emerald-300">
               This invoice is settled. Thank you! 🎬
@@ -138,6 +139,7 @@ export default async function PayPage({
               Payments are processed by our provider — VisionFold never sees your card details.
             </p>
           )}
+          <PrintButton />
         </div>
       </div>
 
@@ -151,6 +153,20 @@ export default async function PayPage({
 function Shell({ children }: { children: React.ReactNode }) {
   return (
     <main className="grid min-h-screen place-items-center bg-ink px-5 py-16 text-center">
+      {/* Print/PDF styling — turns the invoice card into a clean document. */}
+      <style
+        dangerouslySetInnerHTML={{
+          __html: `@media print {
+            body { background: #fff !important; }
+            .bg-ink { background: #fff !important; }
+            .no-print { display: none !important; }
+            .glass, .rounded-3xl { border: 1px solid #ddd !important; box-shadow: none !important; background: #fff !important; }
+            .text-white, .font-display { color: #111 !important; }
+            .text-slate-400, .text-slate-500, .text-slate-600 { color: #555 !important; }
+            a[href]:after { content: ""; }
+          }`,
+        }}
+      />
       <div className="flex flex-col items-center">{children}</div>
     </main>
   );
