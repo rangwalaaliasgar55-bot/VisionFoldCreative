@@ -88,6 +88,9 @@ npm run build && npm run typecheck && npm run lint
 | `YOUTUBE_CLIENT_ID` + `YOUTUBE_CLIENT_SECRET` (+ `YOUTUBE_REDIRECT_URI`) | ➖ | Live YouTube publishing from `/admin/social`. Without them the platform runs in offline simulation mode. |
 | `YOUTUBE_API_KEY` | ➖ | Read-only public video stats (no OAuth needed). |
 | `LINKEDIN_CLIENT_ID` + `LINKEDIN_CLIENT_SECRET` (+ `LINKEDIN_REDIRECT_URI`, optional `LINKEDIN_ORGANIZATION_URN`) | ➖ | Live LinkedIn posting from `/admin/social`. Offline simulation without them. |
+| `INSTAGRAM_CLIENT_ID` + `INSTAGRAM_CLIENT_SECRET` | ➖ | Reels publishing via the Instagram Graph API (Business account linked to a FB Page). |
+| `TIKTOK_CLIENT_KEY` + `TIKTOK_CLIENT_SECRET` | ➖ | TikTok direct-post via the Content Posting API. |
+| `RESEND_API_KEY` + `RESEND_FROM_EMAIL`, `NOTIFICATION_EMAIL` | ➖ | Studio lead alerts + automation emails (all optional, fail-safe). |
 | `APP_URL` | ➖ | Canonical URL used in metadata/emails and as OAuth redirect base. |
 
 > **Default admin (first seed):** `visionfoldcreative@gmail.com` / `aliasgar134` — set `ADMIN_EMAIL` + `ADMIN_PASSWORD` to override, and rotate it after first login.

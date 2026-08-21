@@ -194,7 +194,32 @@ sitemap 200 (6 urls) · robots 200 · search API hit · contact POST logged
 `event.lead.created` · export 200/25 tables/secrets stripped · headers present ·
 build compiles new routes (`/feed.xml`, `/robots.txt`, `/sitemap.xml`).
 
-## 8. Recommended next steps
+## 8. Platform 2.1 — 4-platform social + client payment page
+
+### Instagram & TikTok adapters
+- **`src/lib/instagram.ts`** — Facebook OAuth (long-lived token exchange),
+  business-account discovery, REELS container → poll → publish flow,
+  play/like/comment insights.
+- **`src/lib/tiktok.ts`** — TikTok OAuth, direct-post via `PULL_FROM_URL`
+  (no binary upload needed), publish-status polling.
+- Social core now dispatches across **4 platforms** (YouTube · LinkedIn ·
+  Instagram · TikTok); OAuth callback handles all four; offline simulation
+  covers every platform (TikTok's curve skews viral); admin UI shows four
+  connect cards and the composer offers all platforms. Env vars documented
+  in `.env.example` / README.
+
+### Client-facing invoice payment page (`/pay/<id>?t=<token>`)
+- Capability links: HMAC-signed token per invoice (timing-safe compare) —
+  no portal login required to *view* one invoice.
+- Branded read-only invoice view (amount, due date, status badge, notes,
+  project context). Pay button hands off to `PAYMENT_CHECKOUT_URL`; without
+  it, clients see WhatsApp/bank instructions. **Invoices can never be marked
+  paid from this page** — provider webhook or studio staff only.
+- Staff get one-click "copy payment link" in Finance (`POST /api/admin/paylink`).
+- E2E verified: valid token renders the invoice; tampered token shows a
+  friendly "link expired" screen.
+
+## 9. Recommended next steps
 - Add `next.config.ts` `images.remotePatterns` if you want `next/image` everywhere.
 - LinkedIn native video upload requires the partner video API — current build
   attaches the video as a rich link post (documented in `linkedin.ts`).

@@ -89,7 +89,12 @@ type Insight = {
 };
 
 type Overview = {
-  config: { youtubeConfigured: boolean; linkedinConfigured: boolean };
+  config: {
+    youtubeConfigured: boolean;
+    linkedinConfigured: boolean;
+    instagramConfigured: boolean;
+    tiktokConfigured: boolean;
+  };
   accounts: Account[];
   posts: Post[];
   insights: Insight[];
@@ -105,7 +110,12 @@ type SeoPack = {
   source: "ai" | "rules";
 };
 
-const PLATFORM_LABEL: Record<string, string> = { youtube: "YouTube", linkedin: "LinkedIn" };
+const PLATFORM_LABEL: Record<string, string> = {
+  youtube: "YouTube",
+  linkedin: "LinkedIn",
+  instagram: "Instagram",
+  tiktok: "TikTok",
+};
 
 export default function AdminSocialPage() {
   const router = useRouter();
@@ -358,8 +368,15 @@ export default function AdminSocialPage() {
 
       {/* Connections */}
       <div className="grid gap-3 sm:grid-cols-2">
-        {(["youtube", "linkedin"] as const).map((p) => {
-          const configured = p === "youtube" ? overview?.config.youtubeConfigured : overview?.config.linkedinConfigured;
+        {(["youtube", "linkedin", "instagram", "tiktok"] as const).map((p) => {
+          const configured =
+            p === "youtube"
+              ? overview?.config.youtubeConfigured
+              : p === "linkedin"
+                ? overview?.config.linkedinConfigured
+                : p === "instagram"
+                  ? overview?.config.instagramConfigured
+                  : overview?.config.tiktokConfigured;
           const account = accounts.find((a) => a.platform === p);
           return (
             <Card key={p}>
@@ -411,6 +428,8 @@ export default function AdminSocialPage() {
                 <Select value={platform} onChange={(e) => { setPlatform(e.target.value); setForm((f) => ({ ...f, accountId: 0 })); }}>
                   <option value="youtube">YouTube</option>
                   <option value="linkedin">LinkedIn</option>
+                  <option value="instagram">Instagram Reels</option>
+                  <option value="tiktok">TikTok</option>
                 </Select>
               </Field>
               <Field label={`Account (${PLATFORM_LABEL[platform]})`} hint="Offline mode simulates reach so you can test the full flow without API keys.">

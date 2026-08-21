@@ -6,6 +6,8 @@ import {
   linkedinOrgStats,
   linkedinPost,
 } from "@/lib/linkedin";
+import { instagramAuthUrl, instagramConfigured, instagramPublish, instagramInsights } from "@/lib/instagram";
+import { tiktokAuthUrl, tiktokConfigured, tiktokPublish } from "@/lib/tiktok";
 import {
   youtubeAccessToken,
   youtubeAuthUrl,
@@ -14,21 +16,44 @@ import {
   youtubeVideoStats,
 } from "@/lib/youtube";
 
-export type SocialPlatform = "youtube" | "linkedin";
+export type SocialPlatform = "youtube" | "linkedin" | "instagram" | "tiktok";
 
-export const SOCIAL_PLATFORMS: SocialPlatform[] = ["youtube", "linkedin"];
+export const SOCIAL_PLATFORMS: SocialPlatform[] = ["youtube", "linkedin", "instagram", "tiktok"];
 
 export function isSocialPlatform(value: unknown): value is SocialPlatform {
-  return value === "youtube" || value === "linkedin";
+  return (
+    value === "youtube" ||
+    value === "linkedin" ||
+    value === "instagram" ||
+    value === "tiktok"
+  );
 }
 
 export function platformConfigured(platform: SocialPlatform): boolean {
-  return platform === "youtube" ? youtubeConfigured() : linkedinConfigured();
+  switch (platform) {
+    case "youtube":
+      return youtubeConfigured();
+    case "linkedin":
+      return linkedinConfigured();
+    case "instagram":
+      return instagramConfigured();
+    case "tiktok":
+      return tiktokConfigured();
+  }
 }
 
 export function oauthUrl(platform: SocialPlatform): string | null {
   if (!platformConfigured(platform)) return null;
-  return platform === "youtube" ? youtubeAuthUrl("vf-youtube") : null;
+  switch (platform) {
+    case "youtube":
+      return youtubeAuthUrl("vf-youtube");
+    case "instagram":
+      return instagramAuthUrl("vf-instagram");
+    case "tiktok":
+      return tiktokAuthUrl("vf-tiktok");
+    default:
+      return null; // LinkedIn builds its URL in the auth module.
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -79,8 +104,8 @@ async function publishLive(
     }
 
     // LinkedIn
-    const c = process.env.LINKEDIN_ORGANIZATION_URN || "";
-    const authorUrn = c || `urn:li:person:${account.externalId}`;
+    const orgUrn = process.env.LINKEDIN_ORGANIZATION_URN || "";
+    const authorUrn = orgUrn || `urn:li:person:${account.externalId}`;
     if (!authorUrn.startsWith("urn:li:")) throw new Error("LinkedIn author URN missing — reconnect the account.");
     const result = await linkedinPost({
       token: account.accessToken,
@@ -88,6 +113,40 @@ async function publishLive(
       title: post.title || "VisionFold Creative",
       description: `${post.description}\n\n${hashtags.join(" ")}`.trim(),
       url: post.videoUrl || undefined,
+    });
+    return { ok: true, externalPostId: result.postId, permalink: result.permalink };
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : "Publish failed" };
+  }
+}
+
+async function publishInstagram(
+  account: typeof socialAccounts.$inferSelect,
+  post: typeof socialPosts.$inferSelect
+): Promise<PublishResult> {
+  try {
+    const result = await instagramPublish({
+      token: account.accessToken,
+      igUserId: account.externalId,
+      title: post.title || "VisionFold Creative",
+      description: post.description,
+      videoUrl: post.videoUrl,
+    });
+    return { ok: true, externalPostId: result.postId, permalink: result.permalink };
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : "Publish failed" };
+  }
+}
+
+async function publishTikTok(
+  account: typeof socialAccounts.$inferSelect,
+  post: typeof socialPosts.$inferSelect
+): Promise<PublishResult> {
+  try {
+    const result = await tiktokPublish({
+      token: account.accessToken,
+      title: `${post.title}\n\n${post.hashtags}`.trim(),
+      videoUrl: post.videoUrl,
     });
     return { ok: true, externalPostId: result.postId, permalink: result.permalink };
   } catch (err) {
@@ -123,10 +182,18 @@ export async function publishSocialPost(postId: number): Promise<
   const { post, account } = row;
   if (post.status === "published") return { ok: false, error: "Already published" };
 
-  const live = account.status === "connected" && platformConfigured(account.platform as SocialPlatform);
-  const result = live
-    ? await publishLive(account.platform as SocialPlatform, account, post)
-    : demoPublish(account.platform as SocialPlatform, post.id);
+  const platform = account.platform as SocialPlatform;
+  const live = account.status === "connected" && platformConfigured(platform);
+  let result: PublishResult;
+  if (!live) {
+    result = demoPublish(platform, post.id);
+  } else if (platform === "instagram") {
+    result = await publishInstagram(account, post);
+  } else if (platform === "tiktok") {
+    result = await publishTikTok(account, post);
+  } else {
+    result = await publishLive(platform, account, post);
+  }
 
   const now = new Date();
   if (!result.ok) {
@@ -227,7 +294,12 @@ export function simulateMetrics(opts: {
 }): MetricSnapshot {
   const rnd = mulberry32(hashSeed(opts.postId, opts.platform));
   const quality = 0.55 + (Math.max(0, Math.min(100, opts.seoScore)) / 100) * 0.9;
-  const base = opts.platform === "youtube" ? 400 + rnd() * 900 : 900 + rnd() * 2200;
+  const base =
+    opts.platform === "youtube"
+      ? 400 + rnd() * 900
+      : opts.platform === "tiktok"
+        ? 1400 + rnd() * 3600 // short-form skews viral
+        : 900 + rnd() * 2000;
   // Day 0 already gets launch-hour traction; the curve stays monotonic.
   const t = Math.max(0, opts.daysSincePublish) + 1;
   const burst = base * quality * 2.2 * (1 - Math.exp(-t / 3.5));
@@ -263,6 +335,14 @@ async function fetchLiveMetrics(
         );
       }
       return stats ? { ...stats, shares: 0, source: "live" } : null;
+    }
+    if (post.platform === "instagram") {
+      const stats = await instagramInsights(account.accessToken, post.externalPostId);
+      return stats ? { ...stats, shares: 0, source: "live" } : null;
+    }
+    // TikTok exposes no public stats API for direct posts — simulated fallback.
+    if (post.platform === "tiktok") {
+      return null;
     }
     const orgUrn = process.env.LINKEDIN_ORGANIZATION_URN || "";
     const stats = await linkedinOrgStats(account.accessToken, orgUrn, post.externalPostId);

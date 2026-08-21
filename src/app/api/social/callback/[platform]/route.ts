@@ -2,6 +2,8 @@ import { db } from "@/db";
 import { activity, socialAccounts } from "@/db/schema";
 import { readSession } from "@/lib/auth";
 import { linkedinExchangeCode, linkedinProfile } from "@/lib/linkedin";
+import { instagramAccount, instagramExchangeCode } from "@/lib/instagram";
+import { tiktokExchangeCode } from "@/lib/tiktok";
 import { youtubeChannel, youtubeExchangeCode } from "@/lib/youtube";
 import { and, eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
@@ -26,7 +28,9 @@ export async function GET(
   if (!isStaff) return redirect("?error=unauthorized");
 
   const { platform } = await ctx.params;
-  if (platform !== "youtube" && platform !== "linkedin") return redirect("?error=platform");
+  if (platform !== "youtube" && platform !== "linkedin" && platform !== "instagram" && platform !== "tiktok") {
+    return redirect("?error=platform");
+  }
 
   const url = new URL(req.url);
   const code = url.searchParams.get("code") || "";
@@ -36,34 +40,50 @@ export async function GET(
   try {
     let externalId = "";
     let name = "";
+    let accessToken = "";
+    let refreshToken = "";
+    let expiresIn = 3600;
 
     if (platform === "youtube") {
       const tokens = await youtubeExchangeCode(code);
       const channel = await youtubeChannel(tokens.access_token);
       externalId = channel.externalId;
       name = channel.name;
-      await upsertAccount({
-        platform,
-        name,
-        externalId,
-        accessToken: tokens.access_token,
-        refreshToken: tokens.refresh_token || "",
-        expiresIn: tokens.expires_in,
-      });
-    } else {
+      accessToken = tokens.access_token;
+      refreshToken = tokens.refresh_token || "";
+      expiresIn = tokens.expires_in;
+    } else if (platform === "linkedin") {
       const tokens = await linkedinExchangeCode(code);
       const profile = await linkedinProfile(tokens.access_token);
       externalId = profile.externalId;
-      name = profile.name;
-      await upsertAccount({
-        platform,
-        name: process.env.LINKEDIN_ORGANIZATION_URN ? `${name} + company page` : name,
-        externalId,
-        accessToken: tokens.access_token,
-        refreshToken: tokens.refresh_token || "",
-        expiresIn: tokens.expires_in,
-      });
+      name = process.env.LINKEDIN_ORGANIZATION_URN ? `${profile.name} + company page` : profile.name;
+      accessToken = tokens.access_token;
+      refreshToken = tokens.refresh_token || "";
+      expiresIn = tokens.expires_in;
+    } else if (platform === "instagram") {
+      const tokens = await instagramExchangeCode(code);
+      const account = await instagramAccount(tokens.accessToken);
+      externalId = account.externalId;
+      name = account.name;
+      accessToken = tokens.accessToken;
+      expiresIn = tokens.expiresIn;
+    } else {
+      const tokens = await tiktokExchangeCode(code);
+      externalId = tokens.open_id || "tiktok-user";
+      name = "TikTok Studio";
+      accessToken = tokens.access_token;
+      refreshToken = tokens.refresh_token || "";
+      expiresIn = tokens.expires_in;
     }
+
+    await upsertAccount({
+      platform,
+      name,
+      externalId,
+      accessToken,
+      refreshToken,
+      expiresIn,
+    });
 
     await db.insert(activity).values({
       actor: session!.email,

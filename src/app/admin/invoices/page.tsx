@@ -20,7 +20,7 @@ import {
   useApi,
 } from "@/components/AdminUI";
 import { fmtDate, fmtMoney, money } from "@/lib/utils";
-import { CheckCircle2, Plus } from "lucide-react";
+import { CheckCircle2, Link2, Plus } from "lucide-react";
 
 type InvoiceRow = {
   id: number;
@@ -88,6 +88,19 @@ export default function AdminInvoicesPage() {
       reload();
     } catch {
       toast("Failed", "err");
+    }
+  }
+
+  async function copyPayLink(inv: InvoiceRow) {
+    try {
+      const res = await api<{ url: string }>("/api/admin/paylink", { json: { id: inv.id } });
+      const absolute = res.url.startsWith("http")
+        ? res.url
+        : `${window.location.origin}${res.url}`;
+      await navigator.clipboard.writeText(absolute);
+      toast("Payment link copied — send it to the client");
+    } catch {
+      toast("Failed to build payment link", "err");
     }
   }
 
@@ -185,6 +198,9 @@ export default function AdminInvoicesPage() {
                             <CheckCircle2 size={13} /> Paid
                           </Button>
                         )}
+                        <Button size="sm" variant="ghost" onClick={() => copyPayLink(inv)}>
+                          <Link2 size={13} />
+                        </Button>
                         <Button
                           size="sm"
                           variant="ghost"

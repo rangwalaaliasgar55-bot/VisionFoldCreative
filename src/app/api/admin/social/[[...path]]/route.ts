@@ -75,6 +75,8 @@ export async function GET(_req: Request, ctx: { params: Promise<{ path?: string[
       config: {
         youtubeConfigured: platformConfigured("youtube"),
         linkedinConfigured: platformConfigured("linkedin"),
+        instagramConfigured: platformConfigured("instagram"),
+        tiktokConfigured: platformConfigured("tiktok"),
         platforms: SOCIAL_PLATFORMS,
       },
       accounts: accounts.map(sanitizeAccount),
