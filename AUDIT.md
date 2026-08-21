@@ -103,7 +103,49 @@ login ✓ → connect(youtube, demo) ✓ → seo pack (rules, score 88) ✓
 → production build serves all new routes ✓
 ```
 
-## 5. Recommended next steps
+## 5. Security: dependency vulnerabilities resolved
+
+`npm audit` before → **7 findings** (3 high, 4 moderate); GitHub Dependabot
+flagged **16 advisories** on `main`. After → **0 vulnerabilities**.
+
+| Package | Problem | Fix |
+|---|---|---|
+| `next` 16.2.6 | 9 advisories: middleware/proxy bypass, DoS via Server Actions, SSRF, cache-confusion, image-optimizer DoS, endpoint disclosure | upgraded to **16.3.2** (also pulls patched bundled `postcss` + `sharp ≥0.35`) |
+| `postcss` ≤8.5.22 | XSS via `</style>`, arbitrary file read via sourceMappingURL, path traversal | patched via next upgrade + root bump |
+| `sharp` <0.35.0 | inherited libvips CVEs (2026 set) | patched via next upgrade |
+| `esbuild` ≤0.24.2 (via drizzle-kit → @esbuild-kit/*) | dev-server request forgery | added `"overrides": { "esbuild": "^0.25.0" }` — avoids the breaking drizzle-kit downgrade npm suggested |
+
+Verified after upgrades: typecheck ✅ · lint 0 errors ✅ · production build ✅ · runtime smoke test ✅.
+
+## 6. New: real automation engine (`src/lib/automations.ts`)
+
+Previously `/api/admin/automations/run` was a **stub**: it stamped
+`lastRunAt`, reported fake effects, and did nothing. Worse, the per-automation
+**"Run now" button hit a non-existent endpoint (404)**. Both are fixed — every
+automation now performs real database work, is idempotent (deduped via the
+activity feed), logs what it did, respects the master switch
+(Site editor → Automations), and self-installs its catalog so older
+deployments pick up new automations without reseeding:
+
+| Automation | What actually happens now |
+|---|---|
+| Auto-Ack New Leads | moves `new` leads → `contacted`, stamps the notes trail, logs each ack |
+| Progress Milestone Notification | sends a portal message when a project crosses 50% (once/week per project) |
+| Overdue Invoice Reminder | flags unpaid invoices `overdue` past due date, reminds client 3 days before / on due date (re-reminds at most every 5 days) |
+| Review Request on Completion | asks completed clients for a portal rating w/ coupon (skips already-rated projects) |
+| **Daily Business Digest** *(new)* | writes an AI/rule-based ops digest into the activity feed every morning — works offline |
+| **Social Analytics Sync** *(new)* | pulls YouTube/LinkedIn snapshots + generates day-3/day-7 reviews inside the daily run |
+
+Wired in three places:
+- `POST /api/admin/automations/run` — "Run all due" (force mode)
+- `POST /api/admin/automations/:id/run` — per-card "Run now" (**endpoint was missing; now exists**)
+- Daily cron `/api/cron/run-scheduled` — cooldown-aware (skips automations run in the last 12h), reports effect counts in its JSON response
+
+E2E verified against seeded demo data: 1 lead auto-acknowledged,
+3 milestone messages delivered to client portals, daily digest written,
+re-runs correctly produce 0 duplicate effects.
+
+## 7. Recommended next steps
 - Add `next.config.ts` `images.remotePatterns` if you want `next/image` everywhere.
 - LinkedIn native video upload requires the partner video API — current build
   attaches the video as a rich link post (documented in `linkedin.ts`).

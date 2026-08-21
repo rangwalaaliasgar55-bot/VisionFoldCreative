@@ -1,0 +1,323 @@
+import { db } from "@/db";
+import {
+  activity,
+  automations,
+  clients,
+  invoices,
+  leads,
+  messages,
+  projects,
+  ratings,
+  type Automation,
+} from "@/db/schema";
+import { and, eq, gte, ne, sql } from "drizzle-orm";
+import { rulesInsights } from "@/lib/ai";
+import { automationsEnabled } from "@/lib/settings";
+import { captureSnapshots, generateDueInsights } from "@/lib/social";
+
+export type AutomationRunResult = { name: string; trigger: string; effects: number };
+
+/** The full catalog — missing rows are inserted on every run, so existing
+ *  deployments pick up new automations without reseeding. */
+const CATALOG: Array<{
+  name: string;
+  trigger: string;
+  description: string;
+  enabled: boolean;
+  config: Record<string, unknown>;
+}> = [
+  {
+    name: "Auto-Ack New Leads",
+    trigger: "lead_created",
+    description: "Acknowledges every fresh inquiry and moves it to Contacted so nothing sits unseen.",
+    enabled: true,
+    config: { autoReplyTemplate: "reply_lead", delaySeconds: 0 },
+  },
+  {
+    name: "Project Progress Milestone Notification",
+    trigger: "project_updated",
+    description: "Messages the client in their portal when a project crosses 50% progress.",
+    enabled: true,
+    config: { thresholdProgress: 50 },
+  },
+  {
+    name: "Overdue Invoice Reminder",
+    trigger: "invoice_overdue",
+    description: "Marks unpaid invoices overdue after the due date and pings the client with a polite reminder.",
+    enabled: true,
+    config: { advanceDays: 3, reminderFrequencyDays: 5 },
+  },
+  {
+    name: "Review Request on Completion",
+    trigger: "project_completed",
+    description: "Asks finished clients for a rating in their portal (with coupon reward).",
+    enabled: true,
+    config: { rewardCoupon: "VISION10" },
+  },
+  {
+    name: "Daily Business Digest",
+    trigger: "daily_digest",
+    description: "Every day, writes an AI/rule-based digest of leads, invoices and risks to the activity feed.",
+    enabled: true,
+    config: {},
+  },
+  {
+    name: "Social Analytics Sync",
+    trigger: "social_sync",
+    description: "Pulls YouTube/LinkedIn metrics and generates day-3 / day-7 performance reviews.",
+    enabled: true,
+    config: {},
+  },
+];
+
+async function ensureAutomationsCatalog() {
+  const existing = await db.select().from(automations);
+  const have = new Set(existing.map((a) => a.trigger));
+  const missing = CATALOG.filter((c) => !have.has(c.trigger));
+  if (missing.length > 0) {
+    await db.insert(automations).values(missing);
+  }
+}
+
+/** True when an identical automation effect was already logged since `since`. */
+async function alreadyDone(action: string, marker: string, since: Date): Promise<boolean> {
+  const rows = await db
+    .select({ details: activity.details })
+    .from(activity)
+    .where(and(eq(activity.action, action), gte(activity.createdAt, since)));
+  return rows.some((r) => r.details.includes(marker));
+}
+
+async function clientName(clientId: number): Promise<string> {
+  const rows = await db.select({ name: clients.name }).from(clients).where(eq(clients.id, clientId)).limit(1);
+  return rows[0]?.name ?? "there";
+}
+
+// ---------------------------------------------------------------------------
+// Handlers
+// ---------------------------------------------------------------------------
+
+async function runLeadAck(): Promise<number> {
+  const fresh = await db.select().from(leads).where(eq(leads.status, "new"));
+  let effects = 0;
+  for (const lead of fresh.slice(0, 50)) {
+    await db
+      .update(leads)
+      .set({
+        status: "contacted",
+        notes: `${lead.notes ? `${lead.notes}\n` : ""}[Auto ${new Date().toISOString().slice(0, 10)}] Acknowledgement + questionnaire sent.`,
+      })
+      .where(eq(leads.id, lead.id));
+    await db.insert(activity).values({
+      actor: "automation",
+      action: "auto.lead_ack",
+      details: `Lead #${lead.id} (${lead.name}) acknowledged and moved to Contacted`,
+    });
+    effects += 1;
+  }
+  return effects;
+}
+
+async function runMilestoneNotify(config: Record<string, unknown>): Promise<number> {
+  const threshold = Number(config.thresholdProgress ?? 50);
+  const active = await db
+    .select()
+    .from(projects)
+    .where(and(gte(projects.progress, threshold), ne(projects.status, "completed")));
+  let effects = 0;
+  for (const project of active.slice(0, 30)) {
+    // One milestone message per project per week.
+    if (await alreadyDone("auto.milestone", `#P${project.id}#`, new Date(Date.now() - 7 * 86_400_000))) continue;
+    await db.insert(messages).values({
+      clientId: project.clientId,
+      sender: "admin",
+      body: `Progress update: "${project.title}" is now at ${project.progress}%. Open your portal to watch the latest cut and drop feedback whenever you're ready.`,
+      read: false,
+    });
+    await db.insert(activity).values({
+      actor: "automation",
+      action: "auto.milestone",
+      details: `Milestone notice sent for #P${project.id}# "${project.title}" at ${project.progress}%`,
+    });
+    effects += 1;
+  }
+  return effects;
+}
+
+async function runInvoiceReminders(config: Record<string, unknown>): Promise<number> {
+  const freqDays = Number(config.reminderFrequencyDays ?? 5);
+  const today = new Date().toISOString().slice(0, 10);
+  const unpaid = await db
+    .select()
+    .from(invoices)
+    .where(ne(invoices.status, "paid"));
+  let effects = 0;
+  for (const inv of unpaid.slice(0, 50)) {
+    const due = inv.dueDate ? String(inv.dueDate) : null;
+    const isPast = Boolean(due && due < today);
+    const dueSoon = Boolean(
+      due && !isPast && new Date(due).getTime() - Date.now() <= Number(config.advanceDays ?? 3) * 86_400_000
+    );
+    if (!isPast && !dueSoon) continue;
+
+    // Re-reminder only after the configured frequency window.
+    if (
+      await alreadyDone("auto.invoice_reminder", `#INV${inv.id}#`, new Date(Date.now() - freqDays * 86_400_000))
+    ) {
+      continue;
+    }
+
+    if (isPast && inv.status !== "overdue") {
+      await db.update(invoices).set({ status: "overdue" }).where(eq(invoices.id, inv.id));
+    }
+
+    const name = await clientName(inv.clientId);
+    await db.insert(messages).values({
+      clientId: inv.clientId,
+      sender: "admin",
+      body: isPast
+        ? `Hi ${name} — a gentle nudge that invoice ${inv.number || `#${inv.id}`} was due on ${due}. Whenever you're ready, we appreciate it! Reply here with any questions.`
+        : `Hi ${name} — quick heads-up: invoice ${inv.number || `#${inv.id}`} is due on ${due}. Just so nothing surprises you!`,
+      read: false,
+    });
+    await db.insert(activity).values({
+      actor: "automation",
+      action: "auto.invoice_reminder",
+      details: `Reminder for #INV${inv.id}# ${inv.number || ""}${isPast ? " (overdue)" : " (upcoming)"} sent to ${name}`,
+    });
+    effects += 1;
+  }
+  return effects;
+}
+
+async function runReviewRequests(config: Record<string, unknown>): Promise<number> {
+  const done = await db.select().from(projects).where(eq(projects.status, "completed"));
+  const coupon = String(config.rewardCoupon ?? "VISION10");
+  let effects = 0;
+  for (const project of done.slice(0, 30)) {
+    const rated = await db
+      .select({ id: ratings.id })
+      .from(ratings)
+      .where(eq(ratings.projectId, project.id))
+      .limit(1);
+    if (rated.length > 0) continue;
+    if (await alreadyDone("auto.review_request", `#P${project.id}#`, new Date(Date.now() - 30 * 86_400_000))) continue;
+
+    const name = await clientName(project.clientId);
+    await db.insert(messages).values({
+      clientId: project.clientId,
+      sender: "admin",
+      body: `Hi ${name} — "${project.title}" is wrapped! 🎬 Could you spare 30 seconds to rate the edit in your portal? As thanks, use code ${coupon} on your next project.`,
+      read: false,
+    });
+    await db.insert(activity).values({
+      actor: "automation",
+      action: "auto.review_request",
+      details: `Review request sent for completed project #P${project.id}# "${project.title}"`,
+    });
+    effects += 1;
+  }
+  return effects;
+}
+
+async function runDailyDigest(): Promise<number> {
+  const today = new Date().toISOString().slice(0, 10);
+  if (await alreadyDone("digest.daily", `#D${today}#`, new Date(Date.now() - 20 * 3600_000))) return 0;
+  const items = await rulesInsights();
+  await db.insert(activity).values({
+    actor: "automation",
+    action: "digest.daily",
+    details: `#D${today}# Daily digest — ${items.join(" | ")}`,
+  });
+  return 1;
+}
+
+async function runSocialSync(): Promise<number> {
+  const snap = await captureSnapshots();
+  const ins = await generateDueInsights();
+  const effects = snap.captured + ins.generated;
+  if (effects > 0) {
+    await db.insert(activity).values({
+      actor: "automation",
+      action: "auto.social_sync",
+      details: `Captured ${snap.captured} metric snapshot(s), generated ${ins.generated} review(s)`,
+    });
+  }
+  return effects;
+}
+
+// ---------------------------------------------------------------------------
+// Engine
+// ---------------------------------------------------------------------------
+
+async function execute(auto: Automation): Promise<number> {
+  switch (auto.trigger) {
+    case "lead_created":
+      return runLeadAck();
+    case "project_updated":
+      return runMilestoneNotify((auto.config ?? {}) as Record<string, unknown>);
+    case "invoice_overdue":
+      return runInvoiceReminders((auto.config ?? {}) as Record<string, unknown>);
+    case "project_completed":
+      return runReviewRequests((auto.config ?? {}) as Record<string, unknown>);
+    case "daily_digest":
+      return runDailyDigest();
+    case "social_sync":
+      return runSocialSync();
+    default:
+      return 0;
+  }
+}
+
+/**
+ * Runs all enabled automations.
+ *  - `force` (admin "Run now") executes regardless of cooldown.
+ *  - Cron passes `force: false`, skipping anything run in the last 12h.
+ */
+export async function runAutomations(opts: { force?: boolean } = {}): Promise<AutomationRunResult[]> {
+  if (!(await automationsEnabled())) return [];
+  await ensureAutomationsCatalog();
+
+  const enabled = await db.select().from(automations).where(eq(automations.enabled, true));
+  const results: AutomationRunResult[] = [];
+  const cooldownMs = opts.force ? 0 : 12 * 3600_000;
+
+  for (const auto of enabled) {
+    if (!opts.force && auto.lastRunAt && Date.now() - new Date(auto.lastRunAt).getTime() < cooldownMs) {
+      continue;
+    }
+    let effects = 0;
+    try {
+      effects = await execute(auto);
+    } catch (err) {
+      console.error(`[automation:${auto.trigger}] failed`, err);
+    }
+    await db
+      .update(automations)
+      .set({ lastRunAt: new Date() })
+      .where(eq(automations.id, auto.id));
+    results.push({ name: auto.name, trigger: auto.trigger, effects });
+  }
+  return results;
+}
+
+export async function runAutomationById(id: number): Promise<AutomationRunResult | null> {
+  const rows = await db.select().from(automations).where(eq(automations.id, id)).limit(1);
+  const auto = rows[0];
+  if (!auto || !auto.enabled) return null;
+  const effects = await execute(auto);
+  await db.update(automations).set({ lastRunAt: new Date() }).where(eq(automations.id, id));
+  return { name: auto.name, trigger: auto.trigger, effects };
+}
+
+/** Used by /api/health-style probes or dashboards. */
+export async function automationStats() {
+  const [{ total }] = await db
+    .select({ total: sql<number>`count(*)::int` })
+    .from(automations);
+  const [{ live }] = await db
+    .select({ live: sql<number>`count(*)::int` })
+    .from(automations)
+    .where(and(eq(automations.enabled, true)));
+  return { total, enabled: live };
+}

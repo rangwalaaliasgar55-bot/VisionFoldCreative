@@ -2,6 +2,9 @@
   "name": "visionfold-creative",
   "private": true,
   "type": "module",
+  "overrides": {
+    "esbuild": "^0.25.0"
+  },
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -15,7 +18,7 @@
     "drizzle-orm": "0.45.2",
     "jose": "^6.2.8",
     "lucide-react": "^1.31.0",
-    "next": "16.2.6",
+    "next": "^16.3.2",
     "pg": "8.20.0",
     "pg-mem": "^3.0.14",
     "react": "19.2.6",
@@ -30,8 +33,8 @@
     "@types/react-dom": "19.2.3",
     "drizzle-kit": "0.31.10",
     "eslint": "9.39.4",
-    "eslint-config-next": "16.2.6",
-    "postcss": "8.5.8",
+    "eslint-config-next": "^16.3.2",
+    "postcss": "^8.5.24",
     "tailwindcss": "4.1.17",
     "typescript": "5.9.3"
   }

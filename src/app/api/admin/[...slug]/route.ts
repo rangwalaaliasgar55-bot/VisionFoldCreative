@@ -32,6 +32,7 @@ import {
   requireStaff,
 } from "@/lib/auth";
 import { ensureSeed, resetSeed } from "@/lib/seed";
+import { runAutomationById, runAutomations } from "@/lib/automations";
 import { DEFAULT_SETTINGS, getSettings, setSettings } from "@/lib/settings";
 import { parseCsv } from "@/lib/utils";
 import { searchBusinesses } from "@/lib/prospect";
@@ -958,20 +959,19 @@ export async function POST(
       return ok(newCat);
     }
 
-    // Automations Run
+    // Automations Run — executes real workflows via src/lib/automations.ts
     if (path === "automations/run") {
-      const allAutos = await db.select().from(automations).where(eq(automations.enabled, true));
-      const ran: { name: string; effects: number }[] = [];
+      const ran = await runAutomations({ force: true });
+      return ok({
+        ran: ran.map((r) => ({ name: r.name, effects: r.effects })),
+      });
+    }
 
-      for (const auto of allAutos) {
-        await db
-          .update(automations)
-          .set({ lastRunAt: new Date() })
-          .where(eq(automations.id, auto.id));
-        ran.push({ name: auto.name, effects: 1 });
-      }
-
-      return ok({ ran });
+    // Single automation ("Run now" button): /api/admin/automations/:id/run
+    if (slug.length === 3 && slug[0] === "automations" && slug[2] === "run") {
+      const result = await runAutomationById(Number(slug[1]));
+      if (!result) return bad("Automation not found or disabled.", 404);
+      return ok({ ran: [{ name: result.name, effects: result.effects }] });
     }
 
     // Messages & Media
