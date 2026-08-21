@@ -46,6 +46,7 @@ function GameCanvas({ onClose }: { onClose: () => void }) {
   });
   const phaseRef = useRef<Phase>("ready");
   const bestRef = useRef(best);
+  const scoreRef = useRef(score);
 
   useEffect(() => {
     phaseRef.current = phase;
@@ -54,6 +55,10 @@ function GameCanvas({ onClose }: { onClose: () => void }) {
   useEffect(() => {
     bestRef.current = best;
   }, [best]);
+
+  useEffect(() => {
+    scoreRef.current = score;
+  }, [score]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -373,10 +378,12 @@ function GameCanvas({ onClose }: { onClose: () => void }) {
         ctx.fillText("CUT!", W / 2, 120);
         ctx.fillStyle = "#F6F3EC";
         ctx.font = "18px monospace";
-        ctx.fillText(`Final cut: ${score}`, W / 2, 156);
+        ctx.fillText(`Final cut: ${scoreRef.current}`, W / 2, 156);
         ctx.fillStyle = "rgba(246,243,236,0.6)";
         ctx.font = "13px monospace";
-        ctx.fillText(`Best: ${best}${score >= best && score > 0 ? "  ·  NEW BEST" : ""}`, W / 2, 180);
+        const s = scoreRef.current;
+        const b = bestRef.current;
+        ctx.fillText(`Best: ${b}${s >= b && s > 0 ? "  ·  NEW BEST" : ""}`, W / 2, 180);
         ctx.fillStyle = "#F4A62A";
         ctx.font = "bold 13px monospace";
         ctx.fillText("SPACE / TAP to re-render", W / 2, 214);

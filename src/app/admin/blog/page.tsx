@@ -93,8 +93,8 @@ export default function AdminBlogPage() {
   const [wpSyncing, setWpSyncing] = useState(false);
   const [syncResult, setSyncResult] = useState<string | null>(null);
 
-  const posts = data?.posts || [];
-  const categories = data?.categories || [];
+  const posts = useMemo(() => data?.posts || [], [data]);
+  const categories = useMemo(() => data?.categories || [], [data]);
 
   const categoryMap = useMemo(() => {
     return new Map(categories.map((c) => [c.id, c.name]));

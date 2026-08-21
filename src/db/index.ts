@@ -255,6 +255,67 @@ CREATE TABLE IF NOT EXISTS wa_messages (
   auto_replied BOOLEAN NOT NULL DEFAULT false,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+CREATE TABLE IF NOT EXISTS social_accounts (
+  id SERIAL PRIMARY KEY,
+  platform TEXT NOT NULL,
+  name TEXT NOT NULL DEFAULT '',
+  external_id TEXT NOT NULL DEFAULT '',
+  access_token TEXT NOT NULL DEFAULT '',
+  refresh_token TEXT NOT NULL DEFAULT '',
+  expires_at TIMESTAMPTZ,
+  status TEXT NOT NULL DEFAULT 'connected',
+  meta JSONB DEFAULT '{}',
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE UNIQUE INDEX IF NOT EXISTS social_accounts_platform_ext_uq ON social_accounts (platform, external_id);
+
+CREATE TABLE IF NOT EXISTS social_posts (
+  id SERIAL PRIMARY KEY,
+  platform TEXT NOT NULL,
+  account_id INTEGER NOT NULL REFERENCES social_accounts(id) ON DELETE CASCADE,
+  portfolio_id INTEGER,
+  title TEXT NOT NULL DEFAULT '',
+  description TEXT NOT NULL DEFAULT '',
+  tags TEXT NOT NULL DEFAULT '',
+  hashtags TEXT NOT NULL DEFAULT '',
+  video_url TEXT NOT NULL DEFAULT '',
+  thumbnail_url TEXT NOT NULL DEFAULT '',
+  external_post_id TEXT NOT NULL DEFAULT '',
+  permalink TEXT NOT NULL DEFAULT '',
+  status TEXT NOT NULL DEFAULT 'draft',
+  seo_score INTEGER NOT NULL DEFAULT 0,
+  last_error TEXT NOT NULL DEFAULT '',
+  scheduled_for TIMESTAMPTZ,
+  published_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS social_posts_platform_idx ON social_posts (platform);
+CREATE INDEX IF NOT EXISTS social_posts_status_idx ON social_posts (status);
+
+CREATE TABLE IF NOT EXISTS social_metrics (
+  id SERIAL PRIMARY KEY,
+  post_id INTEGER NOT NULL REFERENCES social_posts(id) ON DELETE CASCADE,
+  views INTEGER NOT NULL DEFAULT 0,
+  likes INTEGER NOT NULL DEFAULT 0,
+  comments INTEGER NOT NULL DEFAULT 0,
+  shares INTEGER NOT NULL DEFAULT 0,
+  source TEXT NOT NULL DEFAULT 'simulated',
+  captured_at TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS social_metrics_post_idx ON social_metrics (post_id);
+CREATE INDEX IF NOT EXISTS social_metrics_captured_idx ON social_metrics (captured_at);
+
+CREATE TABLE IF NOT EXISTS social_insights (
+  id SERIAL PRIMARY KEY,
+  post_id INTEGER NOT NULL REFERENCES social_posts(id) ON DELETE CASCADE,
+  day_offset INTEGER NOT NULL DEFAULT 3,
+  kind TEXT NOT NULL DEFAULT 'review',
+  body JSONB NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS social_insights_post_idx ON social_insights (post_id);
 `;
 
 function wrapQuery(origQuery: any) {

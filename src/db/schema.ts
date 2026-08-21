@@ -354,3 +354,92 @@ export type Deliverable = typeof deliverables.$inferSelect;
 export type Webhook = typeof webhooks.$inferSelect;
 export type Visitor = typeof visitors.$inferSelect;
 export type WaMessage = typeof waMessages.$inferSelect;
+
+// ---------------------------------------------------------------------------
+// Social publishing (YouTube · LinkedIn) — direct posting + AI SEO + insights
+// ---------------------------------------------------------------------------
+
+export const socialAccounts = pgTable(
+  "social_accounts",
+  {
+    id: serial("id").primaryKey(),
+    platform: text("platform").notNull(), // youtube | linkedin
+    name: text("name").notNull().default(""), // channel / profile display name
+    externalId: text("external_id").notNull().default(""), // channel id / member URN
+    accessToken: text("access_token").notNull().default(""),
+    refreshToken: text("refresh_token").notNull().default(""),
+    expiresAt: timestamp("expires_at", { withTimezone: true }),
+    status: text("status").notNull().default("connected"), // connected | demo | expired
+    meta: jsonb("meta").$type<Record<string, unknown>>().default({}),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  },
+  (t) => [uniqueIndex("social_accounts_platform_ext_uq").on(t.platform, t.externalId)]
+);
+
+export const socialPosts = pgTable(
+  "social_posts",
+  {
+    id: serial("id").primaryKey(),
+    platform: text("platform").notNull(), // youtube | linkedin
+    accountId: integer("account_id")
+      .notNull()
+      .references(() => socialAccounts.id, { onDelete: "cascade" }),
+    portfolioId: integer("portfolio_id"), // optional link to a portfolio item
+    title: text("title").notNull().default(""),
+    description: text("description").notNull().default(""),
+    tags: text("tags").notNull().default(""), // comma separated SEO keywords
+    hashtags: text("hashtags").notNull().default(""),
+    videoUrl: text("video_url").notNull().default(""),
+    thumbnailUrl: text("thumbnail_url").notNull().default(""),
+    externalPostId: text("external_post_id").notNull().default(""),
+    permalink: text("permalink").notNull().default(""),
+    status: text("status").notNull().default("draft"), // draft | scheduled | published | failed
+    seoScore: integer("seo_score").notNull().default(0),
+    lastError: text("last_error").notNull().default(""),
+    scheduledFor: timestamp("scheduled_for", { withTimezone: true }),
+    publishedAt: timestamp("published_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+  },
+  (t) => [
+    index("social_posts_platform_idx").on(t.platform),
+    index("social_posts_status_idx").on(t.status),
+  ]
+);
+
+export const socialMetrics = pgTable(
+  "social_metrics",
+  {
+    id: serial("id").primaryKey(),
+    postId: integer("post_id")
+      .notNull()
+      .references(() => socialPosts.id, { onDelete: "cascade" }),
+    views: integer("views").notNull().default(0),
+    likes: integer("likes").notNull().default(0),
+    comments: integer("comments").notNull().default(0),
+    shares: integer("shares").notNull().default(0),
+    source: text("source").notNull().default("simulated"), // live | simulated
+    capturedAt: timestamp("captured_at", { withTimezone: true }).defaultNow(),
+  },
+  (t) => [index("social_metrics_post_idx").on(t.postId), index("social_metrics_captured_idx").on(t.capturedAt)]
+);
+
+export const socialInsights = pgTable(
+  "social_insights",
+  {
+    id: serial("id").primaryKey(),
+    postId: integer("post_id")
+      .notNull()
+      .references(() => socialPosts.id, { onDelete: "cascade" }),
+    dayOffset: integer("day_offset").notNull().default(3), // days after publish when generated
+    kind: text("kind").notNull().default("review"), // review | topics
+    body: jsonb("body").$type<Record<string, unknown>>().notNull(), // structured review payload
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  },
+  (t) => [index("social_insights_post_idx").on(t.postId)]
+);
+
+export type SocialAccount = typeof socialAccounts.$inferSelect;
+export type SocialPost = typeof socialPosts.$inferSelect;
+export type SocialMetric = typeof socialMetrics.$inferSelect;
+export type SocialInsight = typeof socialInsights.$inferSelect;

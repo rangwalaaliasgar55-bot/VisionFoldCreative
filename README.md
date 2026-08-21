@@ -85,7 +85,10 @@ npm run build && npm run typecheck && npm run lint
 | `WHATSAPP_BUSINESS_NUMBER` | ➖ | Your number in E.164 (`+917725004639`). |
 | `WHATSAPP_VERIFY_TOKEN` | ➖ | Webhook verification secret (any value you pick). |
 | `WHATSAPP_AUTO_REPLY` | ➖ | `"true"` to let the AI auto-answer inbound WhatsApp messages. |
-| `APP_URL` | ➖ | Canonical URL used in metadata/emails. |
+| `YOUTUBE_CLIENT_ID` + `YOUTUBE_CLIENT_SECRET` (+ `YOUTUBE_REDIRECT_URI`) | ➖ | Live YouTube publishing from `/admin/social`. Without them the platform runs in offline simulation mode. |
+| `YOUTUBE_API_KEY` | ➖ | Read-only public video stats (no OAuth needed). |
+| `LINKEDIN_CLIENT_ID` + `LINKEDIN_CLIENT_SECRET` (+ `LINKEDIN_REDIRECT_URI`, optional `LINKEDIN_ORGANIZATION_URN`) | ➖ | Live LinkedIn posting from `/admin/social`. Offline simulation without them. |
+| `APP_URL` | ➖ | Canonical URL used in metadata/emails and as OAuth redirect base. |
 
 > **Default admin (first seed):** `visionfoldcreative@gmail.com` / `aliasgar134` — set `ADMIN_EMAIL` + `ADMIN_PASSWORD` to override, and rotate it after first login.
 > **Demo portal (requires `SEED_DEMO=true`):** `client@visionfold.com` / `demo1234`.

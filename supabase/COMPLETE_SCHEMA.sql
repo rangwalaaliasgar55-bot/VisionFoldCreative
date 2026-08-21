@@ -426,8 +426,77 @@ create table if not exists public.wa_messages (
 create index if not exists wa_messages_from_idx on public.wa_messages ("from");
 create index if not exists wa_messages_created_idx on public.wa_messages (created_at);
 
+-- ============================================================================
+-- Social publishing (YouTube · LinkedIn): accounts, posts, metrics, insights
+-- ============================================================================
+create table if not exists public.social_accounts (
+  id serial primary key,
+  platform text not null,
+  name text not null default '',
+  external_id text not null default '',
+  access_token text not null default '',
+  refresh_token text not null default '',
+  expires_at timestamptz,
+  status text not null default 'connected',
+  meta jsonb default '{}',
+  created_at timestamptz default now()
+);
+create unique index if not exists social_accounts_platform_ext_uq
+  on public.social_accounts (platform, external_id);
+
+create table if not exists public.social_posts (
+  id serial primary key,
+  platform text not null,
+  account_id integer not null references public.social_accounts(id) on delete cascade,
+  portfolio_id integer,
+  title text not null default '',
+  description text not null default '',
+  tags text not null default '',
+  hashtags text not null default '',
+  video_url text not null default '',
+  thumbnail_url text not null default '',
+  external_post_id text not null default '',
+  permalink text not null default '',
+  status text not null default 'draft',
+  seo_score integer not null default 0,
+  last_error text not null default '',
+  scheduled_for timestamptz,
+  published_at timestamptz,
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
+);
+create index if not exists social_posts_platform_idx on public.social_posts (platform);
+create index if not exists social_posts_status_idx on public.social_posts (status);
+
+create table if not exists public.social_metrics (
+  id serial primary key,
+  post_id integer not null references public.social_posts(id) on delete cascade,
+  views integer not null default 0,
+  likes integer not null default 0,
+  comments integer not null default 0,
+  shares integer not null default 0,
+  source text not null default 'simulated',
+  captured_at timestamptz default now()
+);
+create index if not exists social_metrics_post_idx on public.social_metrics (post_id);
+create index if not exists social_metrics_captured_idx on public.social_metrics (captured_at);
+
+create table if not exists public.social_insights (
+  id serial primary key,
+  post_id integer not null references public.social_posts(id) on delete cascade,
+  day_offset integer not null default 3,
+  kind text not null default 'review',
+  body jsonb not null,
+  created_at timestamptz default now()
+);
+create index if not exists social_insights_post_idx on public.social_insights (post_id);
+
 alter table public.visitors    enable row level security;
 alter table public.wa_messages enable row level security;
+alter table public.social_accounts enable row level security;
+alter table public.social_posts     enable row level security;
+alter table public.social_metrics   enable row level security;
+alter table public.social_insights  enable row level security;
 
 commit;
 
