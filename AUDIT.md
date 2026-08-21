@@ -219,7 +219,27 @@ build compiles new routes (`/feed.xml`, `/robots.txt`, `/sitemap.xml`).
 - E2E verified: valid token renders the invoice; tampered token shows a
   friendly "link expired" screen.
 
-## 9. Recommended next steps
+## 9. Interface upgrades — admin & portal
+
+**Both surfaces**
+- Instant navigation feedback via App Router `loading.tsx` skeletons for
+  `/admin` and `/portal`.
+- PWA manifest (`/manifest.webmanifest`) — installable app, brand ink theme.
+
+**Client portal**
+- Time-aware greeting ("Good morning/afternoon/evening") with live pipeline
+  summary (active projects · overall completion %) in the welcome banner.
+- Invoice rows gained a **copy payment link** button (`POST /api/portal/paylink`)
+  so clients can share a signed capability link with their finance team.
+- Ownership enforced: clients can only mint links for their own invoices (404 otherwise).
+
+**Admin dashboard**
+- New "Studio pulse" strip (owner view): total social reach across platforms,
+  automation status, backup readiness — each deep-linking to its tool.
+- Dashboard KPI grid, action center and AI insights retained; pulse strip
+  fetches lazily only for admins.
+
+## 10. Recommended next steps
 - Add `next.config.ts` `images.remotePatterns` if you want `next/image` everywhere.
 - LinkedIn native video upload requires the partner video API — current build
   attaches the video as a rich link post (documented in `linkedin.ts`).

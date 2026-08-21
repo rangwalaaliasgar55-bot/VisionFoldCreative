@@ -2,6 +2,7 @@ import { db } from "@/db";
 import { deliverables, invoices, messages, projects, ratings, updates } from "@/db/schema";
 import { and, eq, inArray, isNull, sql } from "drizzle-orm";
 import { bad, hashPassword, ok, readBody, requireClient, verifyPassword } from "@/lib/auth";
+import { payLink } from "@/lib/paytoken";
 import { clients } from "@/db/schema";
 
 export const dynamic = "force-dynamic";
@@ -170,6 +171,20 @@ export async function POST(
         .set({ passwordHash: hashPassword(next) })
         .where(eq(clients.id, client.id));
       return ok({ ok: true });
+    }
+
+    // Shareable capability link for one of the client's own invoices.
+    if (action === "paylink") {
+      const invoiceId = Number(body.invoiceId || 0);
+      const inv = (
+        await db
+          .select({ id: invoices.id })
+          .from(invoices)
+          .where(sql`${invoices.id} = ${invoiceId} and ${invoices.clientId} = ${client.id}`)
+          .limit(1)
+      )[0];
+      if (!inv) return bad("Invoice not found.", 404);
+      return ok({ ok: true, url: payLink(inv.id) });
     }
 
     if (action === "pay") {

@@ -29,6 +29,7 @@ import {
   Eye,
   Film,
   FolderKanban,
+  Link2,
   Maximize2,
   MessageSquare,
   Pause,
@@ -243,6 +244,23 @@ export default function ClientPortalPage() {
     }
   }
 
+  async function copyPayLink(invoiceId: number) {
+    try {
+      const res = await fetch("/api/portal/paylink", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ invoiceId }),
+      });
+      const result = await res.json().catch(() => ({}));
+      if (!res.ok) return toast(result.error || "Could not create link", "err");
+      const absolute = result.url.startsWith("http") ? result.url : `${window.location.origin}${result.url}`;
+      await navigator.clipboard.writeText(absolute);
+      toast("Payment link copied — share it with your finance team");
+    } catch {
+      toast("Network error", "err");
+    }
+  }
+
   async function handlePayInvoice(invoiceId: number) {
     setProcessingPay(true);
     try {
@@ -338,6 +356,8 @@ export default function ClientPortalPage() {
     ? Math.round(activeProjects.reduce((sum, project) => sum + Number(project.progress || 0), 0) / activeProjects.length)
     : 0;
   const projectTitle = (id: number) => projects.find((project) => project.id === id)?.title || "";
+  const hour = new Date().getHours();
+  const greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
 
   return (
     <div className="animate-page-in mx-auto max-w-6xl px-5 py-8 space-y-6">
@@ -349,11 +369,12 @@ export default function ClientPortalPage() {
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h1 className="font-display text-2xl font-bold text-white">Welcome back, {client.name}</h1>
+              <h1 className="font-display text-2xl font-bold text-white">{greeting}, {client.name.split(" ")[0]}</h1>
               <Badge tone="active">{client.status}</Badge>
             </div>
             <p className="mt-0.5 text-xs text-slate-400">
-              {client.company ? `${client.company} · ` : ""}Client ID #{client.id} · Connected to VisionFold Studio Suite
+              {avgProgress > 0 ? `${activeProjects.length} active project${activeProjects.length === 1 ? "" : "s"} · ${avgProgress}% complete overall · ` : ""}
+              Client ID #{client.id}
             </p>
           </div>
         </div>
@@ -756,9 +777,14 @@ export default function ClientPortalPage() {
                 <div className="flex items-center gap-3">
                   <span className="font-display text-lg font-bold text-white">{fmtMoney(inv.amount)}</span>
                   {inv.status !== "paid" ? (
-                    <Button size="sm" onClick={() => setPayingInvoice(inv)}>
-                      <CreditCard size={13} /> Pay Now
-                    </Button>
+                    <>
+                      <Button size="sm" variant="ghost" onClick={() => copyPayLink(inv.id)} title="Copy a shareable payment link">
+                        <Link2 size={13} />
+                      </Button>
+                      <Button size="sm" onClick={() => setPayingInvoice(inv)}>
+                        <CreditCard size={13} /> Pay Now
+                      </Button>
+                    </>
                   ) : (
                     <span className="flex items-center gap-1 text-xs font-semibold text-emerald-300">
                       <CheckCircle2 size={14} /> Paid & Settled

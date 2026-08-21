@@ -16,6 +16,7 @@ import {
   Sparkles,
   Star,
   Target,
+  TrendingUp,
   Users,
   Zap,
 } from "lucide-react";
@@ -35,6 +36,9 @@ type Dashboard = {
 
 export default function AdminDashboardPage() {
   const { data, loading, reload } = useApi<Dashboard>("/api/admin/dashboard");
+  const { data: socialData } = useApi<{ posts: { metrics: { views: number } | null }[] }>(
+    data?.viewer.role === "admin" ? "/api/admin/social" : null
+  );
   const [insights, setInsights] = useState<{ source: string; items: string[] } | null>(null);
   const [running, setRunning] = useState(false);
 
@@ -117,6 +121,50 @@ export default function AdminDashboardPage() {
           ))}
         </div>
       </Card>
+
+      {data.viewer.role === "admin" && (
+        <div className="grid gap-3 sm:grid-cols-3">
+          {(() => {
+            const published = (socialData?.posts ?? []).filter((p) => p.metrics);
+            const totalViews = published.reduce((sum, p) => sum + (p.metrics?.views ?? 0), 0);
+            return [
+              {
+                label: "Social reach",
+                value: totalViews.toLocaleString(),
+                detail: `${published.length} published post${published.length === 1 ? "" : "s"} across platforms`,
+                href: "/admin/social",
+                Icon: TrendingUp,
+                tone: "text-emerald-300 bg-emerald-500/10",
+              },
+              {
+                label: "Automations",
+                value: "Live",
+                detail: "Lead acks, reminders, digests run daily",
+                href: "/admin/automations",
+                Icon: Zap,
+                tone: "text-amber-300 bg-amber-500/10",
+              },
+              {
+                label: "Backup & export",
+                value: "Ready",
+                detail: "One-click JSON backup of all studio data",
+                href: "/admin/site",
+                Icon: Sparkles,
+                tone: "text-brand-300 bg-brand-500/10",
+              },
+            ];
+          })().map(({ label, value, detail, href, Icon, tone }) => (
+            <Link key={label} href={href} className="group flex items-center gap-3 rounded-xl border border-white/[0.07] bg-black/10 p-3 transition hover:border-white/15 hover:bg-white/[0.025]">
+              <span className={`grid h-10 w-10 shrink-0 place-items-center rounded-xl ${tone}`}><Icon size={17} /></span>
+              <span className="min-w-0 flex-1">
+                <span className="flex items-baseline gap-2"><strong className="font-display text-lg text-white">{value}</strong><span className="text-xs font-semibold text-slate-300">{label}</span></span>
+                <span className="block truncate text-[10px] text-slate-600">{detail}</span>
+              </span>
+              <ArrowUpRight size={14} className="text-slate-700 transition group-hover:text-slate-300" />
+            </Link>
+          ))}
+        </div>
+      )}
 
       <div className="grid gap-6 lg:grid-cols-3">
         {data.viewer.role !== "editor" && <Card title="Revenue — last 6 months" desc="Paid invoices" className="lg:col-span-2">
