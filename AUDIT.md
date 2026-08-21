@@ -145,7 +145,56 @@ E2E verified against seeded demo data: 1 lead auto-acknowledged,
 3 milestone messages delivered to client portals, daily digest written,
 re-runs correctly produce 0 duplicate effects.
 
-## 7. Recommended next steps
+## 7. Platform 2.0 — events, email, SEO surface, search, tests
+
+### Event bus + live webhooks (`src/lib/events.ts`)
+- `emitEvent()` writes an activity row, then fans out to every active webhook
+  subscribed to that event with **HMAC-SHA256 signatures**
+  (`X-VF-Signature: sha256=<hmac(secret, ts.body)>`), 10s timeout, never throws.
+- Events now fired from real flows: `lead.created` (contact form),
+  `project.completed`, `invoice.paid` (admin PATCH), `social.published`.
+  Receivers can finally build automations/Zapier flows on top of VisionFold.
+
+### Transactional email (`src/lib/email.ts`) — optional Resend
+- Branded HTML shell; env-gated (`RESEND_API_KEY` + `RESEND_FROM_EMAIL`);
+  fail-safe everywhere.
+- Wired into: contact-form studio alerts, automation engine (lead acks,
+  invoice reminders, review requests all email clients when configured).
+
+### SEO surface (dynamic, DB-driven)
+- `/sitemap.xml` — static routes + every published blog post + every published
+  CMS page (replaced stale hand-written static file that never updated).
+- `/robots.txt` — generated; admin/portal/api disallowed.
+- `/feed.xml` — RSS 2.0 of the latest 20 posts.
+
+### Public site search
+- `GET /api/public/search?q=` (rate-limited) across blog posts, portfolio and
+  services with grouped results.
+- Header search overlay (desktop button + mobile), debounced, ESC to close.
+
+### One-click backup
+- `GET /api/admin/export` streams a JSON backup of **all 25 tables** with
+  password hashes and social tokens stripped. Verified: 25 tables, secrets absent.
+
+### Hardening & resilience
+- Security headers on every response: `X-Frame-Options: DENY`,
+  `X-Content-Type-Options: nosniff`, `Referrer-Policy`,
+  `Permissions-Policy` (camera/mic/geo off).
+- Global `error.tsx` (branded retry screen) and `not-found.tsx` (404) pages.
+
+### Test suite (vitest) — first in repo history
+- `npm test` → **19 tests / 4 files**, all passing: utils (slugify, CSV,
+  money), offline metrics engine (determinism, monotonicity, launch traction,
+  SEO-score sensitivity), rule-based SEO packs (shape + platform adaptation +
+  empty-input safety), scrypt password round-trip + salting, email shell.
+- CI now runs `typecheck → lint → test → build`.
+
+### E2E verification (dev server)
+sitemap 200 (6 urls) · robots 200 · search API hit · contact POST logged
+`event.lead.created` · export 200/25 tables/secrets stripped · headers present ·
+build compiles new routes (`/feed.xml`, `/robots.txt`, `/sitemap.xml`).
+
+## 8. Recommended next steps
 - Add `next.config.ts` `images.remotePatterns` if you want `next/image` everywhere.
 - LinkedIn native video upload requires the partner video API — current build
   attaches the video as a rich link post (documented in `linkedin.ts`).

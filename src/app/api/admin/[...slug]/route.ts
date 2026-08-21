@@ -33,6 +33,7 @@ import {
 } from "@/lib/auth";
 import { ensureSeed, resetSeed } from "@/lib/seed";
 import { runAutomationById, runAutomations } from "@/lib/automations";
+import { emitEvent } from "@/lib/events";
 import { DEFAULT_SETTINGS, getSettings, setSettings } from "@/lib/settings";
 import { parseCsv } from "@/lib/utils";
 import { searchBusinesses } from "@/lib/prospect";
@@ -1127,6 +1128,13 @@ export async function PATCH(
       updateData.updatedAt = new Date();
 
       const [updated] = await db.update(projects).set(updateData).where(eq(projects.id, id)).returning();
+      if (updated && updated.status === "completed") {
+        await emitEvent("project.completed", {
+          id: updated.id,
+          title: updated.title,
+          clientId: updated.clientId,
+        });
+      }
       return ok(updated);
     }
 
@@ -1140,6 +1148,14 @@ export async function PATCH(
       if (body.notes !== undefined) updateData.notes = String(body.notes);
 
       const [updated] = await db.update(invoices).set(updateData).where(eq(invoices.id, id)).returning();
+      if (updated && updated.status === "paid") {
+        await emitEvent("invoice.paid", {
+          id: updated.id,
+          number: updated.number || `#${updated.id}`,
+          amount: updated.amount,
+          clientId: updated.clientId,
+        });
+      }
       return ok(updated);
     }
 

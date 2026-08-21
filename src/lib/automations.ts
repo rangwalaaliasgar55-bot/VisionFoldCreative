@@ -14,6 +14,7 @@ import { and, eq, gte, ne, sql } from "drizzle-orm";
 import { rulesInsights } from "@/lib/ai";
 import { automationsEnabled } from "@/lib/settings";
 import { captureSnapshots, generateDueInsights } from "@/lib/social";
+import { emailConfigured, emailShell, sendEmail } from "@/lib/email";
 
 export type AutomationRunResult = { name: string; trigger: string; effects: number };
 
@@ -93,6 +94,11 @@ async function clientName(clientId: number): Promise<string> {
   return rows[0]?.name ?? "there";
 }
 
+async function clientEmail(clientId: number): Promise<string> {
+  const rows = await db.select({ email: clients.email }).from(clients).where(eq(clients.id, clientId)).limit(1);
+  return rows[0]?.email ?? "";
+}
+
 // ---------------------------------------------------------------------------
 // Handlers
 // ---------------------------------------------------------------------------
@@ -108,10 +114,21 @@ async function runLeadAck(): Promise<number> {
         notes: `${lead.notes ? `${lead.notes}\n` : ""}[Auto ${new Date().toISOString().slice(0, 10)}] Acknowledgement + questionnaire sent.`,
       })
       .where(eq(leads.id, lead.id));
+    if (emailConfigured()) {
+      await sendEmail({
+        to: lead.email,
+        subject: `We got your brief, ${lead.name.split(" ")[0]} — here's what happens next`,
+        html: emailShell(
+          "Thanks for reaching out!",
+          `<p>Hi ${lead.name.split(" ")[0]}, we received your inquiry about <b>${lead.service}</b> and someone from the studio will reply within 24 hours.</p>
+           <p>To speed things up, it helps if you share: footage length, deadline, and 1–2 style references.</p>`
+        ),
+      });
+    }
     await db.insert(activity).values({
       actor: "automation",
       action: "auto.lead_ack",
-      details: `Lead #${lead.id} (${lead.name}) acknowledged and moved to Contacted`,
+      details: `Lead #${lead.id} (${lead.name}) acknowledged and moved to Contacted${emailConfigured() ? " + email" : ""}`,
     });
     effects += 1;
   }
@@ -180,6 +197,21 @@ async function runInvoiceReminders(config: Record<string, unknown>): Promise<num
         : `Hi ${name} — quick heads-up: invoice ${inv.number || `#${inv.id}`} is due on ${due}. Just so nothing surprises you!`,
       read: false,
     });
+    if (emailConfigured()) {
+      const to = await clientEmail(inv.clientId);
+      if (to) {
+        await sendEmail({
+          to,
+          subject: `Invoice ${inv.number || `#${inv.id}`} — ${isPast ? "payment reminder" : "coming due"}`,
+          html: emailShell(
+            isPast ? "A gentle payment reminder" : "Your invoice is coming due",
+            `<p>Hi ${name}, invoice <b>${inv.number || `#${inv.id}`}</b> (${inv.amount}) ${
+              isPast ? `was due on ${due}` : `is due on ${due}`
+            }. Reply to this email with any questions.</p>`
+          ),
+        });
+      }
+    }
     await db.insert(activity).values({
       actor: "automation",
       action: "auto.invoice_reminder",
@@ -210,6 +242,20 @@ async function runReviewRequests(config: Record<string, unknown>): Promise<numbe
       body: `Hi ${name} — "${project.title}" is wrapped! 🎬 Could you spare 30 seconds to rate the edit in your portal? As thanks, use code ${coupon} on your next project.`,
       read: false,
     });
+    if (emailConfigured()) {
+      const to = await clientEmail(project.clientId);
+      if (to) {
+        await sendEmail({
+          to,
+          subject: `"${project.title}" is wrapped — 30 seconds for a rating?`,
+          html: emailShell(
+            "Your project is wrapped 🎬",
+            `<p>Hi ${name}, <b>${project.title}</b> is delivered. Could you rate the edit in your <a href="${process.env.APP_URL || ""}/portal" style="color:#7357FF;">client portal</a>?</p>
+             <p>As thanks: use code <b>${coupon}</b> on your next project.</p>`
+          ),
+        });
+      }
+    }
     await db.insert(activity).values({
       actor: "automation",
       action: "auto.review_request",

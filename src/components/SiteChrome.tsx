@@ -1,9 +1,135 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { Menu, X } from "lucide-react";
+import { Menu, Search, X } from "lucide-react";
 import { NewsletterForm } from "@/components/Forms";
+
+type SearchResults = {
+  posts: { slug: string; title: string; excerpt: string }[];
+  work: { id: number; title: string; category: string }[];
+  services: { title: string; href: string }[];
+};
+
+function SiteSearch() {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const [results, setResults] = useState<SearchResults | null>(null);
+  const [busy, setBusy] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (open) requestAnimationFrame(() => inputRef.current?.focus());
+  }, [open]);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
+  useEffect(() => {
+    const q = query.trim();
+    const t = setTimeout(async () => {
+      if (q.length < 2) {
+        setResults(null);
+        setBusy(false);
+        return;
+      }
+      setBusy(true);
+      try {
+        const res = await fetch(`/api/public/search?q=${encodeURIComponent(q)}`);
+        if (res.ok) setResults((await res.json()) as SearchResults);
+      } catch {
+        /* keep previous */
+      } finally {
+        setBusy(false);
+      }
+    }, 250);
+    return () => clearTimeout(t);
+  }, [query]);
+
+  const empty =
+    results && results.posts.length === 0 && results.work.length === 0 && results.services.length === 0;
+
+  return (
+    <>
+      <button
+        aria-label="Search"
+        onClick={() => setOpen(true)}
+        className="glass rounded-xl p-2.5 text-slate-400 transition hover:text-white"
+      >
+        <Search size={16} />
+      </button>
+
+      {open && (
+        <div className="fixed inset-0 z-[90] bg-black/70 px-4 pt-[10vh] backdrop-blur-sm" onMouseDown={() => setOpen(false)}>
+          <div
+            className="mx-auto h-fit w-full max-w-xl overflow-hidden rounded-2xl border border-white/12 bg-[#12182b] shadow-2xl"
+            onMouseDown={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center gap-3 border-b border-white/8 px-4">
+              <Search size={18} className="text-amber" />
+              <input
+                ref={inputRef}
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Search posts, work, services…"
+                className="h-14 flex-1 bg-transparent text-sm text-white outline-none placeholder:text-slate-600"
+              />
+              {busy && <span className="text-[10px] uppercase tracking-widest text-slate-500">…</span>}
+              <kbd className="rounded-md border border-white/10 px-1.5 py-0.5 text-[9px] text-slate-500">ESC</kbd>
+            </div>
+            <div className="scrollbar-thin max-h-[50vh] overflow-y-auto p-2">
+              {!results || query.trim().length < 2 ? (
+                <p className="p-6 text-center text-xs text-slate-600">Type at least two characters.</p>
+              ) : empty ? (
+                <p className="p-6 text-center text-xs text-slate-600">Nothing found for “{query}”.</p>
+              ) : (
+                <>
+                  {results.services.length > 0 && (
+                    <div className="mb-2">
+                      <p className="px-3 py-1.5 text-[9px] font-bold uppercase tracking-[.2em] text-slate-600">Services</p>
+                      {results.services.map((s) => (
+                        <Link key={s.title} href={s.href} onClick={() => setOpen(false)} className="block rounded-xl px-3 py-2.5 text-sm text-slate-200 hover:bg-white/5">
+                          {s.title}
+                        </Link>
+                      ))}
+                    </div>
+                  )}
+                  {results.work.length > 0 && (
+                    <div className="mb-2">
+                      <p className="px-3 py-1.5 text-[9px] font-bold uppercase tracking-[.2em] text-slate-600">Work</p>
+                      {results.work.map((w) => (
+                        <Link key={w.id} href="/work" onClick={() => setOpen(false)} className="block rounded-xl px-3 py-2.5 hover:bg-white/5">
+                          <span className="block text-sm text-slate-200">{w.title}</span>
+                          <span className="block text-[11px] text-slate-500">{w.category}</span>
+                        </Link>
+                      ))}
+                    </div>
+                  )}
+                  {results.posts.length > 0 && (
+                    <div>
+                      <p className="px-3 py-1.5 text-[9px] font-bold uppercase tracking-[.2em] text-slate-600">Blog</p>
+                      {results.posts.map((p) => (
+                        <Link key={p.slug} href={`/blog/${p.slug}`} onClick={() => setOpen(false)} className="block rounded-xl px-3 py-2.5 hover:bg-white/5">
+                          <span className="block text-sm text-slate-200">{p.title}</span>
+                          <span className="block truncate text-[11px] text-slate-500">{p.excerpt}</span>
+                        </Link>
+                      ))}
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
 
 function InstagramIcon({ size = 16 }: { size?: number }) {
   return (
@@ -89,6 +215,7 @@ export function SiteHeader({ title }: { title: string }) {
         </nav>
 
         <div className="hidden items-center gap-2 lg:flex">
+          <SiteSearch />
           <Link href="/portal" className="rounded-full border border-white/15 bg-white/5 px-4 py-2 text-xs font-bold uppercase tracking-wider text-[#98A1B3] transition hover:border-[#7357FF]/50 hover:text-white">
             Client Portal
           </Link>
@@ -100,6 +227,9 @@ export function SiteHeader({ title }: { title: string }) {
         <button className="text-[#F6F3EC] lg:hidden" onClick={() => setOpen((v) => !v)} aria-label="Toggle menu">
           {open ? <X /> : <Menu />}
         </button>
+        <div className="lg:hidden">
+          <SiteSearch />
+        </div>
       </div>
 
       {open && (

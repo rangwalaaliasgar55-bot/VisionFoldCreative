@@ -155,6 +155,13 @@ export async function publishSocialPost(postId: number): Promise<
     action: "social.published",
     details: `${account.platform}: ${post.title || result.externalPostId}`,
   });
+  const { emitEvent } = await import("@/lib/events");
+  await emitEvent("social.published", {
+    id: post.id,
+    platform: account.platform,
+    title: post.title,
+    permalink: result.permalink,
+  });
 
   return { ok: true, status: "published" };
 }

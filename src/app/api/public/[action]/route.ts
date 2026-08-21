@@ -1,8 +1,9 @@
 import { db } from "@/db";
-import { automations, leads, newsletter } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { leads, newsletter } from "@/db/schema";
 import { bad, loginThrottled, ok, readBody, requestIp } from "@/lib/auth";
-import { automationsEnabled } from "@/lib/settings";
+import { emitEvent } from "@/lib/events";
+import { emailConfigured, emailShell, sendEmail } from "@/lib/email";
+import { getSetting } from "@/lib/settings";
 
 export const dynamic = "force-dynamic";
 
@@ -42,11 +43,30 @@ export async function POST(
       })
       .returning();
 
-    if (await automationsEnabled()) {
-      const auto = (await db.select().from(automations).where(eq(automations.trigger, "lead_created")).limit(1))[0];
-      if (auto?.enabled) {
-        const note = (auto.config as any)?.note || "Auto-ack queued.";
-        await db.update(leads).set({ notes: note }).where(eq(leads.id, row[0].id));
+    // Fan out: activity feed + subscribed webhooks.
+    await emitEvent("lead.created", {
+      id: row[0].id,
+      name,
+      email,
+      service: row[0].service,
+      budget: row[0].budget,
+    });
+
+    // Instant studio alert (only when Resend is configured).
+    if (emailConfigured()) {
+      const studioEmail = String((await getSetting("email")) || process.env.NOTIFICATION_EMAIL || "");
+      if (studioEmail) {
+        await sendEmail({
+          to: studioEmail,
+          subject: `New inquiry: ${name} — ${row[0].service}`,
+          html: emailShell(
+            "New lead from the website",
+            `<p><b>${name}</b> (${email}${row[0].phone ? `, ${row[0].phone}` : ""})</p>
+             <p>Service: <b>${row[0].service}</b>${row[0].budget ? ` · Budget: ${row[0].budget}` : ""}</p>
+             <p style="white-space:pre-line;">${message.replace(/</g, "&lt;")}</p>
+             <p><a href="${process.env.APP_URL || ""}/admin/leads" style="color:#7357FF;">Open in Leads →</a></p>`
+          ),
+        });
       }
     }
 
