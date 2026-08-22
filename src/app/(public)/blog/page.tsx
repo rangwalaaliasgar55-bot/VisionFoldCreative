@@ -19,7 +19,7 @@ export const metadata: Metadata = {
 export default async function BlogPage({
   searchParams,
 }: {
-  searchParams: Promise<{ category?: string }>;
+  searchParams: Promise<{ category?: string; page?: string }>;
 }) {
   await ensureSeed();
   const params = await searchParams;
@@ -36,6 +36,11 @@ export default async function BlogPage({
 
   const activeCat = params.category;
   const filtered = activeCat ? allPosts.filter((p) => p.categorySlug === activeCat) : allPosts;
+  // Site-editor setting: how many posts per page (default 6).
+  const perPage = Math.max(1, Number(settings.blogPerPage) || 6);
+  const page = Math.max(1, Number(params.page) || 1);
+  const totalPages = Math.max(1, Math.ceil(filtered.length / perPage));
+  const visiblePosts = filtered.slice((page - 1) * perPage, page * perPage);
 
   return (
     <div className="bg-aurora">
@@ -59,7 +64,7 @@ export default async function BlogPage({
                 No posts in this category yet — check back soon.
               </div>
             )}
-            {filtered.map((p, i) => (
+            {visiblePosts.map((p, i) => (
               <Reveal key={p.id} delay={i * 60}>
                 <Link
                   href={`/blog/${p.slug}`}
@@ -91,6 +96,30 @@ export default async function BlogPage({
                 </Link>
               </Reveal>
             ))}
+
+          {totalPages > 1 && (
+            <div className="flex items-center justify-center gap-3 pt-2">
+              {page > 1 && (
+                <Link
+                  href={`/blog?${activeCat ? `category=${activeCat}&` : ""}page=${page - 1}`}
+                  className="rounded-full border border-white/15 px-5 py-2 text-xs font-semibold text-slate-300 transition hover:border-brand-400/50 hover:text-white"
+                >
+                  ← Newer
+                </Link>
+              )}
+              <span className="text-xs text-slate-500">
+                Page {page} of {totalPages}
+              </span>
+              {page < totalPages && (
+                <Link
+                  href={`/blog?${activeCat ? `category=${activeCat}&` : ""}page=${page + 1}`}
+                  className="rounded-full border border-white/15 px-5 py-2 text-xs font-semibold text-slate-300 transition hover:border-brand-400/50 hover:text-white"
+                >
+                  Older →
+                </Link>
+              )}
+            </div>
+          )}
           </div>
 
           <aside className="space-y-6">

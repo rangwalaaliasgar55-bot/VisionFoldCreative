@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import Link from "next/link";
 import { getSettings } from "@/lib/settings";
 import { readSession } from "@/lib/auth";
 import { Countdown } from "@/components/Fx";
@@ -54,6 +55,17 @@ export default async function PublicLayout({ children }: { children: ReactNode }
 
   return (
     <>
+      {maintenance && (
+        <div className="fixed inset-x-0 top-0 z-[120] flex flex-wrap items-center justify-center gap-x-4 gap-y-1 bg-amber px-4 py-2 text-center text-[11px] font-bold uppercase tracking-wider text-ink">
+          <span>Maintenance mode is ON — visitors see the countdown screen.</span>
+          <span className="font-medium normal-case tracking-normal opacity-80">
+            You see the site because you&apos;re staff.
+          </span>
+          <Link href="/admin/site" className="rounded-full bg-ink/80 px-3 py-0.5 normal-case hover:bg-ink">
+            Open settings
+          </Link>
+        </div>
+      )}
       <JsonLd data={[organizationSchema(settings), websiteSchema(settings)]} />
       <a
         href="#main"

@@ -169,6 +169,22 @@ export function AdminShell({ children, name, email, role }: { children: ReactNod
   const [liveCount, setLiveCount] = useState(0);
   const searchRef = useRef<HTMLInputElement>(null);
 
+  // Data-loss alarm: production running without a database.
+  const [dbMode, setDbMode] = useState<string>("postgres");
+  useEffect(() => {
+    if (staffRole !== "admin") return;
+    let cancelled = false;
+    fetch("/api/admin/system", { credentials: "same-origin" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (!cancelled && d?.dbMode) setDbMode(d.dbMode);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [staffRole]);
+
   // Live studio notifications (event bus → bell).
   type BellNote = { id: number; action: string; details: string; createdAt: string | null };
   const [notifications, setNotifications] = useState<BellNote[]>([]);
@@ -293,6 +309,21 @@ export function AdminShell({ children, name, email, role }: { children: ReactNod
       )}
 
       <div className="xl:pl-[260px]">
+        {dbMode === "memory" && (
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-red-400/30 bg-red-500/15 px-4 py-2.5 text-xs sm:px-6">
+            <p className="font-semibold text-red-200">
+              ⚠️ No database configured — everything you enter is stored in memory and will be LOST on the next
+              redeploy or restart. Add <code className="rounded bg-black/40 px-1">DATABASE_URL</code> (Supabase) in
+              Vercel settings, then run <code className="rounded bg-black/40 px-1">supabase/COMPLETE_SCHEMA.sql</code>.
+            </p>
+            <a
+              href="/api/admin/export"
+              className="shrink-0 rounded-full bg-red-400/90 px-3 py-1 font-bold text-ink transition hover:bg-red-300"
+            >
+              Download backup now
+            </a>
+          </div>
+        )}
         <header className="sticky top-0 z-30 flex h-[72px] items-center gap-3 border-b border-white/[0.07] bg-ink/85 px-4 backdrop-blur-2xl sm:px-6">
           <button aria-label="Open menu" onClick={() => setMobileOpen(true)} className="rounded-xl p-2 text-slate-400 hover:bg-white/5 hover:text-white xl:hidden"><Menu size={20} /></button>
           <div className="min-w-0 flex-1">
