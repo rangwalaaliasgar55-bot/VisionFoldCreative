@@ -52,7 +52,7 @@ export const PROVIDER_META: Record<
   },
   gemini: {
     label: "Google Gemini",
-    defaultModel: process.env.GEMINI_MODEL || "gemini-2.0-flash",
+    defaultModel: process.env.GEMINI_MODEL || "gemini-3.6-flash",
     envVar: "GEMINI_API_KEY",
     settingKey: "ai_key_gemini",
     freeTierUrl: "https://aistudio.google.com/apikey",
