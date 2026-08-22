@@ -17,7 +17,7 @@ import {
   Tabs,
   Textarea,
   toast,
-  useApi,
+  useApi, usePagination, Pager,
 } from "@/components/AdminUI";
 import { fmtDate, fmtMoney, money } from "@/lib/utils";
 import { CheckCircle2, Link2, Plus, Send } from "lucide-react";
@@ -137,6 +137,8 @@ export default function AdminInvoicesPage() {
   const paid = (invoices || []).filter((i) => i.status === "paid").reduce((s, i) => s + money(i.amount), 0);
   const outstanding = (invoices || []).filter((i) => i.status === "sent" || i.status === "overdue").reduce((s, i) => s + money(i.amount), 0);
   const expensesTotal = (expenses || []).reduce((s, e) => s + money(e.amount), 0);
+  const ipager = usePagination(invoices || [], 25);
+  const epager = usePagination(expenses || [], 25);
 
   return (
     <div className="space-y-6">
@@ -178,7 +180,9 @@ export default function AdminInvoicesPage() {
         ) : !invoices || invoices.length === 0 ? (
           <Empty title="No invoices" desc="Create your first invoice for a client." />
         ) : (
-          <div className="scrollbar-thin overflow-x-auto rounded-2xl border border-white/8">
+          <>
+            <Pager from={ipager.from} to={ipager.to} total={ipager.total} page={ipager.page} totalPages={ipager.totalPages} onPage={ipager.setPage} />
+        <div className="scrollbar-thin overflow-x-auto rounded-2xl border border-white/8">
             <table className="w-full min-w-[760px] text-left text-sm">
               <thead className="bg-white/3 text-[11px] uppercase tracking-widest text-slate-500">
                 <tr>
@@ -191,7 +195,7 @@ export default function AdminInvoicesPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/5">
-                {invoices.map((inv) => (
+                {ipager.slice.map((inv) => (
                   <tr key={inv.id} className="transition-colors hover:bg-white/2">
                     <td className="px-4 py-3">
                       <p className="font-semibold text-white">{inv.number}</p>
@@ -233,14 +237,17 @@ export default function AdminInvoicesPage() {
                   </tr>
                 ))}
               </tbody>
-            </table>
-          </div>
+             </table>
+           </div>
+          </>
         )
       ) : expLoading ? (
         <Spinner />
       ) : !expenses || expenses.length === 0 ? (
         <Empty title="No expenses" desc="Log software, assets, music and marketing costs here." />
       ) : (
+        <>
+          <Pager from={epager.from} to={epager.to} total={epager.total} page={epager.page} totalPages={epager.totalPages} onPage={epager.setPage} />
         <div className="scrollbar-thin overflow-x-auto rounded-2xl border border-white/8">
           <table className="w-full min-w-[640px] text-left text-sm">
             <thead className="bg-white/3 text-[11px] uppercase tracking-widest text-slate-500">
@@ -253,7 +260,7 @@ export default function AdminInvoicesPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-white/5">
-              {expenses.map((ex) => (
+              {epager.slice.map((ex) => (
                 <tr key={ex.id} className="transition-colors hover:bg-white/2">
                   <td className="px-4 py-3"><Badge tone="contacted">{ex.category}</Badge></td>
                   <td className="px-4 py-3 text-slate-300">{ex.description}</td>
@@ -269,6 +276,7 @@ export default function AdminInvoicesPage() {
             </tbody>
           </table>
         </div>
+        </>
       )}
 
       <Modal open={showInv} onClose={() => { setShowInv(false); setEditingInv(null); }} title={editingInv ? "Edit invoice" : "New invoice"}>

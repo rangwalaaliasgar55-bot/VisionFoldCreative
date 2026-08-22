@@ -396,7 +396,30 @@ Deliberately not ported: their motion/Three.js overhaul (subjective, heavy confl
 - Server-side payload caps: leads <=5,000; clients/projects/invoices <=2,000 each - list payloads can no longer grow unbounded and stall requests.
 
 Suite: 37 tests green. E2E verified live: home renders on the motion system; case-study links resolve via unified title-id slugs; OG PNGs serve; CSV import rows visible immediately in the paginated table.
-## 17. Recommended next steps
+
+## 18. Freeze hunt, repo sweep, image-host fix
+
+### Why every action "felt frozen" — root cause found & fixed
+`useApi.reload()` set `loading = true` on EVERY refetch, and pages render a
+full-page skeleton while loading. So each save/delete/toggle/import tore the
+whole page down (unmounting thousands of DOM rows) then remounted it.
+Fixed with background-refresh semantics: once data exists, refetches happen
+in place (`refreshing` flag exposed), stale data stays visible, errors keep
+the last good state.
+
+### Pagination everywhere data can grow
+- Shared `usePagination` + `<Pager>` kit in AdminUI.
+- Wired into Leads, Projects, Clients, Invoices (+expenses) — any dataset
+  size renders instantly; payload caps from Platform 6.0 complement this.
+
+### Misc fixes from the repo sweep
+- Portal polling pauses while the tab is hidden (battery + re-render churn).
+- `next/image` remote hosts: CMS thumbnails point at arbitrary https hosts;
+  added `images.remotePatterns: https **` (+AVIF/WebP, 7-day cache TTL).
+  This also fixed `GET / 500` crashes on the new home page.
+- Swept src/ for console.logs/TODOs/secrets: clean (one intentional seed log,
+  one fake demo webhook URL).
+## 19. Recommended next steps
 - Add `next.config.ts` `images.remotePatterns` if you want `next/image` everywhere.
 - LinkedIn native video upload requires the partner video API — current build
   attaches the video as a rich link post (documented in `linkedin.ts`).

@@ -58,27 +58,119 @@ export async function api<T = unknown>(
   return data as T;
 }
 
-export function useApi<T>(path: string | null) {
-  const [data, setData] = useState<T | null>(null);
+/** Client-side pagination for big tables — keeps any dataset render-cheap. */
+export function usePagination<T>(items: T[], pageSize = 50) {
+  const [requested, setRequested] = useState(1);
+  const totalPages = Math.max(1, Math.ceil(items.length / pageSize));
+  // Clamp during render — no effect needed, so data changes snap the page
+  // back into range immediately (and the compiler stays happy).
+  const page = Math.min(Math.max(1, requested), totalPages);
+  return {
+    page,
+    totalPages,
+    setPage: (next: number) => setRequested(Math.min(Math.max(1, next), totalPages)),
+    slice: items.slice((page - 1) * pageSize, page * pageSize),
+    from: items.length === 0 ? 0 : (page - 1) * pageSize + 1,
+    to: Math.min(page * pageSize, items.length),
+    total: items.length,
+  };
+}
+
+export function Pager({
+  from,
+  to,
+  total,
+  page,
+  totalPages,
+  onPage,
+}: {
+  from: number;
+  to: number;
+  total: number;
+  page: number;
+  totalPages: number;
+  onPage: (next: number) => void;
+}) {
+  if (total <= 0) return null;
+  return (
+    <div className="flex items-center justify-between text-xs text-slate-500">
+      <span>
+        Showing {from}–{to} of {total.toLocaleString()}
+      </span>
+      <div className="flex items-center gap-2">
+        <Button size="sm" variant="ghost" disabled={page <= 1} onClick={() => onPage(page - 1)}>
+          ← Prev
+        </Button>
+        <span>
+          Page {page} / {totalPages}
+        </span>
+        <Button size="sm" variant="ghost" disabled={page >= totalPages} onClick={() => onPage(page + 1)}>
+          Next →
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+export function useApi<T>(path: string | null) {  const [data, setData] = useState<T | null>(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
   const reload = useCallback(async () => {
     if (!path) return;
-    setLoading(true);
+    // Background-refresh semantics: once data exists, refetches happen IN
+    // PLACE — the page never tears down to a skeleton after an action, which
+    // is what made every save/delete feel like a freeze on large tables.
+    setData((current) => {
+      if (current !== null) setRefreshing(true);
+      else setLoading(true);
+      return current;
+    });
     try {
-      setData(await api<T>(path));
+      const next = await api<T>(path);
+      setData(next);
       setError(null);
     } catch (e) {
+      // Keep stale data on a failed refresh; only surface the error.
       setError(e instanceof Error ? e.message : "Failed to load");
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   }, [path]);
+
+  // Initial load on mount / path change (with cancellation on unmount).
   useEffect(() => {
-    const task = window.setTimeout(() => void reload(), 0);
-    return () => window.clearTimeout(task);
-  }, [reload]);
-  return { data, loading, error, reload };
+    let cancelled = false;
+    const task = window.setTimeout(() => {
+      void (async () => {
+        if (cancelled) return;
+        if (!path) {
+          setLoading(false);
+          return;
+        }
+        setLoading(true);
+        try {
+          const next = await api<T>(path);
+          if (!cancelled) {
+            setData(next);
+            setError(null);
+          }
+        } catch (e) {
+          if (!cancelled) setError(e instanceof Error ? e.message : "Failed to load");
+        } finally {
+          if (!cancelled) setLoading(false);
+        }
+      })();
+    }, 0);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(task);
+    };
+  }, [path]);
+
+  return { data, loading, refreshing, error, reload };
 }
 
 type ToastItem = { id: number; msg: string; tone: "ok" | "err" };

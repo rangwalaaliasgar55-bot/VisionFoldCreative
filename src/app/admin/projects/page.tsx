@@ -17,7 +17,7 @@ import {
   StatusBadge,
   Textarea,
   toast,
-  useApi,
+  useApi, usePagination, Pager,
 } from "@/components/AdminUI";
 import { fmtDate, fmtMoney, timeAgo } from "@/lib/utils";
 import {
@@ -208,7 +208,9 @@ export default function AdminProjectsPage() {
 
   const [statusTab, setStatusTab] = useState("all");
   const statusFilter = (s: string) => projects?.filter((p) => p.status === s) ?? [];
-  const visibleProjects = statusTab === "all" ? (projects ?? []) : statusFilter(statusTab);
+  const allProjects = statusTab === "all" ? (projects ?? []) : statusFilter(statusTab);
+  const pager = usePagination(allProjects, 24);
+  const visibleProjects = pager.slice;
 
   return (
     <div className="space-y-6">
@@ -255,7 +257,15 @@ export default function AdminProjectsPage() {
           </div>
 
           <div className="space-y-3">
-            {visibleProjects.map((p) => (
+            <Pager
+              from={pager.from}
+              to={pager.to}
+              total={pager.total}
+              page={pager.page}
+              totalPages={pager.totalPages}
+              onPage={pager.setPage}
+            />
+            {pager.slice.map((p) => (
               <div key={p.id} className="glass card-glow rounded-2xl p-5">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div className="min-w-0 flex-1">

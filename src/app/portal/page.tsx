@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
@@ -213,7 +213,12 @@ export default function ClientPortalPage() {
     const initial = window.setTimeout(() => void loadData(), 0);
     // Faster heartbeat while the client is actively chatting.
     const period = tab === "messages" ? 3000 : 8000;
-    const interval = window.setInterval(() => void loadData(), period);
+    const interval = window.setInterval(() => {
+      // Pause background polling while the tab is hidden — saves battery
+      // and stops needless re-renders when the studio OS sits in another tab.
+      if (document.visibilityState === "hidden") return;
+      void loadData();
+    }, period);
     return () => {
       window.clearTimeout(initial);
       window.clearInterval(interval);

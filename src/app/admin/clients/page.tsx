@@ -14,7 +14,7 @@ import {
   StatusBadge,
   Textarea,
   toast,
-  useApi,
+  useApi, usePagination, Pager,
 } from "@/components/AdminUI";
 import { fmtDate, timeAgo } from "@/lib/utils";
 import { KeyRound, MessageSquare, Plus, Search, Send, X } from "lucide-react";
@@ -122,7 +122,7 @@ export default function AdminClientsPage() {
   }
 
   const [query, setQuery] = useState("");
-  const filteredClients = (clients || []).filter((c) => {
+  const allFiltered = (clients || []).filter((c) => {
     const q = query.trim().toLowerCase();
     if (!q) return true;
     return (
@@ -131,6 +131,8 @@ export default function AdminClientsPage() {
       (c.company || "").toLowerCase().includes(q)
     );
   });
+  const cpager = usePagination(allFiltered, 24);
+  const filteredClients = cpager.slice;
 
   return (
     <div className="space-y-6">
@@ -164,6 +166,14 @@ export default function AdminClientsPage() {
       ) : (
         <div className="grid gap-6 xl:grid-cols-[1fr_380px]">
           <div className="space-y-3">
+            <Pager
+              from={cpager.from}
+              to={cpager.to}
+              total={cpager.total}
+              page={cpager.page}
+              totalPages={cpager.totalPages}
+              onPage={cpager.setPage}
+            />
             {filteredClients.map((c) => (
               <div key={c.id} className="glass flex flex-wrap items-center gap-4 rounded-2xl p-4">
                 <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-brand-600 to-cy-500 font-display text-lg font-bold text-white">

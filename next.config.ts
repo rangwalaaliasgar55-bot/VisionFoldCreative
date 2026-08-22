@@ -9,6 +9,15 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
+  // CMS thumbnails can point at any https host (Unsplash, Supabase Storage,
+  // client CDNs…), so the allowlist is broad on purpose — the optimizer still
+  // re-encodes and caches everything server-side.
+  images: {
+    remotePatterns: [{ protocol: "https", hostname: "**" }],
+    formats: ["image/avif", "image/webp"],
+    minimumCacheTTL: 60 * 60 * 24 * 7,
+  },
+  poweredByHeader: false,
   async headers() {
     return [{ source: "/(.*)", headers: securityHeaders }];
   },
