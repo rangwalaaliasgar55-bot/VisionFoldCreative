@@ -1,10 +1,11 @@
-import { slugify } from "@/lib/utils";
+import { slugify, workSlug } from "@/lib/slug";
 
 /**
- * Portfolio case-study URLs: /work/<id>-<title-slug>
- * The id prefix is the lookup key; the slug suffix is human/SEO-friendly.
- * No DB column needed — deterministic from existing data.
+ * Portfolio case-study URLs: /work/<title-slug>-<id>
+ * (title-first for readable, SEO-friendly URLs; trailing id = stable lookup key).
+ * Single source of truth — used by the grid, case-study page, OG images and sitemap.
  */
 export function portfolioPath(id: number, title: string): string {
-  return `/work/${id}-${slugify(title || "film")}`;
+  void slugify;
+  return `/work/${workSlug({ id, title })}`;
 }

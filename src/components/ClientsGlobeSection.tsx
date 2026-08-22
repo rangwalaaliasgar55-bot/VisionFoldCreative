@@ -1,24 +1,25 @@
 "use client";
 
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
-import { Globe2, MapPin, Sparkles, Navigation } from "lucide-react";
+import { Globe2, MapPin } from "lucide-react";
+import { damp, decay } from "@/lib/motion";
 
 const HQ = { city: "Indore", country: "India", lat: 22.7196, lng: 75.8577 };
 
 const CLIENTS = [
-  { id: 1, city: "Indore", country: "India", lat: 22.7196, lng: 75.8577, role: "HQ · Creative Suite" },
-  { id: 2, city: "Mumbai", country: "India", lat: 19.076, lng: 72.8777, role: "Client · Bollywood & OTT" },
-  { id: 3, city: "Los Angeles", country: "USA", lat: 34.0522, lng: -118.2437, role: "Client · Brand Film" },
-  { id: 4, city: "New York", country: "USA", lat: 40.7128, lng: -74.006, role: "Client · Commercial Suite" },
-  { id: 5, city: "London", country: "UK", lat: 51.5074, lng: -0.1278, role: "Client · Music Video" },
-  { id: 6, city: "Paris", country: "France", lat: 48.8566, lng: 2.3522, role: "Client · Fashion Film" },
-  { id: 7, city: "Dubai", country: "UAE", lat: 25.2048, lng: 55.2708, role: "Client · Luxury Ad" },
-  { id: 8, city: "Tokyo", country: "Japan", lat: 35.6762, lng: 139.6503, role: "Client · Tech Series" },
-  { id: 9, city: "Singapore", country: "Singapore", lat: 1.3521, lng: 103.8198, role: "Client · YouTube Creator" },
-  { id: 10, city: "Sydney", country: "Australia", lat: -33.8688, lng: 151.2093, role: "Client · Outdoor Brand" },
-  { id: 11, city: "Berlin", country: "Germany", lat: 52.52, lng: 13.405, role: "Client · Electronic Music" },
-  { id: 12, city: "Toronto", country: "Canada", lat: 43.6532, lng: -79.3832, role: "Client · Docuseries" },
+  { id: 1, city: "Indore", country: "India", lat: 22.7196, lng: 75.8577, role: "HQ ┬╖ Creative Suite" },
+  { id: 2, city: "Mumbai", country: "India", lat: 19.076, lng: 72.8777, role: "Client ┬╖ Bollywood & OTT" },
+  { id: 3, city: "Los Angeles", country: "USA", lat: 34.0522, lng: -118.2437, role: "Client ┬╖ Brand Film" },
+  { id: 4, city: "New York", country: "USA", lat: 40.7128, lng: -74.006, role: "Client ┬╖ Commercial Suite" },
+  { id: 5, city: "London", country: "UK", lat: 51.5074, lng: -0.1278, role: "Client ┬╖ Music Video" },
+  { id: 6, city: "Paris", country: "France", lat: 48.8566, lng: 2.3522, role: "Client ┬╖ Fashion Film" },
+  { id: 7, city: "Dubai", country: "UAE", lat: 25.2048, lng: 55.2708, role: "Client ┬╖ Luxury Ad" },
+  { id: 8, city: "Tokyo", country: "Japan", lat: 35.6762, lng: 139.6503, role: "Client ┬╖ Tech Series" },
+  { id: 9, city: "Singapore", country: "Singapore", lat: 1.3521, lng: 103.8198, role: "Client ┬╖ YouTube Creator" },
+  { id: 10, city: "Sydney", country: "Australia", lat: -33.8688, lng: 151.2093, role: "Client ┬╖ Outdoor Brand" },
+  { id: 11, city: "Berlin", country: "Germany", lat: 52.52, lng: 13.405, role: "Client ┬╖ Electronic Music" },
+  { id: 12, city: "Toronto", country: "Canada", lat: 43.6532, lng: -79.3832, role: "Client ┬╖ Docuseries" },
 ] as const;
 
 function latLngToVec3(lat: number, lng: number, radius: number): THREE.Vector3 {
@@ -69,8 +70,17 @@ export function ClientsGlobeSection() {
     const camera = new THREE.PerspectiveCamera(42, w / h, 0.1, 100);
     camera.position.set(0, 0.1, 2.7);
 
-    const renderer = new THREE.WebGLRenderer({ antialias: !isMobile, alpha: true, powerPreference: "high-performance" });
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, isMobile ? 1.2 : 1.75));
+    let renderer: THREE.WebGLRenderer;
+    try {
+      renderer = new THREE.WebGLRenderer({
+        antialias: !isMobile,
+        alpha: true,
+        powerPreference: "high-performance",
+      });
+    } catch {
+      return;
+    }
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, isMobile ? 1.2 : 1.5));
     renderer.setSize(w, h, false);
     renderer.setClearColor(0x000000, 0);
     el.appendChild(renderer.domElement);
@@ -84,54 +94,140 @@ export function ClientsGlobeSection() {
       userSelect: "none",
     });
 
-    // 1. Atmosphere Glow Shell
-    const atmosGeo = new THREE.SphereGeometry(1.08, 48, 48);
-    const atmosMat = new THREE.MeshBasicMaterial({
-      color: 0x7357ff,
-      transparent: true,
-      opacity: 0.18,
+    // 1. Atmosphere ΓÇö fresnel rim glow instead of a flat translucent shell
+    const atmosGeo = new THREE.SphereGeometry(1.1, 48, 48);
+    const atmosMat = new THREE.ShaderMaterial({
+      uniforms: {
+        uColorInner: { value: new THREE.Color(0x7357ff) },
+        uColorOuter: { value: new THREE.Color(0x38bdf8) },
+        uIntensity: { value: 0.9 },
+      },
+      vertexShader: `
+        varying vec3 vNormal;
+        varying vec3 vView;
+        void main() {
+          vNormal = normalize(normalMatrix * normal);
+          vec4 mv = modelViewMatrix * vec4(position, 1.0);
+          vView = -mv.xyz;
+          gl_Position = projectionMatrix * mv;
+        }
+      `,
+      fragmentShader: `
+        uniform vec3 uColorInner;
+        uniform vec3 uColorOuter;
+        uniform float uIntensity;
+        varying vec3 vNormal;
+        varying vec3 vView;
+        void main() {
+          float rim = 1.0 - abs(dot(normalize(vNormal), normalize(vView)));
+          float glow = pow(rim, 3.2) * uIntensity;
+          vec3 col = mix(uColorInner, uColorOuter, pow(rim, 1.6));
+          gl_FragColor = vec4(col * glow, glow);
+        }
+      `,
       side: THREE.BackSide,
+      blending: THREE.AdditiveBlending,
+      transparent: true,
+      depthWrite: false,
     });
-    scene.add(new THREE.Mesh(atmosGeo, atmosMat));
+    const atmosphere = new THREE.Mesh(atmosGeo, atmosMat);
+    scene.add(atmosphere);
 
-    // 2. Earth Sphere
+    // 2. Earth ΓÇö standard material so the studio lights actually shape it
     const earthGeo = new THREE.SphereGeometry(1, isMobile ? 48 : 64, isMobile ? 48 : 64);
-    const loader = new THREE.TextureLoader();
-    const earthDay = loader.load(
-      "https://unpkg.com/three-globe@2.31.1/example/img/earth-blue-marble.jpg",
-      () => {
-        renderer.render(scene, camera);
-      }
-    );
-    earthDay.colorSpace = THREE.SRGBColorSpace;
-    const earthNight = loader.load(
-      "https://unpkg.com/three-globe@2.31.1/example/img/earth-night.jpg"
-    );
-    earthNight.colorSpace = THREE.SRGBColorSpace;
-
-    const earthMat = new THREE.MeshPhongMaterial({
-      map: earthDay,
-      bumpMap: earthDay,
-      bumpScale: 0.018,
-      specular: new THREE.Color(0x7357ff),
-      shininess: 24,
-      emissiveMap: earthNight,
-      emissive: new THREE.Color(0x4a2bc7),
-      emissiveIntensity: 0.45,
+    const earthMat = new THREE.MeshStandardMaterial({
+      color: 0xffffff,
+      roughness: 0.82,
+      metalness: 0.08,
+      emissive: new THREE.Color(0x2a1c73),
+      emissiveIntensity: 0.35,
     });
     const earth = new THREE.Mesh(earthGeo, earthMat);
     scene.add(earth);
 
-    // 3. Ambient & Directional Lights
-    scene.add(new THREE.AmbientLight(0xffffff, 0.65));
-    const keyLight = new THREE.DirectionalLight(0xf4a62a, 1.3);
+    // Offline / blocked-CDN fallback: a hand-drawn canvas earth so the hub is
+    // never an unlit black ball.
+    const fallbackTexture = () => {
+      const c = document.createElement("canvas");
+      c.width = 1024;
+      c.height = 512;
+      const ctx = c.getContext("2d");
+      if (!ctx) return null;
+      const g = ctx.createLinearGradient(0, 0, 0, 512);
+      g.addColorStop(0, "#101a3d");
+      g.addColorStop(0.5, "#16224d");
+      g.addColorStop(1, "#0d1330");
+      ctx.fillStyle = g;
+      ctx.fillRect(0, 0, 1024, 512);
+      ctx.fillStyle = "rgba(115,87,255,0.30)";
+      for (let i = 0; i < 2200; i++) {
+        const x = Math.random() * 1024;
+        const y = Math.random() * 512;
+        const r = Math.random() * 2.4 + 0.4;
+        ctx.beginPath();
+        ctx.arc(x, y, r, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.strokeStyle = "rgba(244,166,42,0.14)";
+      ctx.lineWidth = 1;
+      for (let y = 32; y < 512; y += 32) {
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(1024, y);
+        ctx.stroke();
+      }
+      const tex = new THREE.CanvasTexture(c);
+      tex.colorSpace = THREE.SRGBColorSpace;
+      return tex;
+    };
+
+    const loader = new THREE.TextureLoader();
+    loader.setCrossOrigin("anonymous");
+    const disposables: THREE.Texture[] = [];
+
+    const earthDay = loader.load(
+      "https://unpkg.com/three-globe@2.31.1/example/img/earth-blue-marble.jpg",
+      (tex) => {
+        tex.colorSpace = THREE.SRGBColorSpace;
+        earthMat.map = tex;
+        earthMat.needsUpdate = true;
+      },
+      undefined,
+      () => {
+        const tex = fallbackTexture();
+        if (tex) {
+          disposables.push(tex);
+          earthMat.map = tex;
+          earthMat.needsUpdate = true;
+        }
+      }
+    );
+    disposables.push(earthDay);
+
+    const earthNight = loader.load(
+      "https://unpkg.com/three-globe@2.31.1/example/img/earth-night.jpg",
+      (tex) => {
+        tex.colorSpace = THREE.SRGBColorSpace;
+        earthMat.emissiveMap = tex;
+        earthMat.emissive = new THREE.Color(0x4a2bc7);
+        earthMat.emissiveIntensity = 0.5;
+        earthMat.needsUpdate = true;
+      },
+      undefined,
+      () => undefined
+    );
+    disposables.push(earthNight);
+
+    // 3. Studio lights
+    scene.add(new THREE.HemisphereLight(0xf6f3ec, 0x0b1020, 0.55));
+    const keyLight = new THREE.DirectionalLight(0xf4a62a, 1.6);
     keyLight.position.set(4, 3, 3);
     scene.add(keyLight);
-    const rimLight = new THREE.DirectionalLight(0x7357ff, 0.8);
+    const rimLight = new THREE.DirectionalLight(0x7357ff, 1.1);
     rimLight.position.set(-3, -1, -2);
     scene.add(rimLight);
 
-    // 4. Client Pins & Arcs
+    // 4. Client pins & arcs
     const markers = new THREE.Group();
     earth.add(markers);
     const arcs = new THREE.Group();
@@ -140,7 +236,18 @@ export function ClientsGlobeSection() {
     const R = 1.014;
     const hqPos = latLngToVec3(HQ.lat, HQ.lng, R);
 
-    // HQ Indore Gold Pin
+    // HQ Indore gold pin ΓÇö ring is billboarded to the camera each frame
+    const hqRing = new THREE.Mesh(
+      new THREE.RingGeometry(0.05, 0.08, 48),
+      new THREE.MeshBasicMaterial({
+        color: 0xf4a62a,
+        side: THREE.DoubleSide,
+        transparent: true,
+        opacity: 0.85,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+      })
+    );
     {
       const core = new THREE.Mesh(
         new THREE.SphereGeometry(0.038, 16, 16),
@@ -148,22 +255,10 @@ export function ClientsGlobeSection() {
       );
       core.position.copy(hqPos);
       markers.add(core);
-
-      const ring = new THREE.Mesh(
-        new THREE.RingGeometry(0.05, 0.08, 32),
-        new THREE.MeshBasicMaterial({
-          color: 0xf4a62a,
-          side: THREE.DoubleSide,
-          transparent: true,
-          opacity: 0.85,
-        })
-      );
-      ring.position.copy(hqPos);
-      ring.lookAt(0, 0, 0);
-      markers.add(ring);
+      hqRing.position.copy(hqPos);
+      markers.add(hqRing);
     }
 
-    // Other Client City Markers & Connecting Arcs
     CLIENTS.forEach((c) => {
       if (c.city === HQ.city) return;
       const pos = latLngToVec3(c.lat, c.lng, R);
@@ -176,23 +271,35 @@ export function ClientsGlobeSection() {
       markers.add(dot);
 
       const curve = arcCurve(hqPos, pos, 0.28 + Math.random() * 0.15);
-      const pts = curve.getPoints(60);
+      const pts = curve.getPoints(64);
       const line = new THREE.Line(
         new THREE.BufferGeometry().setFromPoints(pts),
-        new THREE.LineBasicMaterial({ color: 0x7357ff, transparent: true, opacity: 0.45 })
+        new THREE.LineBasicMaterial({
+          color: 0x7357ff,
+          transparent: true,
+          opacity: 0.45,
+          blending: THREE.AdditiveBlending,
+          depthWrite: false,
+        })
       );
       line.userData = { id: c.id };
       arcs.add(line);
 
       const pulse = new THREE.Mesh(
         new THREE.SphereGeometry(0.014, 8, 8),
-        new THREE.MeshBasicMaterial({ color: 0xf4a62a })
+        new THREE.MeshBasicMaterial({
+          color: 0xf4a62a,
+          transparent: true,
+          blending: THREE.AdditiveBlending,
+          depthWrite: false,
+        })
       );
       pulse.userData = { id: c.id, curve, t: Math.random() };
       arcs.add(pulse);
     });
 
     let raf = 0;
+    let running = false;
     let frame = 0;
     const clock = new THREE.Clock();
     const drag = dragRef.current;
@@ -201,6 +308,8 @@ export function ClientsGlobeSection() {
       drag.active = true;
       drag.lx = e.clientX;
       drag.ly = e.clientY;
+      drag.vx = 0;
+      drag.vy = 0;
       renderer.domElement.style.cursor = "grabbing";
       renderer.domElement.setPointerCapture(e.pointerId);
     };
@@ -210,8 +319,9 @@ export function ClientsGlobeSection() {
       const dy = e.clientY - drag.ly;
       drag.lx = e.clientX;
       drag.ly = e.clientY;
-      drag.vx = dx * 0.008;
-      drag.vy = dy * 0.005;
+      // 1:1 while held, and the same delta becomes the fling velocity on release
+      drag.vx = dx * 0.005;
+      drag.vy = dy * 0.0032;
       drag.rotY += drag.vx;
       drag.rotX = Math.max(-0.6, Math.min(0.6, drag.rotX + drag.vy));
     };
@@ -225,6 +335,23 @@ export function ClientsGlobeSection() {
       }
     };
 
+    // Keyboard parity for the drag gesture.
+    const onKeyDown = (e: KeyboardEvent) => {
+      const stepK = 0.22;
+      if (e.key === "ArrowLeft") drag.vx = stepK * 0.35;
+      else if (e.key === "ArrowRight") drag.vx = -stepK * 0.35;
+      else if (e.key === "ArrowUp") drag.rotX = Math.max(-0.6, drag.rotX - stepK * 0.4);
+      else if (e.key === "ArrowDown") drag.rotX = Math.min(0.6, drag.rotX + stepK * 0.4);
+      else return;
+      e.preventDefault();
+    };
+    renderer.domElement.tabIndex = 0;
+    renderer.domElement.setAttribute("role", "img");
+    renderer.domElement.setAttribute(
+      "aria-label",
+      "Interactive globe of VisionFold client cities. Drag, or use the arrow keys to rotate."
+    );
+    renderer.domElement.addEventListener("keydown", onKeyDown);
     renderer.domElement.addEventListener("pointerdown", onPointerDown);
     renderer.domElement.addEventListener("pointermove", onPointerMove);
     renderer.domElement.addEventListener("pointerup", onPointerUp);
@@ -240,32 +367,40 @@ export function ClientsGlobeSection() {
     };
     window.addEventListener("resize", onResize);
 
+    const AUTO_SPIN = 0.003; // radians per 60fps frame, delta-normalised below
+
     const animate = () => {
       raf = requestAnimationFrame(animate);
+      const delta = Math.min(clock.getDelta(), 0.05);
       const t = clock.getElapsedTime();
+      const f = delta * 60; // frame-equivalents elapsed
 
-      if (!reduced && !drag.active) {
-        drag.rotY += 0.009 + drag.vx;
-        drag.vx *= 0.95;
-        drag.vy *= 0.95;
-      } else if (!drag.active) {
-        drag.vx *= 0.92;
-        drag.vy *= 0.92;
-        drag.rotY += drag.vx;
+      if (!drag.active) {
+        const base = reduced ? 0 : AUTO_SPIN;
+        drag.rotY += (drag.vx + base) * f;
+        drag.rotX = Math.max(-0.6, Math.min(0.6, drag.rotX + drag.vy * f));
+        drag.vx = decay(drag.vx, 0.965, delta);
+        drag.vy = decay(drag.vy, 0.94, delta);
       }
 
       earth.rotation.y = drag.rotY;
       earth.rotation.x = drag.rotX;
+
+      // Billboard the HQ ring so it always faces lens, never edge-on
+      hqRing.quaternion.copy(camera.quaternion);
+      hqRing.applyQuaternion(earth.quaternion.clone().invert());
+      const hqPulse = 1 + Math.sin(t * 2.2) * 0.18;
+      hqRing.scale.setScalar(hqPulse);
 
       arcs.children.forEach((obj) => {
         if (obj instanceof THREE.Line) {
           const mat = obj.material as THREE.LineBasicMaterial;
           const isActive = obj.userData.id === activeRef.current;
           mat.color.setHex(isActive ? 0xf4a62a : 0x7357ff);
-          mat.opacity = isActive ? 0.95 : 0.3 + Math.sin(t * 2 + obj.userData.id) * 0.08;
+          mat.opacity = isActive ? 0.95 : 0.28 + Math.sin(t * 1.6 + obj.userData.id) * 0.08;
         } else if (obj instanceof THREE.Mesh && obj.userData.curve) {
           const curve = obj.userData.curve as THREE.QuadraticBezierCurve3;
-          obj.userData.t = (obj.userData.t + 0.009) % 1;
+          obj.userData.t = (obj.userData.t + 0.3 * delta) % 1;
           obj.position.copy(curve.getPoint(obj.userData.t));
           obj.visible = obj.userData.id === activeRef.current || Math.sin(t + obj.userData.id) > 0.15;
         }
@@ -273,9 +408,9 @@ export function ClientsGlobeSection() {
 
       markers.children.forEach((obj) => {
         if (obj.userData?.id === activeRef.current) {
-          obj.scale.setScalar(1.5 + Math.sin(t * 4) * 0.25);
+          obj.scale.setScalar(damp(obj.scale.x, 1.6 + Math.sin(t * 4) * 0.2, 8, delta));
         } else if (obj.userData?.id) {
-          obj.scale.setScalar(1);
+          obj.scale.setScalar(damp(obj.scale.x, 1, 8, delta));
         }
       });
 
@@ -283,22 +418,56 @@ export function ClientsGlobeSection() {
       frame += 1;
       if (frame === 2) setReady(true);
     };
-    animate();
+
+    const play = () => {
+      if (running) return;
+      running = true;
+      clock.getDelta();
+      raf = requestAnimationFrame(animate);
+    };
+    const pause = () => {
+      running = false;
+      cancelAnimationFrame(raf);
+    };
+
+    const io = new IntersectionObserver(
+      ([entry]) => (entry.isIntersecting ? play() : pause()),
+      { threshold: 0.05 }
+    );
+    io.observe(el);
+    const onVisibility = () => (document.hidden ? pause() : play());
+    document.addEventListener("visibilitychange", onVisibility);
+
+    const onContextLost = (e: Event) => {
+      e.preventDefault();
+      pause();
+    };
+    renderer.domElement.addEventListener("webglcontextlost", onContextLost);
+    renderer.domElement.addEventListener("webglcontextrestored", play);
+
+    play();
 
     return () => {
-      cancelAnimationFrame(raf);
+      pause();
+      io.disconnect();
+      document.removeEventListener("visibilitychange", onVisibility);
       window.removeEventListener("resize", onResize);
+      renderer.domElement.removeEventListener("keydown", onKeyDown);
       renderer.domElement.removeEventListener("pointerdown", onPointerDown);
       renderer.domElement.removeEventListener("pointermove", onPointerMove);
       renderer.domElement.removeEventListener("pointerup", onPointerUp);
       renderer.domElement.removeEventListener("pointercancel", onPointerUp);
+      renderer.domElement.removeEventListener("webglcontextlost", onContextLost);
+      renderer.domElement.removeEventListener("webglcontextrestored", play);
+      scene.traverse((obj) => {
+        const m = obj as THREE.Mesh;
+        if (m.geometry) m.geometry.dispose();
+        const mat = m.material as THREE.Material | THREE.Material[] | undefined;
+        if (Array.isArray(mat)) mat.forEach((x) => x.dispose());
+        else if (mat) mat.dispose();
+      });
+      disposables.forEach((tex) => tex.dispose());
       renderer.dispose();
-      earthGeo.dispose();
-      earthMat.dispose();
-      earthDay.dispose();
-      earthNight.dispose();
-      atmosGeo.dispose();
-      atmosMat.dispose();
       if (renderer.domElement.parentElement === el) {
         el.removeChild(renderer.domElement);
       }
@@ -314,7 +483,7 @@ export function ClientsGlobeSection() {
             <span>Worldwide Creative Footprint</span>
           </div>
           <h2 className="font-display text-4xl font-bold text-white sm:text-5xl">
-            12 Global Hubs · <span className="text-gradient">One Unified Timeline</span>
+            12 Global Hubs ┬╖ <span className="text-gradient">One Unified Timeline</span>
           </h2>
           <p className="mx-auto mt-4 max-w-2xl text-sm leading-relaxed text-slate-400">
             From our core studio HQ to creator channels and brand sets across North America, Europe, and Asia-Pacific.
@@ -342,7 +511,7 @@ export function ClientsGlobeSection() {
             <div ref={mountRef} className="absolute inset-0 z-10" />
             {!ready && (
               <div className="absolute inset-0 z-20 flex items-center justify-center text-xs uppercase tracking-[0.2em] text-slate-400">
-                Rendering 3D Earth projection…
+                Rendering 3D Earth projectionΓÇª
               </div>
             )}
 
@@ -393,7 +562,7 @@ export function ClientsGlobeSection() {
                   </div>
                 </div>
                 <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
-                  {c.role.split("·")[1] || c.role}
+                  {c.role.split("┬╖")[1] || c.role}
                 </span>
               </button>
             ))}

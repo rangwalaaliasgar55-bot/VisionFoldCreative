@@ -94,6 +94,16 @@ export default function AdminLeadsPage() {
     });
   }, [leads, filter, search]);
 
+  // Paginate rendering so a 10k-row import can never freeze the tab.
+  const PAGE_SIZE = 50;
+  const [page, setPage] = useState(1);
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const safePage = Math.min(page, totalPages);
+  const visibleLeads = useMemo(
+    () => filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE),
+    [filtered, safePage]
+  );
+
   const stats = useMemo(() => {
     if (!leads) return { total: 0, new: 0, contacted: 0, won: 0, done: 0, conversion: 0 };
     const active = leads.filter((l) => l.status !== "done");
@@ -157,6 +167,8 @@ export default function AdminLeadsPage() {
       setImportResult(res);
       toast(`Imported ${res.inserted} leads (${res.skipped} skipped).`);
       setImportText("");
+      setShowImport(false);
+      reload();
       reload();
     } catch (err) {
       toast(err instanceof Error ? err.message : "Import failed", "err");
@@ -320,7 +332,24 @@ export default function AdminLeadsPage() {
         />
       ) : (
         <div className="space-y-3">
-          {filtered.map((lead) => {
+          <div className="flex items-center justify-between text-xs text-slate-500">
+            <span>
+              Showing {(safePage - 1) * PAGE_SIZE + 1}–{Math.min(safePage * PAGE_SIZE, filtered.length)} of{" "}
+              {filtered.length.toLocaleString()}
+            </span>
+            <div className="flex items-center gap-2">
+              <Button size="sm" variant="ghost" disabled={safePage <= 1} onClick={() => setPage((p) => p - 1)}>
+                ← Prev
+              </Button>
+              <span>
+                Page {safePage} / {totalPages}
+              </span>
+              <Button size="sm" variant="ghost" disabled={safePage >= totalPages} onClick={() => setPage((p) => p + 1)}>
+                Next →
+              </Button>
+            </div>
+          </div>
+          {visibleLeads.map((lead) => {
             const score = getScore(lead);
             const cleanPhone = lead.phone.replace(/[^0-9]/g, "");
             return (

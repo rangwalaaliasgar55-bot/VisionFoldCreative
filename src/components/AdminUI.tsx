@@ -9,6 +9,8 @@ import {
 } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { AnimatePresence, m } from "framer-motion";
+import { CSS_EASE, DUR, EASE, SPRING } from "@/lib/motion";
 import {
   FolderKanban,
   Globe,
@@ -100,20 +102,30 @@ export function Toasts() {
     };
   }, []);
   return (
-    <div className="pointer-events-none fixed bottom-5 right-5 z-[100] space-y-2">
-      {items.map((t) => (
-        <div
-          key={t.id}
-          className={cx(
-            "pointer-events-auto rounded-xl px-4 py-3 text-sm font-medium shadow-2xl backdrop-blur-xl",
-            t.tone === "ok"
-              ? "border border-emerald-400/30 bg-emerald-950/80 text-emerald-200"
-              : "border border-red-400/30 bg-red-950/80 text-red-200"
-          )}
-        >
-          {t.msg}
-        </div>
-      ))}
+    <div
+      className="pointer-events-none fixed bottom-5 right-5 z-[100] space-y-2"
+      role="status"
+      aria-live="polite"
+    >
+      <AnimatePresence initial={false}>
+        {items.map((t) => (
+          <m.div
+            key={t.id}
+            initial={{ opacity: 0, y: 12, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 8, scale: 0.98 }}
+            transition={SPRING}
+            className={cx(
+              "pointer-events-auto rounded-xl px-4 py-3 text-sm font-medium shadow-2xl backdrop-blur-xl",
+              t.tone === "ok"
+                ? "border border-emerald-400/30 bg-emerald-950/80 text-emerald-200"
+                : "border border-red-400/30 bg-red-950/80 text-red-200"
+            )}
+          >
+            {t.msg}
+          </m.div>
+        ))}
+      </AnimatePresence>
     </div>
   );
 }
@@ -265,19 +277,55 @@ export function Modal({
     if (!open) return;
     const esc = (e: KeyboardEvent) => e.key === "Escape" && onClose();
     window.addEventListener("keydown", esc);
-    return () => window.removeEventListener("keydown", esc);
+    // Lock the page behind the dialog so it can't scroll away underneath.
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      window.removeEventListener("keydown", esc);
+      document.body.style.overflow = prev;
+    };
   }, [open, onClose]);
-  if (!open) return null;
+
+  const ease = EASE as unknown as [number, number, number, number];
+
   return (
-    <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm" onClick={onClose}>
-      <div onClick={(e) => e.stopPropagation()} className={cx("glass-bright scrollbar-thin max-h-[88vh] w-full overflow-y-auto rounded-2xl p-6 shadow-2xl", wide ? "max-w-2xl" : "max-w-lg")}>
-        <div className="mb-4 flex items-center justify-between">
-          <h3 className="font-display text-lg font-semibold text-white">{title}</h3>
-          <button onClick={onClose} className="rounded-lg p-1 text-slate-500 hover:bg-white/5 hover:text-white"><X size={18} /></button>
-        </div>
-        {children}
-      </div>
-    </div>
+    <AnimatePresence>
+      {open && (
+        <m.div
+          className="fixed inset-0 z-[90] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm"
+          onClick={onClose}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: DUR.hoverIn, ease }}
+        >
+          <m.div
+            role="dialog"
+            aria-modal="true"
+            aria-label={title}
+            onClick={(e) => e.stopPropagation()}
+            initial={{ opacity: 0, y: 12, scale: 0.985 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 8, scale: 0.985 }}
+            transition={{ duration: DUR.reveal * 0.6, ease }}
+            className={cx("glass-bright scrollbar-thin max-h-[88vh] w-full overflow-y-auto rounded-2xl p-6 shadow-2xl", wide ? "max-w-2xl" : "max-w-lg")}
+          >
+            <div className="mb-4 flex items-center justify-between">
+              <h3 className="font-display text-lg font-semibold text-white">{title}</h3>
+              <button
+                onClick={onClose}
+                aria-label="Close dialog"
+                className="rounded-lg p-1 text-slate-500 hover:bg-white/5 hover:text-white"
+                style={{ transition: `color ${DUR.hoverIn}s ${CSS_EASE}` }}
+              >
+                <X size={18} />
+              </button>
+            </div>
+            {children}
+          </m.div>
+        </m.div>
+      )}
+    </AnimatePresence>
   );
 }
 
@@ -314,7 +362,7 @@ export function Spinner() {
 export function PageSkeleton({ cards = 6, rows = 4 }: { cards?: number; rows?: number }) {
   return (
     <div className="space-y-6" role="status" aria-label="Loading page">
-      <span className="sr-only">Loading…</span>
+      <span className="sr-only">LoadingΓÇª</span>
       <div className="flex items-end justify-between gap-4">
         <div className="space-y-2"><div className="skeleton h-7 w-48 rounded-lg" /><div className="skeleton h-3 w-72 max-w-[70vw] rounded" /></div>
         <div className="skeleton h-9 w-28 rounded-xl" />
@@ -333,7 +381,7 @@ export function PageSkeleton({ cards = 6, rows = 4 }: { cards?: number; rows?: n
 export function PortalSkeleton() {
   return (
     <div className="mx-auto max-w-6xl space-y-6 px-5 py-8" role="status" aria-label="Loading client workspace">
-      <span className="sr-only">Loading your workspace…</span>
+      <span className="sr-only">Loading your workspaceΓÇª</span>
       <div className="rounded-3xl border border-white/[0.07] bg-panel p-6"><div className="flex items-center gap-4"><div className="skeleton h-14 w-14 rounded-2xl" /><div className="flex-1"><div className="skeleton h-6 w-56 max-w-full rounded" /><div className="skeleton mt-2 h-3 w-72 max-w-full rounded" /></div></div></div>
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">{Array.from({ length: 4 }, (_, i) => <div key={i} className="rounded-2xl border border-white/[0.06] bg-panel p-4"><div className="skeleton h-3 w-20 rounded" /><div className="skeleton mt-3 h-7 w-16 rounded" /></div>)}</div>
       <div className="grid gap-4 md:grid-cols-2">{Array.from({ length: 4 }, (_, i) => <div key={i} className="rounded-2xl border border-white/[0.06] bg-panel p-5"><div className="skeleton h-4 w-28 rounded" /><div className="skeleton mt-3 h-6 w-44 rounded" /><div className="skeleton mt-5 h-2 w-full rounded-full" /><div className="skeleton mt-4 h-3 w-32 rounded" /></div>)}</div>
@@ -430,9 +478,9 @@ const NAV = [
   { href: "/admin/projects", label: "Projects", Icon: FolderKanban },
   { href: "/admin/portfolio", label: "Portfolio", Icon: ImageIcon },
   { href: "/admin/invoices", label: "Invoices & Expenses", Icon: Receipt },
-  { href: "/admin/blog", label: "Blog · WordPress", Icon: Newspaper },
-  { href: "/admin/automations", label: "Automations · AI", Icon: Zap },
-  { href: "/admin/site", label: "Site · Live Editor", Icon: Globe },
+  { href: "/admin/blog", label: "Blog ┬╖ WordPress", Icon: Newspaper },
+  { href: "/admin/automations", label: "Automations ┬╖ AI", Icon: Zap },
+  { href: "/admin/site", label: "Site ┬╖ Live Editor", Icon: Globe },
 ];
 
 export function AdminSidebar({ name, email }: { name: string; email: string }) {
@@ -459,7 +507,7 @@ export function AdminSidebar({ name, email }: { name: string; email: string }) {
           })}
         </nav>
         <div className="border-t border-white/6 p-4">
-          <Link href="/" target="_blank" className="mb-3 block rounded-xl border border-white/10 px-3 py-2 text-center text-xs font-medium text-slate-300 transition-colors hover:border-brand-400/50 hover:text-white">View public site ↗</Link>
+          <Link href="/" target="_blank" className="mb-3 block rounded-xl border border-white/10 px-3 py-2 text-center text-xs font-medium text-slate-300 transition-colors hover:border-brand-400/50 hover:text-white">View public site Γåù</Link>
           <div className="flex items-center justify-between gap-2">
             <div className="min-w-0">
               <p className="truncate text-sm font-semibold text-white">{name}</p>

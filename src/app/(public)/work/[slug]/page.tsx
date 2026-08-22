@@ -12,7 +12,7 @@ export const dynamic = "force-dynamic";
 type Props = { params: Promise<{ slug: string }> };
 
 function parseId(slug: string): number {
-  const match = /^(\d+)-/.exec(slug);
+  const match = /-(\d+)$/.exec(slug.trim());
   return match ? Number(match[1]) : 0;
 }
 

@@ -1,9 +1,9 @@
 import Link from "next/link";
+import Image from "next/image";
 import { db } from "@/db";
 import { categories, clients, portfolio, posts, ratings } from "@/db/schema";
 import { desc, eq, getTableColumns } from "drizzle-orm";
 import { getSettings } from "@/lib/settings";
-import ThreeBackground from "@/components/ThreeBackground";
 import { ClientsGlobeSection } from "@/components/ClientsGlobeSection";
 import { Counter, Reel3D, Reveal, SplitCompare, Stars, Tilt } from "@/components/Fx";
 import {
@@ -22,24 +22,27 @@ import {
   Zap,
 } from "lucide-react";
 import { fmtDate } from "@/lib/utils";
+import { workPath } from "@/lib/slug";
+import { getFeaturedWork, getPublishedPosts } from "@/lib/cachedQueries";
+import { Faq } from "@/components/Faq";
 import { ensureSeed } from "@/lib/seed";
 
 export const dynamic = "force-dynamic";
 
 const SERVICES = [
-  { Icon: Clapperboard, title: "Brand Films", desc: "Launch films and brand stories that make people feel something — cut, graded and mixed to cinema standard.", price: "Custom quote" },
+  { Icon: Clapperboard, title: "Brand Films", desc: "Launch films and brand stories that make people feel something ΓÇö cut, graded and mixed to cinema standard.", price: "Custom quote" },
   { Icon: MonitorPlay, title: "YouTube Editing", desc: "Retention-first edits with pacing, sound design and hooks engineered to hold watch-time.", price: "Custom quote" },
   { Icon: Music, title: "Music Videos", desc: "Rhythm cuts, film-grade color and VFX cleanup that make the song hit harder.", price: "Custom quote" },
-  { Icon: Megaphone, title: "Commercials & Ads", desc: "Platform-ready ad packs — 16:9, 9:16, 1:1 with subtitles — shipped in days, not weeks.", price: "Custom quote" },
+  { Icon: Megaphone, title: "Commercials & Ads", desc: "Platform-ready ad packs ΓÇö 16:9, 9:16, 1:1 with subtitles ΓÇö shipped in days, not weeks.", price: "Custom quote" },
   { Icon: Heart, title: "Wedding Cinema", desc: "Ceremony films and teasers edited into stories you'll rewatch for decades.", price: "Custom quote" },
   { Icon: Mic, title: "Podcast Editing", desc: "Full episode cleanup plus a clip engine that turns every episode into Shorts and Reels.", price: "Custom quote" },
-  { Icon: Zap, title: "Shorts & Reels", desc: "Vertical edits for Instagram, Shorts and TikTok — hook, captions, sound design. Delivered in 24 hours.", price: "Custom quote" },
+  { Icon: Zap, title: "Shorts & Reels", desc: "Vertical edits for Instagram, Shorts and TikTok ΓÇö hook, captions, sound design. Delivered in 24 hours.", price: "Custom quote" },
 ];
 
 const PROCESS = [
   { Icon: PenTool, step: "01", title: "Brief & story pass", desc: "We watch your footage, mark the best moments and agree on a beat sheet before a single cut happens." },
-  { Icon: Sparkles, step: "02", title: "Assembly cut", desc: "A fast, honest first pass delivered in 3–5 days. You see the direction early, not after weeks." },
-  { Icon: Palette, step: "03", title: "Polish stack", desc: "Motion graphics, sound design, color grade and mix — applied in passes you can approve at each stage." },
+  { Icon: Sparkles, step: "02", title: "Assembly cut", desc: "A fast, honest first pass delivered in 3ΓÇô5 days. You see the direction early, not after weeks." },
+  { Icon: Palette, step: "03", title: "Polish stack", desc: "Motion graphics, sound design, color grade and mix ΓÇö applied in passes you can approve at each stage." },
   { Icon: PlayCircle, step: "04", title: "Delivery & beyond", desc: "Every format you need, plus a review link and revision rounds. 100% of clients get every deliverable." },
 ];
 
@@ -47,14 +50,8 @@ export default async function HomePage() {
   await ensureSeed();
   const settings = await getSettings();
   const [work, latestPosts, publicRatings] = await Promise.all([
-    db.select().from(portfolio).orderBy(desc(portfolio.featured), desc(portfolio.createdAt)).limit(8),
-    db
-      .select({ ...getTableColumns(posts), categoryName: categories.name })
-      .from(posts)
-      .leftJoin(categories, eq(posts.categoryId, categories.id))
-      .where(eq(posts.status, "published"))
-      .orderBy(desc(posts.publishedAt))
-      .limit(3),
+    getFeaturedWork(8),
+    getPublishedPosts(3),
     db
       .select({ ...getTableColumns(ratings), clientName: clients.name })
       .from(ratings)
@@ -69,34 +66,32 @@ export default async function HomePage() {
     title: w.title,
     thumbnailUrl: w.thumbnailUrl,
     category: w.category,
-    href: "/work",
+    href: workPath(w),
   }));
 
   return (
     <>
-      <ThreeBackground />
-
       <section className="bg-aurora relative overflow-hidden pb-24 pt-20 sm:pt-28">
         <div className="grid-bg pointer-events-none absolute inset-0" />
         <div className="relative mx-auto max-w-7xl px-5 text-center sm:px-8">
           <Reveal>
             <div className="glass mx-auto inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-xs font-medium text-cyan-300">
               <span className="animate-pulseglow h-1.5 w-1.5 rounded-full bg-cyan-400" />
-              Premium Video Editing Studio — High-Retention Post-Production
+              Premium Video Editing Studio ΓÇö High-Retention Post-Production
             </div>
           </Reveal>
-          <Reveal delay={100}>
+          <Reveal delay={70}>
             <h1 className="font-display mx-auto mt-6 max-w-4xl text-5xl font-bold leading-[1.04] text-white sm:text-7xl">
               {settings.heroTitle}{" "}
               <span className="text-gradient">{settings.heroHighlight}</span>
             </h1>
           </Reveal>
-          <Reveal delay={200}>
+          <Reveal delay={140}>
             <p className="mx-auto mt-6 max-w-2xl text-base leading-relaxed text-slate-400 sm:text-lg">
               {settings.heroSubtitle}
             </p>
           </Reveal>
-          <Reveal delay={300}>
+          <Reveal delay={210}>
             <div className="mt-9 flex flex-wrap items-center justify-center gap-4">
               <Link
                 href="/contact"
@@ -114,7 +109,7 @@ export default async function HomePage() {
               </Link>
             </div>
           </Reveal>
-          <Reveal delay={400}>
+          <Reveal delay={280}>
             <div className="mx-auto mt-14 grid max-w-3xl grid-cols-2 gap-4 sm:grid-cols-4">
               {[
                 { value: Number(settings.statsYears || 2), suffix: "", label: "Years editing" },
@@ -168,8 +163,8 @@ export default async function HomePage() {
         </Reveal>
         <div className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {SERVICES.map(({ Icon, title, desc, price }, i) => (
-            <Reveal key={title} delay={i * 80}>
-              <Tilt max={6} className="h-full">
+            <Reveal key={title} delay={i * 70}>
+              <Tilt max={7} className="h-full">
                 <div className="glass card-glow group flex h-full flex-col rounded-3xl p-6">
                   <div className="mb-4 grid h-12 w-12 place-items-center rounded-2xl bg-gradient-to-br from-brand-600/30 to-cy-500/20 text-brand-300 transition-transform group-hover:scale-110 group-hover:rotate-6">
                     <Icon size={22} />
@@ -179,7 +174,7 @@ export default async function HomePage() {
                   <div className="mt-4 flex items-center justify-between">
                     <span className="text-sm font-semibold text-cyan-300">{price}</span>
                     <Link href="/contact" className="text-xs font-medium text-slate-500 transition-colors hover:text-white">
-                      Get a quote →
+                      Get a quote ΓåÆ
                     </Link>
                   </div>
                 </div>
@@ -216,7 +211,7 @@ export default async function HomePage() {
           </Reveal>
           <div className="process-timeline relative z-10 mt-12 grid gap-5 md:grid-cols-2 lg:grid-cols-4">
             {PROCESS.map(({ Icon, step, title, desc }, i) => (
-              <Reveal key={step} delay={i * 90} variant={i % 2 === 0 ? "left" : "right"}>
+              <Reveal key={step} delay={i * 70} variant={i % 2 === 0 ? "left" : "right"}>
                 <div className="group relative h-full overflow-hidden rounded-3xl border border-white/8 bg-panel p-6 transition-colors hover:border-brand-400/40">
                   <span className="font-display absolute -right-2 -top-6 text-7xl font-bold text-white/4 transition-colors group-hover:text-brand-500/10">
                     {step}
@@ -239,7 +234,7 @@ export default async function HomePage() {
             <h2 className="font-display mt-3 text-4xl font-bold text-white sm:text-5xl">
               Work you can <span className="text-gradient">feel</span>
             </h2>
-            <p className="mt-4 text-slate-400">A 3D interactive carousel of recent studio masters — hover to inspect.</p>
+            <p className="mt-4 text-slate-400">A 3D carousel of recent studio masters ΓÇö drag to spin it, hover to snap onto a cut.</p>
           </div>
         </Reveal>
         <div className="mt-10">
@@ -274,12 +269,12 @@ export default async function HomePage() {
             </Reveal>
             <div className="mt-12 grid gap-5 md:grid-cols-3">
               {publicRatings.slice(0, 3).map((r, i) => (
-                <Reveal key={r.id} delay={i * 90}>
-                  <Tilt max={5} className="h-full">
+                <Reveal key={r.id} delay={i * 70}>
+                  <Tilt max={7} className="h-full">
                     <figure className="glass flex h-full flex-col rounded-3xl p-6">
                       <Stars value={r.stars} />
                       <blockquote className="mt-4 flex-1 text-sm leading-relaxed text-slate-300">
-                        “{r.comment}”
+                        ΓÇ£{r.comment}ΓÇ¥
                       </blockquote>
                       <figcaption className="mt-5 flex items-center gap-3 border-t border-white/8 pt-4">
                         <div className="grid h-9 w-9 place-items-center rounded-full bg-gradient-to-br from-brand-600 to-cy-500 text-sm font-bold text-white">
@@ -311,20 +306,22 @@ export default async function HomePage() {
                 </h2>
               </div>
               <Link href="/blog" className="text-sm font-semibold text-cyan-300 transition-colors hover:text-white">
-                All articles →
+                All articles ΓåÆ
               </Link>
             </div>
           </Reveal>
           <div className="mt-10 grid gap-6 md:grid-cols-3">
             {latestPosts.map((p, i) => (
-              <Reveal key={p.id} delay={i * 90}>
+              <Reveal key={p.id} delay={i * 70}>
                 <Link href={`/blog/${p.slug}`} className="group block h-full">
                   <div className="glass card-glow overflow-hidden rounded-3xl transition-transform">
                     <div className="relative h-44 overflow-hidden">
-                      <img
+                      <Image
                         src={p.featuredImage}
                         alt={p.title}
-                        className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110"
+                        fill
+                        sizes="(max-width: 768px) 100vw, 33vw"
+                        className="object-cover transition-transform duration-500 group-hover:scale-110"
                       />
                       <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
                     </div>
@@ -333,7 +330,7 @@ export default async function HomePage() {
                         <span className="font-semibold uppercase tracking-widest text-cyan-300">
                           {p.categoryName || "Studio"}
                         </span>
-                        <span>·</span>
+                        <span>┬╖</span>
                         <span>{fmtDate(p.publishedAt)}</span>
                       </div>
                       <h3 className="font-display mt-2 text-lg font-semibold leading-snug text-white transition-colors group-hover:text-brand-300">
@@ -348,6 +345,13 @@ export default async function HomePage() {
           </div>
         </section>
       )}
+
+      {/* FAQ ΓÇö answers the questions that otherwise arrive one email at a time */}
+      <section className="mx-auto max-w-7xl px-5 py-20 sm:px-8">
+        <Reveal>
+          <Faq />
+        </Reveal>
+      </section>
 
       {/* CTA Box */}
       <section className="mx-auto max-w-7xl px-5 pb-8 sm:px-8">

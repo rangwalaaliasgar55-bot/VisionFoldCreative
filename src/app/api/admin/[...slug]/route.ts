@@ -242,7 +242,7 @@ export async function GET(
     // 2. Clients
     if (path === "clients") {
       const [allClients, allProjects] = await Promise.all([
-        db.select().from(clients).orderBy(desc(clients.createdAt)),
+        db.select().from(clients).orderBy(desc(clients.createdAt)).limit(2000),
         db.select().from(projects),
       ]);
       const projectCounts = new Map<number, number>();
@@ -268,7 +268,7 @@ export async function GET(
     // 3. Projects
     if (path === "projects") {
       const [allProjects, allClients] = await Promise.all([
-        db.select().from(projects).orderBy(desc(projects.createdAt)),
+        db.select().from(projects).orderBy(desc(projects.createdAt)).limit(2000),
         db.select().from(clients),
       ]);
       const clientMap = new Map(allClients.map((c) => [c.id, c.name]));
@@ -308,7 +308,7 @@ export async function GET(
     // 5. Invoices
     if (path === "invoices") {
       const [allInvoices, allClients, allProjects] = await Promise.all([
-        db.select().from(invoices).orderBy(desc(invoices.createdAt)),
+        db.select().from(invoices).orderBy(desc(invoices.createdAt)).limit(2000),
         db.select().from(clients),
         db.select().from(projects),
       ]);
@@ -355,7 +355,8 @@ export async function GET(
 
     // 8. Leads
     if (path === "leads") {
-      const rows = await db.select().from(leads).orderBy(desc(leads.createdAt));
+      // Cap the payload — the UI paginates client-side; 5k covers years of pipeline.
+      const rows = await db.select().from(leads).orderBy(desc(leads.createdAt)).limit(5000);
       return ok(rows);
     }
 

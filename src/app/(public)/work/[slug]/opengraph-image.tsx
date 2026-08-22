@@ -18,7 +18,7 @@ export const contentType = "image/png";
  */
 export default async function Image({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const match = /^(\d+)-/.exec(slug);
+  const match = /-(\d+)$/.exec(slug.trim());
   const id = match ? Number(match[1]) : 0;
 
   let title = "Selected work";

@@ -381,7 +381,22 @@ Branch `arena/01a00a18-visionfoldcreative` (20 commits ahead) was reviewed file-
 E2E verified live: attention flags+run · project progress → halfway announcement · structured brief → formatted into project record with due date · incomplete brief rejected listing missing fields · OG PNGs served.
 
 Deliberately not ported: their motion/Three.js overhaul (subjective, heavy conflicts), their ci.yml removal (ours runs the test suite), their offline-only social/email engines (superseded).
-## 14. Recommended next steps
+## 16. Platform 6.0 - PR #27 frontend, import fix, admin performance
+
+### Frontend ported from branch `arena/01a00a18` (the "good frontend")
+- One-camera motion system: MotionProvider + lib/motion.ts easing tokens + SmoothScroll (Lenis) - every scroll/3D/chrome transition shares one timing curve.
+- Three.js backdrop v3 "The Fold": brand mark drawn in light, shaped studio light, bokeh depth, lit glass forms.
+- Rebuilt ClientsGlobeSection, simplified ScrollProgress, refreshed globals.css tokens/animations; new deps framer-motion + lenis; SiteGuide (+captions VTT), VideoLightbox, WorkVideo, cachedQueries + slug libs; AdminUI / Admin ui / PageBuilder polish; redesigned home page; search overlay re-integrated into the new header.
+
+### Import-sheet bug fixed
+- Root cause: successful imports never refreshed the leads table (rows invisible until manual reload) and importing thousands of rows froze the tab rendering them at once.
+- Fix: auto-refresh + modal close after import; client-side pagination (50/page with X-Y of Z controls).
+
+### Admin performance pass
+- Server-side payload caps: leads <=5,000; clients/projects/invoices <=2,000 each - list payloads can no longer grow unbounded and stall requests.
+
+Suite: 37 tests green. E2E verified live: home renders on the motion system; case-study links resolve via unified title-id slugs; OG PNGs serve; CSV import rows visible immediately in the paginated table.
+## 17. Recommended next steps
 - Add `next.config.ts` `images.remotePatterns` if you want `next/image` everywhere.
 - LinkedIn native video upload requires the partner video API — current build
   attaches the video as a rich link post (documented in `linkedin.ts`).

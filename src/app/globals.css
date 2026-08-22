@@ -17,12 +17,40 @@
   --color-cy-500: #F4A62A;
   --color-pnk-400: #F4A62A;
   --color-amber: #F4A62A;
-  --font-display: var(--font-space), ui-sans-serif, system-ui, sans-serif;
-  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  /* ONE CAMERA: every Tailwind transition-* utility inherits the VisionFold ease. */
+  --default-transition-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+  --default-transition-duration: 250ms;
+  --ease-vf: cubic-bezier(0.16, 1, 0.3, 1);
+  /* The literal families are the fallback, so the type system works with the
+     stylesheet <link>. If next/font is ever wired up it defines --font-space /
+     --font-inter and transparently takes precedence. */
+  --font-display: var(--font-space, "Space Grotesk"), ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--font-inter, "Inter"), ui-sans-serif, system-ui, sans-serif;
 }
 
 html {
   scroll-behavior: smooth;
+  --vf-ease: cubic-bezier(0.16, 1, 0.3, 1);
+  --vf-hover-in: 150ms;
+  --vf-hover-out: 250ms;
+}
+
+/* Lenis owns the scroll while it's alive ΓÇö no competing native smoothing. */
+html.lenis,
+html.lenis body {
+  height: auto;
+}
+html.lenis {
+  scroll-behavior: auto !important;
+}
+.lenis.lenis-smooth {
+  scroll-behavior: auto !important;
+}
+.lenis.lenis-smooth [data-lenis-prevent] {
+  overscroll-behavior: contain;
+}
+.lenis.lenis-stopped {
+  overflow: hidden;
 }
 
 body {
@@ -68,28 +96,33 @@ body {
 
 .bg-aurora {
   background:
-    radial-gradient(60rem 30rem at 15% 0%, rgba(115, 87, 255, 0.18), transparent 60%),
-    radial-gradient(50rem 26rem at 85% 10%, rgba(244, 166, 42, 0.08), transparent 60%),
-    radial-gradient(40rem 30rem at 50% 100%, rgba(91, 63, 212, 0.1), transparent 60%);
+    radial-gradient(60rem 30rem at 15% 0%, rgba(115, 87, 255, 0.12), transparent 60%),
+    radial-gradient(50rem 26rem at 85% 10%, rgba(244, 166, 42, 0.055), transparent 60%),
+    radial-gradient(40rem 30rem at 50% 100%, rgba(91, 63, 212, 0.07), transparent 60%);
 }
 
 .grid-bg {
   background-image:
-    linear-gradient(rgba(115, 87, 255, 0.06) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(115, 87, 255, 0.06) 1px, transparent 1px);
+    linear-gradient(rgba(115, 87, 255, 0.045) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(115, 87, 255, 0.045) 1px, transparent 1px);
   background-size: 48px 48px;
   mask-image: radial-gradient(ellipse 80% 60% at 50% 40%, black 30%, transparent 75%);
 }
 
+/* One lift, one curve: every card in the site rises exactly 4px. */
 .card-glow {
-  transition: transform 0.35s ease, box-shadow 0.35s ease, border-color 0.35s ease;
+  transition:
+    transform var(--vf-hover-out) var(--vf-ease),
+    box-shadow var(--vf-hover-out) var(--vf-ease),
+    border-color var(--vf-hover-out) var(--vf-ease);
 }
 .card-glow:hover {
   box-shadow:
     0 20px 60px -20px rgba(115, 87, 255, 0.45),
     0 0 0 1px rgba(115, 87, 255, 0.22) inset;
   border-color: rgba(115, 87, 255, 0.4);
-  transform: translateY(-2px);
+  transform: translate3d(0, -4px, 0);
+  transition-duration: var(--vf-hover-in);
 }
 
 .glow-ring {
@@ -140,21 +173,31 @@ body {
   position: relative;
   border: 1px solid rgba(30, 39, 64, 0.9);
   background: var(--color-panel2);
-  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  transition:
+    transform var(--vf-hover-out) var(--vf-ease),
+    box-shadow var(--vf-hover-out) var(--vf-ease),
+    border-color var(--vf-hover-out) var(--vf-ease);
 }
 .fold-card:hover {
   border-color: rgba(115, 87, 255, 0.5);
-  transform: translateY(-3px);
+  transform: translate3d(0, -4px, 0);
   box-shadow: 0 24px 48px -24px rgba(0, 0, 0, 0.75), 0 0 0 1px rgba(115, 87, 255, 0.12);
+  transition-duration: var(--vf-hover-in);
 }
 
-@keyframes reelspin {
-  from { transform: rotateY(0deg); }
-  to { transform: rotateY(360deg); }
+/* Shared micro-interactions ΓÇö links and buttons breathe on the same curve. */
+.nav-link {
+  transition:
+    color var(--vf-hover-out) var(--vf-ease),
+    background-color var(--vf-hover-out) var(--vf-ease),
+    border-color var(--vf-hover-out) var(--vf-ease),
+    transform var(--vf-hover-out) var(--vf-ease);
 }
-.animate-reel-spin {
-  animation: reelspin 40s linear infinite;
-  transform-style: preserve-3d;
+.nav-link:hover {
+  transition-duration: var(--vf-hover-in);
+}
+.btn-lift:hover {
+  transform: translate3d(0, -2px, 0);
 }
 
 @keyframes floaty {
@@ -170,10 +213,13 @@ body {
 .animate-floaty2 { animation: floaty2 8s ease-in-out infinite; }
 
 @keyframes marquee {
-  from { transform: translateX(0); }
-  to { transform: translateX(-50%); }
+  from { transform: translate3d(0, 0, 0); }
+  to { transform: translate3d(-50%, 0, 0); }
 }
-.animate-marquee { animation: marquee 32s linear infinite; }
+.animate-marquee {
+  animation: marquee 28s linear infinite;
+  will-change: transform;
+}
 
 @keyframes shimmer {
   from { background-position: 200% 0; }
@@ -211,7 +257,7 @@ body {
   font-size: 0.875rem;
   color: #F6F3EC;
   outline: none;
-  transition: border-color 0.2s, box-shadow 0.2s;
+  transition: border-color var(--vf-hover-in) var(--vf-ease), box-shadow var(--vf-hover-in) var(--vf-ease);
 }
 .field::placeholder { color: #64748b; }
 .field:focus {
@@ -251,20 +297,25 @@ select:focus-visible {
   from { opacity: 0; transform: translateY(14px); }
   to { opacity: 1; transform: translateY(0); }
 }
-.animate-page-in { animation: page-in 0.55s cubic-bezier(0.16, 1, 0.3, 1) both; }
+.animate-page-in { animation: page-in 0.62s var(--vf-ease) both; }
 
 @keyframes fade-in {
   from { opacity: 0; }
   to { opacity: 1; }
 }
-.animate-fade-in { animation: fade-in 0.4s ease both; }
+.animate-fade-in { animation: fade-in 0.4s var(--vf-ease) both; }
 
 /* Smooth state transitions on interactive surfaces */
 .hover-lift {
-  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.3s ease, border-color 0.3s ease, background-color 0.3s ease;
+  transition:
+    transform var(--vf-hover-out) var(--vf-ease),
+    box-shadow var(--vf-hover-out) var(--vf-ease),
+    border-color var(--vf-hover-out) var(--vf-ease),
+    background-color var(--vf-hover-out) var(--vf-ease);
 }
 .hover-lift:hover {
-  transform: translateY(-3px);
+  transform: translate3d(0, -4px, 0);
+  transition-duration: var(--vf-hover-in);
   box-shadow: 0 18px 40px -24px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(115, 87, 255, 0.14) inset;
   border-color: rgba(115, 87, 255, 0.32);
 }
@@ -274,20 +325,79 @@ select:focus-visible {
   to { opacity: 1; transform: translate3d(0, 0, 0) rotateX(0); }
 }
 .cms-block-reveal {
-  animation: cms-block-in 0.7s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: cms-block-in 0.62s var(--vf-ease) both;
   transform-origin: 50% 0;
 }
 
 .auth-3d-card {
   transform: perspective(1100px) rotateX(0deg) translateZ(0);
   transform-style: preserve-3d;
-  transition: transform 0.55s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.55s ease;
+  transition: transform var(--vf-hover-out) var(--vf-ease), box-shadow var(--vf-hover-out) var(--vf-ease);
 }
 .auth-3d-card:hover {
   transform: perspective(1100px) rotateX(1.5deg) translateY(-3px) translateZ(8px);
   box-shadow: 0 35px 90px -35px rgba(115, 87, 255, 0.55);
 }
 .auth-3d-card > * { transform: translateZ(18px); }
+
+
+/* ---- Cinematic backdrop overlays (paired with ThreeBackground) ---- */
+.vf-bg-beams {
+  overflow: hidden;
+  opacity: 0.45;
+}
+.vf-bg-beams::before,
+.vf-bg-beams::after {
+  content: "";
+  position: absolute;
+  top: -40%;
+  left: -20%;
+  width: 55%;
+  height: 190%;
+  background: linear-gradient(
+    100deg,
+    transparent 0%,
+    rgba(115, 87, 255, 0.09) 42%,
+    rgba(167, 139, 250, 0.06) 52%,
+    transparent 78%
+  );
+  transform: rotate(-14deg) translate3d(0, 0, 0);
+  filter: blur(6px);
+  animation: beam-drift 26s ease-in-out infinite alternate;
+  will-change: transform, opacity;
+}
+.vf-bg-beams::after {
+  left: auto;
+  right: -25%;
+  width: 48%;
+  background: linear-gradient(
+    80deg,
+    transparent 0%,
+    rgba(244, 166, 42, 0.075) 45%,
+    rgba(245, 215, 138, 0.045) 58%,
+    transparent 82%
+  );
+  transform: rotate(12deg) translate3d(0, 0, 0);
+  animation-duration: 34s;
+  animation-delay: -8s;
+}
+@keyframes beam-drift {
+  from { transform: rotate(-14deg) translate3d(-4%, -2%, 0); opacity: 0.5; }
+  to   { transform: rotate(-14deg) translate3d(6%, 3%, 0); opacity: 1; }
+}
+
+.vf-bg-grain {
+  opacity: 0.055;
+  mix-blend-mode: soft-light;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size: 180px 180px;
+}
+
+.vf-bg-vignette {
+  background:
+    radial-gradient(120% 90% at 50% 12%, transparent 38%, rgba(4, 7, 18, 0.55) 78%, rgba(4, 7, 18, 0.9) 100%),
+    linear-gradient(to bottom, rgba(4, 7, 18, 0.35) 0%, transparent 22%, transparent 72%, rgba(4, 7, 18, 0.6) 100%);
+}
 
 /* Admin application surface */
 .admin-surface {
@@ -310,24 +420,44 @@ select:focus-visible {
 
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
+
+  /* Kill idle loops, but never hide content: reveals resolve instantly. */
   .animate-marquee,
   .animate-floaty,
   .animate-floaty2,
-  .animate-reel-spin,
   .animate-shimmer,
   .animate-pulseglow,
   .animate-scrollcue,
   .animate-spin-slow,
-  .cms-block-reveal,
+  .vf-bg-beams::before,
+  .vf-bg-beams::after,
   .skeleton::after,
   .shimmer {
     animation: none !important;
   }
+
+  .animate-page-in,
+  .cms-block-reveal {
+    animation-duration: 0.01ms !important;
+  }
+
+  .vf-reveal {
+    opacity: 1 !important;
+    transform: none !important;
+  }
+
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+
   .card-glow:hover,
   .fold-card:hover,
+  .hover-lift:hover,
   .auth-3d-card,
   .auth-3d-card:hover {
     transform: none !important;
-    transition: none !important;
   }
 }
