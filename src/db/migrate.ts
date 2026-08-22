@@ -52,6 +52,34 @@ const STATEMENTS = [
     created_at TIMESTAMPTZ DEFAULT NOW()
   )`,
   `CREATE INDEX IF NOT EXISTS ai_messages_conversation_idx ON ai_messages (conversation_id)`,
+  `ALTER TABLE leads ADD COLUMN IF NOT EXISTS outreach_draft TEXT NOT NULL DEFAULT ''`,
+  `ALTER TABLE leads ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ`,
+  `ALTER TABLE leads ADD COLUMN IF NOT EXISTS deleted_by TEXT NOT NULL DEFAULT ''`,
+  `CREATE INDEX IF NOT EXISTS leads_score_idx ON leads (score)`,
+  `CREATE INDEX IF NOT EXISTS leads_deleted_idx ON leads (deleted_at)`,
+  `ALTER TABLE clients ADD COLUMN IF NOT EXISTS health_score INTEGER NOT NULL DEFAULT 80`,
+  `ALTER TABLE clients ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ`,
+  `ALTER TABLE clients ADD COLUMN IF NOT EXISTS deleted_by TEXT NOT NULL DEFAULT ''`,
+  `CREATE INDEX IF NOT EXISTS clients_deleted_idx ON clients (deleted_at)`,
+  `ALTER TABLE projects ADD COLUMN IF NOT EXISTS effort_hours INTEGER NOT NULL DEFAULT 8`,
+  `ALTER TABLE projects ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ`,
+  `ALTER TABLE projects ADD COLUMN IF NOT EXISTS deleted_by TEXT NOT NULL DEFAULT ''`,
+  `CREATE INDEX IF NOT EXISTS projects_deleted_idx ON projects (deleted_at)`,
+  `ALTER TABLE invoices ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ`,
+  `ALTER TABLE invoices ADD COLUMN IF NOT EXISTS deleted_by TEXT NOT NULL DEFAULT ''`,
+  `CREATE INDEX IF NOT EXISTS invoices_deleted_idx ON invoices (deleted_at)`,
+  `ALTER TABLE media ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ`,
+  `ALTER TABLE media ADD COLUMN IF NOT EXISTS deleted_by TEXT NOT NULL DEFAULT ''`,
+  `ALTER TABLE posts ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ`,
+  `ALTER TABLE posts ADD COLUMN IF NOT EXISTS deleted_by TEXT NOT NULL DEFAULT ''`,
+  `CREATE INDEX IF NOT EXISTS posts_deleted_idx ON posts (deleted_at)`,
+  `CREATE TABLE IF NOT EXISTS reply_snippets (
+    id SERIAL PRIMARY KEY,
+    name TEXT NOT NULL,
+    body TEXT NOT NULL DEFAULT '',
+    channel TEXT NOT NULL DEFAULT 'whatsapp',
+    created_at TIMESTAMPTZ DEFAULT NOW()
+  )`,
 ];
 
 let ran: Promise<void> | null = null;
