@@ -173,12 +173,20 @@ create table if not exists public.invoices (
   project_id integer references public.projects(id) on delete set null,
   number     text not null default '',
   amount     numeric(12, 2) not null,
+  currency   text not null default 'INR',
+  original_amount numeric(12, 2),
+  original_currency text not null default 'INR',
+  fx_rate    numeric(12, 4) not null default 1,
   status     text not null default 'sent',
   due_date   date,
   notes      text not null default '',
   created_at timestamptz default now()
 );
 create index if not exists invoices_client_idx on public.invoices (client_id);
+alter table public.invoices add column if not exists currency text not null default 'INR';
+alter table public.invoices add column if not exists original_amount numeric(12, 2);
+alter table public.invoices add column if not exists original_currency text not null default 'INR';
+alter table public.invoices add column if not exists fx_rate numeric(12, 4) not null default 1;
 
 create table if not exists public.ratings (
   id         serial primary key,
@@ -230,9 +238,13 @@ create table if not exists public.leads (
   notes      text not null default '',
   status     text not null default 'new',
   source     text not null default 'website',
+  score      integer not null default 0,
+  score_reasons text not null default '',
   created_at timestamptz default now()
 );
 create index if not exists leads_status_idx on public.leads (status);
+alter table public.leads add column if not exists score integer not null default 0;
+alter table public.leads add column if not exists score_reasons text not null default '';
 
 create table if not exists public.portfolio (
   id            serial primary key,
@@ -407,11 +419,42 @@ alter table public.webhooks          enable row level security;
 create table if not exists public.visitors (
   id text primary key,
   path text not null default '/',
+  referrer text not null default '',
+  utm_source text not null default '',
+  utm_medium text not null default '',
+  utm_campaign text not null default '',
+  lang text not null default '',
+  duration_ms integer not null default 0,
+  bounced boolean not null default true,
+  is_bot boolean not null default false,
   first_seen timestamptz default now(),
   last_seen timestamptz default now(),
   page_views integer not null default 1
 );
 create index if not exists visitors_last_seen_idx on public.visitors (last_seen);
+
+alter table public.visitors add column if not exists referrer text not null default '';
+alter table public.visitors add column if not exists utm_source text not null default '';
+alter table public.visitors add column if not exists utm_medium text not null default '';
+alter table public.visitors add column if not exists utm_campaign text not null default '';
+alter table public.visitors add column if not exists lang text not null default '';
+alter table public.visitors add column if not exists duration_ms integer not null default 0;
+alter table public.visitors add column if not exists bounced boolean not null default true;
+alter table public.visitors add column if not exists is_bot boolean not null default false;
+
+create table if not exists public.page_events (
+  id serial primary key,
+  visitor_id text not null,
+  path text not null,
+  referrer text not null default '',
+  title text not null default '',
+  kind text not null default 'view',
+  duration_ms integer not null default 0,
+  created_at timestamptz default now()
+);
+create index if not exists page_events_visitor_idx on public.page_events (visitor_id);
+create index if not exists page_events_created_idx on public.page_events (created_at);
+create index if not exists page_events_path_idx on public.page_events (path);
 
 create table if not exists public.wa_messages (
   id serial primary key,
@@ -508,6 +551,27 @@ create table if not exists public.approvals (
 );
 create index if not exists approvals_project_idx on public.approvals (project_id);
 
+create table if not exists public.ai_conversations (
+  id serial primary key,
+  staff_id integer not null default 0,
+  provider text not null default '',
+  title text not null default 'New conversation',
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
+);
+create index if not exists ai_conversations_staff_idx on public.ai_conversations (staff_id);
+
+create table if not exists public.ai_messages (
+  id serial primary key,
+  conversation_id integer not null references public.ai_conversations(id) on delete cascade,
+  role text not null,
+  content text not null default '',
+  provider text not null default '',
+  tokens integer not null default 0,
+  created_at timestamptz default now()
+);
+create index if not exists ai_messages_conversation_idx on public.ai_messages (conversation_id);
+
 alter table public.visitors    enable row level security;
 alter table public.wa_messages enable row level security;
 alter table public.social_accounts enable row level security;
@@ -516,6 +580,9 @@ alter table public.social_metrics   enable row level security;
 alter table public.social_insights  enable row level security;
 alter table public.rate_limits      enable row level security;
 alter table public.approvals        enable row level security;
+alter table public.page_events      enable row level security;
+alter table public.ai_conversations enable row level security;
+alter table public.ai_messages      enable row level security;
 
 commit;
 

@@ -103,6 +103,8 @@ export const leads = pgTable(
     notes: text("notes").notNull().default(""),
     status: text("status").notNull().default("new"),
     source: text("source").notNull().default("website"),
+    score: integer("score").notNull().default(0),
+    scoreReasons: text("score_reasons").notNull().default(""),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
   },
   (t) => [index("leads_status_idx").on(t.status)]
@@ -130,6 +132,10 @@ export const invoices = pgTable(
     projectId: integer("project_id").references(() => projects.id, { onDelete: "set null" }),
     number: text("number").notNull().default(""),
     amount: numeric("amount", { precision: 12, scale: 2 }).notNull(),
+    currency: text("currency").notNull().default("INR"),
+    originalAmount: numeric("original_amount", { precision: 12, scale: 2 }),
+    originalCurrency: text("original_currency").notNull().default("INR"),
+    fxRate: numeric("fx_rate", { precision: 12, scale: 4 }).notNull().default("1"),
     status: text("status").notNull().default("sent"),
     dueDate: date("due_date"),
     notes: text("notes").notNull().default(""),
@@ -311,11 +317,39 @@ export const visitors = pgTable(
   {
     id: text("id").primaryKey(), // anonymous session id (localStorage)
     path: text("path").notNull().default("/"),
+    referrer: text("referrer").notNull().default(""),
+    utmSource: text("utm_source").notNull().default(""),
+    utmMedium: text("utm_medium").notNull().default(""),
+    utmCampaign: text("utm_campaign").notNull().default(""),
+    lang: text("lang").notNull().default(""),
+    durationMs: integer("duration_ms").notNull().default(0),
+    bounced: boolean("bounced").notNull().default(true),
+    isBot: boolean("is_bot").notNull().default(false),
     firstSeen: timestamp("first_seen", { withTimezone: true }).defaultNow(),
     lastSeen: timestamp("last_seen", { withTimezone: true }).defaultNow(),
     pageViews: integer("page_views").notNull().default(1),
   },
   (t) => [index("visitors_last_seen_idx").on(t.lastSeen)]
+);
+
+/** One row per real page view (not heartbeats) — the source of truth for history. */
+export const pageEvents = pgTable(
+  "page_events",
+  {
+    id: serial("id").primaryKey(),
+    visitorId: text("visitor_id").notNull(),
+    path: text("path").notNull(),
+    referrer: text("referrer").notNull().default(""),
+    title: text("title").notNull().default(""),
+    kind: text("kind").notNull().default("view"), // view | heartbeat | exit
+    durationMs: integer("duration_ms").notNull().default(0),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  },
+  (t) => [
+    index("page_events_visitor_idx").on(t.visitorId),
+    index("page_events_created_idx").on(t.createdAt),
+    index("page_events_path_idx").on(t.path),
+  ]
 );
 
 export const waMessages = pgTable(
@@ -353,6 +387,7 @@ export type FrameAnnotation = typeof frameAnnotations.$inferSelect;
 export type Deliverable = typeof deliverables.$inferSelect;
 export type Webhook = typeof webhooks.$inferSelect;
 export type Visitor = typeof visitors.$inferSelect;
+export type PageEvent = typeof pageEvents.$inferSelect;
 export type WaMessage = typeof waMessages.$inferSelect;
 
 // ---------------------------------------------------------------------------
@@ -453,6 +488,39 @@ export const rateLimits = pgTable("rate_limits", {
 });
 
 export type RateLimitRow = typeof rateLimits.$inferSelect;
+
+/** Studio copilot threads — never write to the live website. */
+export const aiConversations = pgTable(
+  "ai_conversations",
+  {
+    id: serial("id").primaryKey(),
+    staffId: integer("staff_id").notNull().default(0),
+    provider: text("provider").notNull().default(""),
+    title: text("title").notNull().default("New conversation"),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+  },
+  (t) => [index("ai_conversations_staff_idx").on(t.staffId)]
+);
+
+export const aiMessages = pgTable(
+  "ai_messages",
+  {
+    id: serial("id").primaryKey(),
+    conversationId: integer("conversation_id")
+      .notNull()
+      .references(() => aiConversations.id, { onDelete: "cascade" }),
+    role: text("role").notNull(), // user | assistant | system
+    content: text("content").notNull().default(""),
+    provider: text("provider").notNull().default(""),
+    tokens: integer("tokens").notNull().default(0),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  },
+  (t) => [index("ai_messages_conversation_idx").on(t.conversationId)]
+);
+
+export type AiConversation = typeof aiConversations.$inferSelect;
+export type AiMessage = typeof aiMessages.$inferSelect;
 
 /** Client approvals ("e-signature") — legal-ish proof of delivery. */
 export const approvals = pgTable(

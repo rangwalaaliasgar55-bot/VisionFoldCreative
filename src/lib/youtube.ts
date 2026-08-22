@@ -21,10 +21,12 @@ export const YOUTUBE_SCOPES = [
   "https://www.googleapis.com/auth/youtube.readonly",
 ];
 
+import { runtimeKey } from "@/lib/runtimeKeys";
+
 export function youtubeConfig() {
   return {
-    clientId: process.env.YOUTUBE_CLIENT_ID || "",
-    clientSecret: process.env.YOUTUBE_CLIENT_SECRET || "",
+    clientId: process.env.YOUTUBE_CLIENT_ID || runtimeKey("youtube_client_id") || "",
+    clientSecret: process.env.YOUTUBE_CLIENT_SECRET || runtimeKey("youtube_client_secret") || "",
     redirectUri:
       process.env.YOUTUBE_REDIRECT_URI ||
       `${(process.env.APP_URL || "").replace(/\/$/, "")}/api/social/callback/youtube`,

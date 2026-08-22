@@ -16,6 +16,7 @@ import { gatherStats, rulesInsights } from "@/lib/ai";
 import { automationsEnabled } from "@/lib/settings";
 import { captureSnapshots, generateDueInsights } from "@/lib/social";
 import { emailConfigured, emailShell, sendEmail } from "@/lib/email";
+import { fmtInr } from "@/lib/money";
 import {
   evaluate,
   type Effect,
@@ -292,14 +293,14 @@ async function runDailyDigest(): Promise<number> {
     if (to) {
       emailed = await sendEmail({
         to,
-        subject: `Studio digest — ${stats.newLeads7d} new leads, ${fmtUsd(stats.outstanding)} outstanding`,
+        subject: `Studio digest — ${stats.newLeads7d} new leads, ${fmtInr(stats.outstanding)} outstanding`,
         html: emailShell(
           "Your studio, this morning",
           `<table style="width:100%;font-size:13px;color:#C9CFDB;">
             <tr><td style="padding:4px 0;">New leads (7d)</td><td style="text-align:right;font-weight:bold;color:#fff;">${stats.newLeads7d}</td></tr>
             <tr><td style="padding:4px 0;">Active projects</td><td style="text-align:right;font-weight:bold;color:#fff;">${stats.activeProjects}</td></tr>
             <tr><td style="padding:4px 0;">Overdue invoices</td><td style="text-align:right;font-weight:bold;color:${Number(stats.overdueInvoices) > 0 ? "#f87171" : "#fff"};">${stats.overdueInvoices}</td></tr>
-            <tr><td style="padding:4px 0;">Outstanding</td><td style="text-align:right;font-weight:bold;color:#fff;">${fmtUsd(stats.outstanding)}</td></tr>
+            <tr><td style="padding:4px 0;">Outstanding</td><td style="text-align:right;font-weight:bold;color:#fff;">${fmtInr(stats.outstanding)}</td></tr>
             <tr><td style="padding:4px 0;">Unread client messages</td><td style="text-align:right;font-weight:bold;color:#fff;">${stats.unreadClientMessages}</td></tr>
           </table>
           <p style="margin-top:18px;font-size:12px;letter-spacing:.15em;color:#F4A62A;font-weight:bold;">TODAY'S FOCUS</p>
@@ -315,12 +316,6 @@ async function runDailyDigest(): Promise<number> {
 async function getSettingValue(key: string): Promise<unknown> {
   const { getSetting } = await import("@/lib/settings");
   return getSetting(key);
-}
-
-function fmtUsd(value: unknown): string {
-  return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(
-    Number(value || 0)
-  );
 }
 
 async function runSocialSync(): Promise<number> {

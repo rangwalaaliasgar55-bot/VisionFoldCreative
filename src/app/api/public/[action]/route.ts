@@ -8,6 +8,7 @@ import { originCheck } from "@/lib/security";
 import { emitEvent } from "@/lib/events";
 import { emailConfigured, emailShell, sendEmail } from "@/lib/email";
 import { getSetting } from "@/lib/settings";
+import { scoreLead } from "@/lib/leadScore";
 
 export const dynamic = "force-dynamic";
 
@@ -35,6 +36,15 @@ export async function POST(
     }
     if (message.length < 10) return bad("Tell us a little more about the project (at least 10 characters).");
 
+    const scored = scoreLead({
+      name,
+      email,
+      phone: String(body.phone || "").trim().slice(0, 40),
+      service: String(body.service || "Video Editing").slice(0, 80),
+      budget: String(body.budget || "").slice(0, 80),
+      message,
+      source: "website",
+    });
     const row = await db
       .insert(leads)
       .values({
@@ -46,6 +56,8 @@ export async function POST(
         message,
         status: "new",
         source: "website",
+        score: scored.score,
+        scoreReasons: scored.reasons.join(" · "),
       })
       .returning();
 

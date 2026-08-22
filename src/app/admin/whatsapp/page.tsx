@@ -135,21 +135,34 @@ export default function AdminWhatsAppPage() {
 
         {/* Status / bot */}
         <div className="space-y-6">
-          <Card title="AI auto-reply bot" desc="Answers inbound WhatsApp messages using your studio AI">
+          <Card title="AI auto-reply bot" desc="Answers inbound WhatsApp using studio copilot instructions. Never edits the website.">
             <div className="flex items-center justify-between rounded-2xl border border-white/8 bg-ink/50 p-4">
               <div>
                 <p className="text-sm font-semibold text-white">Auto-reply</p>
                 <p className="mt-0.5 text-xs text-slate-400">
                   {data?.autoReply
-                    ? "ON — inbound texts get an instant, human-sounding reply."
-                    : "OFF — set WHATSAPP_AUTO_REPLY=true in Vercel to enable."}
+                    ? "ON — inbound texts get an instant reply from your copilot."
+                    : "OFF — toggle on here (no redeploy) or set WHATSAPP_AUTO_REPLY=true."}
                 </p>
               </div>
-              <span className={`h-3 w-3 rounded-full ${data?.autoReply ? "bg-emerald-400 shadow-[0_0_12px_2px_rgba(52,211,153,0.6)]" : "bg-slate-600"}`} />
+              <button
+                onClick={async () => {
+                  try {
+                    await api("/api/admin/whatsapp/config", { json: { autoReply: !data?.autoReply } });
+                    toast(data?.autoReply ? "Auto-reply off" : "Auto-reply on");
+                    void load();
+                  } catch {
+                    toast("Could not update auto-reply", "err");
+                  }
+                }}
+                className={`relative h-6 w-11 rounded-full ${data?.autoReply ? "bg-brand-600" : "bg-white/10"}`}
+                aria-label="Toggle auto-reply"
+              >
+                <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white transition-all ${data?.autoReply ? "left-[22px]" : "left-0.5"}`} />
+              </button>
             </div>
             <p className="mt-3 text-[11px] leading-relaxed text-slate-500">
-              The bot uses your AI instructions: warm, human, under 60 words, one clarifying question, signs as
-              “— VisionFold Studio”, and never invents prices except the ₹700 Shorts rate.
+              Replies follow Automations → Studio copilot instructions. Amounts stay in ₹. The bot cannot publish or edit pages.
             </p>
           </Card>
         </div>

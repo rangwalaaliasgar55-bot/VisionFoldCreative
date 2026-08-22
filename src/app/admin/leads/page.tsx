@@ -49,6 +49,8 @@ type LeadRow = {
   notes: string;
   status: "new" | "contacted" | "won" | "lost" | "done";
   source: string;
+  score?: number;
+  scoreReasons?: string;
   createdAt: string;
 };
 
@@ -76,7 +78,7 @@ export default function AdminLeadsPage() {
     email: "",
     phone: "",
     service: "Brand Films",
-    budget: "$2,500 - $5,000",
+    budget: "",
     message: "",
     notes: "",
     status: "new",
@@ -131,7 +133,7 @@ export default function AdminLeadsPage() {
         email: "",
         phone: "",
         service: "Brand Films",
-        budget: "$2,500 - $5,000",
+        budget: "",
         message: "",
         notes: "",
         status: "new",
@@ -279,14 +281,10 @@ export default function AdminLeadsPage() {
     window.open(`https://wa.me/${intl}?text=${encodeURIComponent(waText)}`, "_blank");
   }
   function getScore(l: LeadRow): { label: string; tone: "won" | "contacted" | "new" } {
-    const b = l.budget.toLowerCase();
-    if (b.includes("5,000") || b.includes("6,000") || b.includes("10,000") || b.includes("+")) {
-      return { label: "High Value", tone: "won" };
-    }
-    if (b.includes("2,000") || b.includes("3,000") || b.includes("month")) {
-      return { label: "Warm Lead", tone: "contacted" };
-    }
-    return { label: "Standard", tone: "new" };
+    const value = Number(l.score || 0);
+    if (value >= 70) return { label: `Hot · ${value}`, tone: "won" };
+    if (value >= 45) return { label: `Warm · ${value}`, tone: "contacted" };
+    return { label: value ? `Cold · ${value}` : "Unscored", tone: "new" };
   }
 
   return (
@@ -401,6 +399,9 @@ export default function AdminLeadsPage() {
                     <Badge tone={score.tone}>{score.label}</Badge>
                     <span className="text-[11px] text-slate-500">· {fmtDate(lead.createdAt)}</span>
                   </div>
+                  {lead.scoreReasons ? (
+                    <p className="text-[11px] text-slate-500">{lead.scoreReasons}</p>
+                  ) : null}
 
                   <div className="flex flex-wrap items-center gap-4 text-xs text-slate-400">
                     <span className="flex items-center gap-1 text-slate-300">

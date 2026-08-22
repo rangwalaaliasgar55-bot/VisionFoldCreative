@@ -19,14 +19,16 @@ const ME_URL = "https://api.linkedin.com/v2/userinfo";
 
 export const LINKEDIN_SCOPES = ["openid", "profile", "w_member_social"];
 
+import { runtimeKey } from "@/lib/runtimeKeys";
+
 export function linkedinConfig() {
   return {
-    clientId: process.env.LINKEDIN_CLIENT_ID || "",
-    clientSecret: process.env.LINKEDIN_CLIENT_SECRET || "",
+    clientId: process.env.LINKEDIN_CLIENT_ID || runtimeKey("linkedin_client_id") || "",
+    clientSecret: process.env.LINKEDIN_CLIENT_SECRET || runtimeKey("linkedin_client_secret") || "",
     redirectUri:
       process.env.LINKEDIN_REDIRECT_URI ||
       `${(process.env.APP_URL || "").replace(/\/$/, "")}/api/social/callback/linkedin`,
-    organizationUrn: process.env.LINKEDIN_ORGANIZATION_URN || "",
+    organizationUrn: process.env.LINKEDIN_ORGANIZATION_URN || runtimeKey("linkedin_organization_urn") || "",
   };
 }
 

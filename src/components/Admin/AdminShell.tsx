@@ -72,6 +72,7 @@ const NAV: NavGroup[] = [
     label: "Intelligence",
     items: [
       { href: "/admin/analytics", label: "Traffic analytics", description: "Visitors, views and top pages", Icon: TrendingUp, roles: ["admin", "editor"] },
+      { href: "/admin/ai", label: "Studio copilot", description: "Talk to Grok, Groq, Gemini or ChatGPT", Icon: Bot, roles: ["admin", "editor"] },
       { href: "/admin/activity", label: "Activity log", description: "Full audit trail of studio actions", Icon: History, roles: ["admin", "editor"] },
       { href: "/admin/automations", label: "Automations & AI", description: "Workflows and creative copilot", Icon: Zap, roles: ["admin", "editor"] },
     ],

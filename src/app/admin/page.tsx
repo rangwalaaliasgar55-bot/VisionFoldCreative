@@ -24,6 +24,16 @@ import {
 type Dashboard = {
   viewer: { name: string; role: "admin" | "editor" | "accountant" };
   stats: Record<string, number>;
+  kpis?: {
+    winRate: number;
+    cycleTimeDays: number;
+    avgDealInr: number;
+    leadsThisWeek: number;
+    workload: { open: number; review: number; dueSoon: number; overdue: number; avgProgress: number; capacityUsed: number };
+    health: { clientId: number; name: string; score: number; label: string; reasons: string[] }[];
+    liveNow: number;
+    live: { path: string; lastSeen: string; pageViews: number; durationMs: number }[];
+  };
   revenueByMonth: { label: string; value: number }[];
   expensesByCategory: { label: string; value: number }[];
   funnel: { label: string; value: number }[];
@@ -101,6 +111,61 @@ export default function AdminDashboardPage() {
           </div>
         ))}
       </div>
+
+      {data.kpis && (
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+          <div className="glass rounded-2xl p-4">
+            <p className="text-[11px] uppercase tracking-widest text-slate-500">Win rate</p>
+            <p className="font-display mt-1 text-2xl font-bold text-white">{data.kpis.winRate}%</p>
+            <p className="text-[11px] text-slate-600">{s.leadsThisWeek || data.kpis.leadsThisWeek} leads this week</p>
+          </div>
+          <div className="glass rounded-2xl p-4">
+            <p className="text-[11px] uppercase tracking-widest text-slate-500">Avg deal</p>
+            <p className="font-display mt-1 text-2xl font-bold text-emerald-300">{fmtMoney(data.kpis.avgDealInr)}</p>
+            <p className="text-[11px] text-slate-600">INR · paid invoices</p>
+          </div>
+          <div className="glass rounded-2xl p-4">
+            <p className="text-[11px] uppercase tracking-widest text-slate-500">Cycle time</p>
+            <p className="font-display mt-1 text-2xl font-bold text-white">{data.kpis.cycleTimeDays}d</p>
+            <p className="text-[11px] text-slate-600">create → completed</p>
+          </div>
+          <div className="glass rounded-2xl p-4">
+            <p className="text-[11px] uppercase tracking-widest text-slate-500">Capacity</p>
+            <p className="font-display mt-1 text-2xl font-bold text-amber-300">{data.kpis.workload.capacityUsed}%</p>
+            <p className="text-[11px] text-slate-600">{data.kpis.workload.open} open · {data.kpis.workload.review} in review</p>
+          </div>
+        </div>
+      )}
+
+      {data.kpis?.health?.length ? (
+        <Card title="Client health" desc="Scored from overdue invoices, stalled work, unread messages and reviews">
+          <ul className="space-y-2">
+            {data.kpis.health.map((h) => (
+              <li key={h.clientId} className="flex items-center gap-3 rounded-xl border border-white/8 px-3 py-2 text-sm">
+                <span className={`w-12 font-display text-lg font-bold ${h.score >= 75 ? "text-emerald-300" : h.score >= 50 ? "text-amber-300" : "text-red-300"}`}>{h.score}</span>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-white">{h.name}</span>
+                  <span className="block truncate text-[11px] text-slate-500">{h.reasons[0]}</span>
+                </span>
+                <span className="text-[10px] uppercase tracking-widest text-slate-500">{h.label.replace("_", " ")}</span>
+              </li>
+            ))}
+          </ul>
+        </Card>
+      ) : null}
+
+      {data.kpis?.live?.length ? (
+        <Card title="Live on the site" desc={`${data.kpis.liveNow} visitor${data.kpis.liveNow === 1 ? "" : "s"} in the last 2 minutes`}>
+          <ul className="space-y-1.5 text-sm">
+            {data.kpis.live.map((v, i) => (
+              <li key={i} className="flex items-center justify-between gap-3 font-mono text-xs text-slate-300">
+                <span className="truncate">{v.path}</span>
+                <span className="text-slate-600">{v.pageViews} views</span>
+              </li>
+            ))}
+          </ul>
+        </Card>
+      ) : null}
 
       <Card
         title="Action center"

@@ -1,11 +1,7 @@
 import { db } from "@/db";
 import { activity, socialAccounts, socialInsights, socialMetrics, socialPosts } from "@/db/schema";
 import { and, desc, eq, gte, inArray, isNotNull, sql } from "drizzle-orm";
-import {
-  linkedinConfigured,
-  linkedinOrgStats,
-  linkedinPost,
-} from "@/lib/linkedin";
+import { linkedinAuthUrl, linkedinConfigured, linkedinOrgStats, linkedinPost } from "@/lib/linkedin";
 import { instagramAuthUrl, instagramConfigured, instagramPublish, instagramInsights } from "@/lib/instagram";
 import { tiktokAuthUrl, tiktokConfigured, tiktokPublish } from "@/lib/tiktok";
 import {
@@ -47,12 +43,12 @@ export function oauthUrl(platform: SocialPlatform): string | null {
   switch (platform) {
     case "youtube":
       return youtubeAuthUrl("vf-youtube");
+    case "linkedin":
+      return linkedinAuthUrl("vf-linkedin");
     case "instagram":
       return instagramAuthUrl("vf-instagram");
     case "tiktok":
       return tiktokAuthUrl("vf-tiktok");
-    default:
-      return null; // LinkedIn builds its URL in the auth module.
   }
 }
 

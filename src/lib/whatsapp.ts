@@ -4,13 +4,17 @@ import { desc, eq } from "drizzle-orm";
 
 const GRAPH_VERSION = "v22.0";
 
+import { runtimeKey } from "@/lib/runtimeKeys";
+
 export function whatsappConfig() {
+  const auto =
+    process.env.WHATSAPP_AUTO_REPLY === "true" || runtimeKey("whatsapp_auto_reply") === "true";
   return {
-    token: process.env.WHATSAPP_TOKEN || "",
-    phoneNumberId: process.env.WHATSAPP_PHONE_NUMBER_ID || "",
-    businessNumber: process.env.WHATSAPP_BUSINESS_NUMBER || "",
-    verifyToken: process.env.WHATSAPP_VERIFY_TOKEN || "",
-    autoReply: process.env.WHATSAPP_AUTO_REPLY === "true",
+    token: process.env.WHATSAPP_TOKEN || runtimeKey("whatsapp_token") || "",
+    phoneNumberId: process.env.WHATSAPP_PHONE_NUMBER_ID || runtimeKey("whatsapp_phone_number_id") || "",
+    businessNumber: process.env.WHATSAPP_BUSINESS_NUMBER || runtimeKey("whatsapp_business_number") || "",
+    verifyToken: process.env.WHATSAPP_VERIFY_TOKEN || runtimeKey("whatsapp_verify_token") || "",
+    autoReply: auto,
   };
 }
 

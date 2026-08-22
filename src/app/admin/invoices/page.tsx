@@ -20,6 +20,7 @@ import {
   useApi, usePagination, Pager,
 } from "@/components/AdminUI";
 import { fmtDate, fmtMoney, money } from "@/lib/utils";
+import { fmtMoneyLine } from "@/lib/money";
 import { CheckCircle2, Link2, Plus, Send } from "lucide-react";
 
 type InvoiceRow = {
@@ -29,7 +30,11 @@ type InvoiceRow = {
   projectId: number | null;
   projectTitle: string | null;
   number: string;
-  amount: string;
+  amount: string | number;
+  currency?: string;
+  originalAmount?: string | number | null;
+  originalCurrency?: string;
+  fxRate?: string | number;
   status: string;
   dueDate: string | null;
   notes: string;
@@ -43,7 +48,7 @@ export default function AdminInvoicesPage() {
   const [showInv, setShowInv] = useState(false);
   const [showExp, setShowExp] = useState(false);
   const [editingInv, setEditingInv] = useState<InvoiceRow | null>(null);
-  const [invForm, setInvForm] = useState({ clientId: 0, number: "", amount: "", status: "sent", dueDate: "", notes: "" });
+  const [invForm, setInvForm] = useState({ clientId: 0, number: "", amount: "", currency: "INR", status: "sent", dueDate: "", notes: "" });
   const [expForm, setExpForm] = useState({ category: "Software", description: "", amount: "", date: "" });
 
   const { data: invoices, loading, reload } = useApi<InvoiceRow[]>("/api/admin/invoices");
@@ -202,7 +207,13 @@ export default function AdminInvoicesPage() {
                       <p className="max-w-48 truncate text-xs text-slate-600">{inv.notes}</p>
                     </td>
                     <td className="px-4 py-3 text-slate-300">{inv.clientName}</td>
-                    <td className="px-4 py-3 font-semibold text-white">{fmtMoney(inv.amount)}</td>
+                    <td className="px-4 py-3 font-semibold text-white">
+                      {fmtMoneyLine({
+                        amountInr: Number(inv.amount),
+                        originalAmount: Number(inv.originalAmount ?? inv.amount),
+                        originalCurrency: inv.originalCurrency || "INR",
+                      })}
+                    </td>
                     <td className="px-4 py-3"><StatusBadge status={inv.status} /></td>
                     <td className="px-4 py-3 text-xs text-slate-400">{fmtDate(inv.dueDate)}</td>
                     <td className="px-4 py-3">
@@ -225,7 +236,15 @@ export default function AdminInvoicesPage() {
                           variant="ghost"
                           onClick={() => {
                             setEditingInv(inv);
-                            setInvForm({ clientId: inv.clientId, number: inv.number, amount: inv.amount, status: inv.status, dueDate: inv.dueDate || "", notes: inv.notes });
+                            setInvForm({
+                              clientId: inv.clientId,
+                              number: inv.number,
+                              amount: String(inv.originalAmount ?? inv.amount),
+                              currency: inv.originalCurrency || "INR",
+                              status: inv.status,
+                              dueDate: inv.dueDate || "",
+                              notes: inv.notes,
+                            });
                             setShowInv(true);
                           }}
                         >
@@ -293,8 +312,17 @@ export default function AdminInvoicesPage() {
             <Field label="Number">
               <Input value={invForm.number} onChange={(e) => setInvForm((f) => ({ ...f, number: e.target.value }))} placeholder="INV-1025" />
             </Field>
-            <Field label="Amount (USD) *">
+            <Field label="Amount *">
               <Input required type="number" min={0} step="0.01" value={invForm.amount} onChange={(e) => setInvForm((f) => ({ ...f, amount: e.target.value }))} />
+            </Field>
+            <Field label="Quoted currency">
+              <Select value={invForm.currency} onChange={(e) => setInvForm((f) => ({ ...f, currency: e.target.value }))}>
+                <option value="INR">INR (₹)</option>
+                <option value="USD">USD ($)</option>
+                <option value="EUR">EUR (€)</option>
+                <option value="GBP">GBP (£)</option>
+                <option value="AED">AED</option>
+              </Select>
             </Field>
             <Field label="Due date">
               <Input type="date" value={invForm.dueDate} onChange={(e) => setInvForm((f) => ({ ...f, dueDate: e.target.value }))} />
@@ -327,7 +355,7 @@ export default function AdminInvoicesPage() {
                 ))}
               </Select>
             </Field>
-            <Field label="Amount (USD) *">
+            <Field label="Amount (₹) *">
               <Input required type="number" min={0} step="0.01" value={expForm.amount} onChange={(e) => setExpForm((f) => ({ ...f, amount: e.target.value }))} />
             </Field>
           </div>

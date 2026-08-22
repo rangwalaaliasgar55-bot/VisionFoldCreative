@@ -19,7 +19,7 @@ import { Brain, Copy, Play, Sparkles, Wand2, Zap } from "lucide-react";
 
 type AutoRow = { id: number; name: string; trigger: string; description: string; enabled: boolean; lastRunAt: string | null };
 type ProviderRow = {
-  id: "nvidia" | "gemini" | "openai" | "pollinations";
+  id: "grok" | "groq" | "gemini" | "nvidia" | "openai" | "pollinations";
   label: string;
   model: string;
   configured: boolean;
@@ -228,7 +228,7 @@ export default function AdminAutomationsPage() {
 
           <Card
             title="AI providers"
-            desc="ChatGPT, Gemini & more — paste a free key here, no deploy needed. Pollinations works with zero keys."
+            desc="Grok, Groq, Gemini, ChatGPT — paste a key here, no deploy needed. Copilot never edits the live site."
             actions={
               <div className="flex gap-2">
                 <Button size="sm" variant="outline" onClick={runDiagnosis} disabled={diagnosing}>{diagnosing ? "Diagnosing…" : "Diagnose keys"}</Button>

@@ -39,17 +39,22 @@ import { payLink } from "@/lib/paytoken";
 import { emailConfigured, emailShell, sendEmail } from "@/lib/email";
 import { getAttention, runAttentionEffects } from "@/lib/automations";
 import { announcementFor } from "@/lib/statusUpdates";
-
-function fmtMoneyStr(value: unknown): string {
-  return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(Number(value || 0));
-}
-import { DEFAULT_SETTINGS, getSettings, setSettings } from "@/lib/settings";
+import { DEFAULT_SETTINGS, getSettings, setSettings, setSetting } from "@/lib/settings";
 import { parseCsv } from "@/lib/utils";
 import { searchBusinesses } from "@/lib/prospect";
 import { listWaMessages, sendWhatsAppText, whatsappConfig, whatsappConnected } from "@/lib/whatsapp";
 import { randomBytes } from "crypto";
+import { scoreLead } from "@/lib/leadScore";
+import { toInr, fmtInr } from "@/lib/money";
+import { clientHealthScores, conversionFunnel, cycleTimeDays, editorWorkload, winRate } from "@/lib/kpis";
+import { liveVisitors } from "@/lib/tracking";
+import { setRuntimeKey, hydrateRuntimeKeys } from "@/lib/runtimeKeys";
 
 export const dynamic = "force-dynamic";
+
+function fmtMoneyStr(value: unknown): string {
+  return fmtInr(Number(value || 0));
+}
 
 async function getAdmin() {
   await ensureSeed();
@@ -164,6 +169,7 @@ export async function GET(
       const activeProjects = allProjects.filter((p) => p.status !== "completed").length;
       const newLeads30d = allLeads.filter((l) => new Date(l.createdAt || 0) >= thirtyDaysAgo).length;
       const leadsWon = allLeads.filter((l) => l.status === "won").length;
+      const leadsTotal = allLeads.length;
 
       const avgRating =
         allRatings.length > 0
@@ -202,14 +208,6 @@ export async function GET(
       }));
 
       // Lead Funnel
-      const leadsTotal = allLeads.length;
-      const leadsContacted = allLeads.filter((l) => l.status === "contacted" || l.status === "won").length;
-      const funnel = [
-        { label: "All leads", value: leadsTotal },
-        { label: "Contacted", value: leadsContacted },
-        { label: "Won & booked", value: leadsWon },
-      ];
-
       // Projects by Status
       const projectsByStatus = [
         { label: "Intake", value: allProjects.filter((p) => p.status === "intake").length },
@@ -227,6 +225,19 @@ export async function GET(
 
       const canViewFinance = admin.role === "admin" || admin.role === "accountant";
       const canViewGrowth = admin.role === "admin" || admin.role === "editor";
+      const health = clientHealthScores({
+        clients: allClients,
+        projects: allProjects,
+        invoices: allInvoices,
+        messages: recentMsgs,
+        ratings: allRatings,
+      });
+      const workload = editorWorkload(allProjects);
+      const live = await liveVisitors().catch(() => []);
+      const avgDeal =
+        paidInvoices.length > 0 ? totalRevenue / paidInvoices.length : 0;
+      const weekAgo = new Date(Date.now() - 7 * 86400_000);
+      const leadsThisWeek = allLeads.filter((l) => new Date(l.createdAt || 0) >= weekAgo).length;
       return ok({
         viewer: { name: admin.name, role: admin.role },
         stats: {
@@ -242,10 +253,24 @@ export async function GET(
           overdueInvoices: allInvoices.filter((invoice) => invoice.status === "overdue").length,
           unreadMessages: recentMsgs.filter((message) => message.sender === "client" && !message.read).length,
           reviewProjects: allProjects.filter((project) => project.status === "review" || project.status === "revision").length,
+          winRate: canViewGrowth ? winRate(allLeads) : 0,
+          cycleTimeDays: cycleTimeDays(allProjects),
+          avgDealInr: canViewFinance ? Math.round(avgDeal) : 0,
+          leadsThisWeek: canViewGrowth ? leadsThisWeek : 0,
+        },
+        kpis: {
+          winRate: canViewGrowth ? winRate(allLeads) : 0,
+          cycleTimeDays: cycleTimeDays(allProjects),
+          avgDealInr: canViewFinance ? Math.round(avgDeal) : 0,
+          leadsThisWeek,
+          workload,
+          health: health.sort((a, b) => a.score - b.score).slice(0, 8),
+          liveNow: live.length,
+          live,
         },
         revenueByMonth: canViewFinance ? revenueByMonth : [],
         expensesByCategory: canViewFinance ? expensesByCategory : [],
-        funnel: canViewGrowth ? funnel : [],
+        funnel: canViewGrowth ? conversionFunnel(allLeads) : [],
         projectsByStatus,
         upcoming,
         recentActivity: recentActs,
@@ -348,6 +373,10 @@ export async function GET(
         projectTitle: inv.projectId ? projectMap.get(inv.projectId) || null : null,
         number: inv.number,
         amount: Number(inv.amount || 0),
+        currency: inv.currency || "INR",
+        originalAmount: inv.originalAmount != null ? Number(inv.originalAmount) : Number(inv.amount || 0),
+        originalCurrency: inv.originalCurrency || "INR",
+        fxRate: Number(inv.fxRate || 1),
         status: inv.status,
         dueDate: inv.dueDate || "",
         notes: inv.notes || "",
@@ -504,6 +533,12 @@ export async function GET(
         active: active.length,
         today: today[0]?.total ?? 0,
         activePaths: active.map((v) => v.path).slice(0, 20),
+        live: active.slice(0, 20).map((v) => ({
+          path: v.path,
+          lastSeen: v.lastSeen,
+          pageViews: v.pageViews,
+          durationMs: v.durationMs,
+        })),
       });
     }
 
@@ -756,9 +791,10 @@ export async function POST(
     // 6. Invoices, Expenses, Leads, Portfolio, etc.
     if (path === "invoices") {
       const clientId = Number(body.clientId);
-      const amount = Number(body.amount || 0);
-      if (!clientId || !amount) return bad("Client ID and invoice amount are required.");
+      const rawAmount = Number(body.amount || 0);
+      if (!clientId || !rawAmount) return bad("Client ID and invoice amount are required.");
 
+      const money = toInr({ amount: rawAmount, currency: String(body.currency || "INR") });
       const invNumber = String(body.number || `VF-${new Date().getFullYear()}-${Math.floor(100 + Math.random() * 900)}`);
 
       const [newInv] = await db
@@ -767,7 +803,11 @@ export async function POST(
           clientId,
           projectId: body.projectId ? Number(body.projectId) : null,
           number: invNumber,
-          amount: String(amount.toFixed(2)),
+          amount: String(money.amountInr.toFixed(2)),
+          currency: "INR",
+          originalAmount: String(money.originalAmount.toFixed(2)),
+          originalCurrency: money.originalCurrency,
+          fxRate: String(money.fxRate),
           status: String(body.status || "sent"),
           dueDate: body.dueDate ? String(body.dueDate) : null,
           notes: String(body.notes || "").trim(),
@@ -869,18 +909,24 @@ export async function POST(
       if (!email && phone) email = `wa${phone.replace(/[^\d]/g, "")}@prospect.local`;
       if (!name || (!email && !phone)) return bad("A name and an email or phone are required.");
 
+      const payload = {
+        name,
+        email,
+        phone,
+        service: String(body.service || "Video Editing"),
+        budget: String(body.budget || ""),
+        message: String(body.message || "").trim(),
+        notes: String(body.notes || "").trim(),
+        status: String(body.status || "new"),
+        source: String(body.source || "manual"),
+      };
+      const scored = scoreLead(payload);
       const [newLead] = await db
         .insert(leads)
         .values({
-          name,
-          email,
-          phone,
-          service: String(body.service || "Video Editing"),
-          budget: String(body.budget || ""),
-          message: String(body.message || "").trim(),
-          notes: String(body.notes || "").trim(),
-          status: String(body.status || "new"),
-          source: String(body.source || "manual"),
+          ...payload,
+          score: scored.score,
+          scoreReasons: scored.reasons.join(" · "),
         })
         .returning();
 
@@ -926,7 +972,7 @@ export async function POST(
         const key = (email || `phone:${phone.replace(/[^\d]/g, "")}`).toLowerCase();
         if (seen.has(key)) { skipped++; continue; }
         seen.add(key);
-        cleanRows.push({
+        const row = {
           name: name.slice(0, 160),
           email: email || (phone ? `wa${phone.replace(/[^\d]/g, "")}@prospect.local` : ""),
           phone: phone.slice(0, 40),
@@ -934,8 +980,14 @@ export async function POST(
           budget: String(r.budget || "").slice(0, 80),
           message: String(r.message || r.notes0 || r.brief || "").slice(0, 4000),
           notes: String(r.notes || "").slice(0, 2000),
-          status: "new",
+          status: "new" as const,
           source: "import",
+        };
+        const scored = scoreLead(row);
+        cleanRows.push({
+          ...row,
+          score: scored.score,
+          scoreReasons: scored.reasons.join(" · "),
         });
       }
 
@@ -948,6 +1000,58 @@ export async function POST(
       }
       await db.insert(activity).values({ actor: admin.name, action: "Lead import", details: `Imported ${inserted} leads${skipped ? ` (${skipped} skipped)` : ""}` });
       return ok({ ok: true, inserted, skipped });
+    }
+
+    // WhatsApp runtime credentials + auto-reply toggle (no redeploy)
+    if (path === "whatsapp/config") {
+      if (admin.role !== "admin") return bad("Only the owner can change WhatsApp credentials.", 403);
+      const pairs: [string, string][] = [
+        ["whatsapp_token", String(body.token || "")],
+        ["whatsapp_phone_number_id", String(body.phoneNumberId || "")],
+        ["whatsapp_business_number", String(body.businessNumber || "")],
+        ["whatsapp_verify_token", String(body.verifyToken || "")],
+        ["whatsapp_auto_reply", body.autoReply ? "true" : "false"],
+      ];
+      for (const [key, value] of pairs) {
+        if (key === "whatsapp_auto_reply" || value) {
+          await setSetting(key, value);
+          setRuntimeKey(key, value);
+        }
+      }
+      await hydrateRuntimeKeys();
+      await db.insert(activity).values({ actor: admin.name, action: "WhatsApp config updated", details: body.autoReply ? "auto-reply on" : "auto-reply off" });
+      return ok({ ok: true, connected: whatsappConnected(), autoReply: whatsappConfig().autoReply });
+    }
+
+    if (path === "social/keys") {
+      if (admin.role !== "admin") return bad("Only the owner can save social app keys.", 403);
+      const map: Record<string, string> = {
+        youtube_client_id: String(body.youtubeClientId || ""),
+        youtube_client_secret: String(body.youtubeClientSecret || ""),
+        linkedin_client_id: String(body.linkedinClientId || ""),
+        linkedin_client_secret: String(body.linkedinClientSecret || ""),
+        linkedin_organization_urn: String(body.linkedinOrganizationUrn || ""),
+      };
+      for (const [key, value] of Object.entries(map)) {
+        if (!value) continue;
+        await setSetting(key, value);
+        setRuntimeKey(key, value);
+      }
+      await hydrateRuntimeKeys();
+      await db.insert(activity).values({ actor: admin.name, action: "Social app keys saved", details: "runtime" });
+      return ok({ ok: true });
+    }
+
+    if (path === "prospects/enrich") {
+      const { enrichProspect } = await import("@/lib/ai");
+      const brief = await enrichProspect({
+        name: String(body.name || ""),
+        website: String(body.website || ""),
+        phone: String(body.phone || ""),
+        types: Array.isArray(body.types) ? body.types.map(String) : [],
+        address: String(body.address || ""),
+      });
+      return ok(brief);
     }
 
     // WhatsApp automation: send a text message
@@ -1270,7 +1374,14 @@ export async function PATCH(
       const id = Number(slug[1]);
       const updateData: Record<string, any> = {};
       if (body.status !== undefined) updateData.status = String(body.status);
-      if (body.amount !== undefined) updateData.amount = String(Number(body.amount).toFixed(2));
+      if (body.amount !== undefined) {
+        const money = toInr({ amount: Number(body.amount), currency: String(body.currency || "INR") });
+        updateData.amount = String(money.amountInr.toFixed(2));
+        updateData.currency = "INR";
+        updateData.originalAmount = String(money.originalAmount.toFixed(2));
+        updateData.originalCurrency = money.originalCurrency;
+        updateData.fxRate = String(money.fxRate);
+      }
       if (body.dueDate !== undefined) updateData.dueDate = body.dueDate ? String(body.dueDate) : null;
       if (body.notes !== undefined) updateData.notes = String(body.notes);
 

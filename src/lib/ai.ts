@@ -1,5 +1,7 @@
 import { db } from "@/db";
 import {
+  aiConversations,
+  aiMessages,
   aiUsage,
   invoices,
   leads,
@@ -9,8 +11,9 @@ import {
 } from "@/db/schema";
 import { and, desc, eq, gte, lt, sql } from "drizzle-orm";
 import { getSetting } from "@/lib/settings";
+import { runtimeKey } from "@/lib/runtimeKeys";
 
-export type AiProviderId = "nvidia" | "gemini" | "openai" | "pollinations";
+export type AiProviderId = "grok" | "groq" | "gemini" | "nvidia" | "openai" | "pollinations";
 export type AiProvider = AiProviderId | "none";
 
 export type ProviderStatus = {
@@ -30,32 +33,55 @@ export type AiStatus = {
   phase: string;
   dailyBudget: number;
   usedToday: number;
+  preferred: KeyedProvider | "auto";
   providers: ProviderStatus[];
 };
 
 const GEMINI_ENDPOINT = "https://generativelanguage.googleapis.com/v1beta/models";
 const NIM_ENDPOINT = "https://integrate.api.nvidia.com/v1/chat/completions";
 const OPENAI_ENDPOINT = "https://api.openai.com/v1/chat/completions";
+const GROK_ENDPOINT = "https://api.x.ai/v1/chat/completions";
+const GROQ_ENDPOINT = "https://api.groq.com/openai/v1/chat/completions";
 /** Keyless public endpoint — zero signup, used as the always-on fallback. */
 const POLLINATIONS_ENDPOINT = "https://text.pollinations.ai/";
 
+type KeyedProvider = Exclude<AiProviderId, "pollinations">;
+
 export const PROVIDER_META: Record<
-  Exclude<AiProviderId, "pollinations">,
-  { label: string; defaultModel: string; envVar: string; settingKey: string; freeTierUrl: string }
+  KeyedProvider,
+  { label: string; defaultModel: string; envVar: string; settingKey: string; freeTierUrl: string; endpoint: string }
 > = {
+  grok: {
+    label: "xAI Grok",
+    defaultModel: process.env.GROK_MODEL || process.env.XAI_MODEL || "grok-4.5",
+    envVar: "XAI_API_KEY",
+    settingKey: "ai_key_grok",
+    freeTierUrl: "https://console.x.ai",
+    endpoint: GROK_ENDPOINT,
+  },
+  groq: {
+    label: "Groq",
+    defaultModel: process.env.GROQ_MODEL || "llama-3.3-70b-versatile",
+    envVar: "GROQ_API_KEY",
+    settingKey: "ai_key_groq",
+    freeTierUrl: "https://console.groq.com/keys",
+    endpoint: GROQ_ENDPOINT,
+  },
+  gemini: {
+    label: "Google Gemini",
+    defaultModel: process.env.GEMINI_MODEL || "gemini-2.0-flash",
+    envVar: "GEMINI_API_KEY",
+    settingKey: "ai_key_gemini",
+    freeTierUrl: "https://aistudio.google.com/apikey",
+    endpoint: GEMINI_ENDPOINT,
+  },
   nvidia: {
     label: "NVIDIA NIM",
     defaultModel: process.env.NVIDIA_MODEL || "meta/llama-3.1-8b-instruct",
     envVar: "NVIDIA_API_KEY",
     settingKey: "ai_key_nvidia",
     freeTierUrl: "https://build.nvidia.com",
-  },
-  gemini: {
-    label: "Google Gemini",
-    defaultModel: process.env.GEMINI_MODEL || "gemini-3.6-flash",
-    envVar: "GEMINI_API_KEY",
-    settingKey: "ai_key_gemini",
-    freeTierUrl: "https://aistudio.google.com/apikey",
+    endpoint: NIM_ENDPOINT,
   },
   openai: {
     label: "OpenAI · ChatGPT",
@@ -63,8 +89,50 @@ export const PROVIDER_META: Record<
     envVar: "OPENAI_API_KEY",
     settingKey: "ai_key_openai",
     freeTierUrl: "https://platform.openai.com/api-keys",
+    endpoint: OPENAI_ENDPOINT,
   },
 } as const;
+
+export const KEYED_PROVIDERS: KeyedProvider[] = ["grok", "groq", "gemini", "nvidia", "openai"];
+
+export const DEFAULT_AI_INSTRUCTIONS = `You are the studio copilot for this production company.
+You help staff draft copy, plan work, and answer operational questions.
+
+Hard rules:
+- You NEVER publish, edit, delete, or manage the live website.
+- You NEVER change CMS pages, settings, prices, or client records.
+- You draft. A human must apply any change.
+- Do not promote third-party products, tools, or platforms unless the user asks.
+- Be specific, concise, and honest. If you lack data, say so.`;
+
+export type AiSkill = { id: string; name: string; instructions: string; enabled: boolean };
+
+export const DEFAULT_AI_SKILLS: AiSkill[] = [
+  {
+    id: "reply",
+    name: "Lead reply",
+    instructions: "Draft a warm, specific reply to a lead. Ask at most two concrete questions. No hype.",
+    enabled: true,
+  },
+  {
+    id: "whatsapp",
+    name: "WhatsApp voice",
+    instructions: "Write like a real person texting from a phone. Short lines. One question. No corporate tone.",
+    enabled: true,
+  },
+  {
+    id: "seo",
+    name: "SEO pack",
+    instructions: "Propose title, description, and 8 keywords. No keyword stuffing. Match the studio's actual services.",
+    enabled: true,
+  },
+  {
+    id: "review",
+    name: "Cut notes",
+    instructions: "Turn rough feedback into timestamped, actionable edit notes a cutter can execute.",
+    enabled: true,
+  },
+];
 
 export function dailyTokenBudget(): number {
   return Number(
@@ -74,7 +142,7 @@ export function dailyTokenBudget(): number {
   );
 }
 
-async function resolveKey(id: Exclude<AiProviderId, "pollinations">): Promise<{
+async function resolveKey(id: KeyedProvider): Promise<{
   key: string;
   source: "env" | "runtime" | "none";
 }> {
@@ -83,12 +151,16 @@ async function resolveKey(id: Exclude<AiProviderId, "pollinations">): Promise<{
       ? process.env.NVIDIA_API_KEY
       : id === "gemini"
         ? process.env.GEMINI_API_KEY
-        : process.env.OPENAI_API_KEY;
+        : id === "grok"
+          ? process.env.XAI_API_KEY || process.env.GROK_API_KEY
+          : id === "groq"
+            ? process.env.GROQ_API_KEY
+            : process.env.OPENAI_API_KEY;
   if (envKey) return { key: envKey, source: "env" };
   try {
-    const runtimeKey = await getSetting(PROVIDER_META[id].settingKey);
-    if (typeof runtimeKey === "string" && runtimeKey.trim()) {
-      return { key: runtimeKey.trim(), source: "runtime" };
+    const stored = await getSetting(PROVIDER_META[id].settingKey);
+    if (typeof stored === "string" && stored.trim()) {
+      return { key: stored.trim(), source: "runtime" };
     }
   } catch {
     /* DB not ready */
@@ -96,10 +168,30 @@ async function resolveKey(id: Exclude<AiProviderId, "pollinations">): Promise<{
   return { key: "", source: "none" };
 }
 
+export async function getPreferredProvider(): Promise<KeyedProvider | "auto"> {
+  const raw = String((await getSetting("ai_preferred_provider").catch(() => "")) || runtimeKey("ai_preferred_provider") || "gemini").toLowerCase();
+  if (raw === "auto") return "auto";
+  if (raw === "grok" || raw === "groq" || raw === "gemini" || raw === "nvidia" || raw === "openai") return raw;
+  return "gemini";
+}
+
+export async function getAiInstructions(): Promise<string> {
+  const stored = await getSetting("ai_instructions").catch(() => "");
+  return typeof stored === "string" && stored.trim() ? stored.trim() : DEFAULT_AI_INSTRUCTIONS;
+}
+
+export async function getAiSkills(): Promise<AiSkill[]> {
+  const stored = await getSetting("ai_skills").catch(() => null);
+  if (Array.isArray(stored) && stored.every((s) => s && typeof s.id === "string")) {
+    return stored as AiSkill[];
+  }
+  return DEFAULT_AI_SKILLS;
+}
+
 /** Full provider matrix — never returns raw keys, only hints. */
 export async function getProviderMatrix(): Promise<ProviderStatus[]> {
   const statuses: ProviderStatus[] = [];
-  for (const id of ["gemini", "nvidia", "openai"] as const) {
+  for (const id of KEYED_PROVIDERS) {
     const meta = PROVIDER_META[id];
     const { key, source } = await resolveKey(id);
     statuses.push({
@@ -123,15 +215,21 @@ export async function getProviderMatrix(): Promise<ProviderStatus[]> {
   return statuses;
 }
 
+export async function providerChain(): Promise<KeyedProvider[]> {
+  const preferred = await getPreferredProvider();
+  const rest: KeyedProvider[] = ["gemini", "grok", "groq", "nvidia", "openai"];
+  if (preferred === "auto") return rest;
+  return [preferred, ...rest.filter((id) => id !== preferred)];
+}
+
 export async function activeProvider(): Promise<{
   provider: AiProvider;
   model: string;
 }> {
-  for (const id of ["gemini", "nvidia", "openai"] as const) {
+  for (const id of await providerChain()) {
     const { key } = await resolveKey(id);
     if (key) return { provider: id, model: PROVIDER_META[id].defaultModel };
   }
-  // Pollinations needs no key — it is always a candidate.
   return { provider: "pollinations", model: "openai (free relay)" };
 }
 
@@ -151,6 +249,7 @@ export async function getAiStatus(): Promise<AiStatus> {
     phase: "E",
     dailyBudget: dailyTokenBudget(),
     usedToday: await todayTokens(),
+    preferred: await getPreferredProvider(),
     providers,
   };
 }
@@ -194,7 +293,10 @@ function hintFor(id: string, status: number, body: string): string {
   if (id === "gemini" && status === 400 && b.includes("api key")) return "Key not valid for this API. Use a key from https://aistudio.google.com/apikey (not Google Cloud/Vertex).";
   if (id === "gemini" && status === 403) return "Key lacks permission — generate a fresh AI Studio key.";
   if (id === "gemini" && status === 429) return "Free-tier quota hit. Wait a minute or add a second provider to the chain.";
-  if (id === "nvidia" && (status === 401 || status === 403)) return "NVIDIA key invalid. Regenerate at build.nvidia.com (Personal key, NGC).";
+  if (id === "grok" && (status === 401 || status === 403)) return "xAI key invalid. Create one at console.x.ai and paste it here.";
+  if (id === "grok" && status === 429) return "xAI rate limit — wait a moment or switch provider.";
+  if (id === "groq" && (status === 401 || status === 403)) return "Groq key invalid. Create a free key at console.groq.com/keys.";
+  if (id === "groq" && status === 429) return "Groq rate limit — wait a moment or add another provider.";
   if (id === "nvidia" && status === 404) return "Model not available for this NVIDIA account — try meta/llama-3.1-8b-instruct.";
   if (id === "pollinations" && status === 402) return "Public relay is rate-limited right now — it's only a fallback; add any real provider key.";
   if (status >= 500) return "Provider had a server error — transient, try again.";
@@ -206,7 +308,7 @@ export async function diagnoseAllProviders(): Promise<ProviderDiagnosis[]> {
   const results: ProviderDiagnosis[] = [];
   const probe = "Reply with the single word: ready.";
 
-  for (const id of ["gemini", "nvidia", "openai"] as const) {
+  for (const id of KEYED_PROVIDERS) {
     const { key, source } = await resolveKey(id);
     if (!key) {
       results.push({
@@ -232,7 +334,7 @@ export async function diagnoseAllProviders(): Promise<ProviderDiagnosis[]> {
           signal: AbortSignal.timeout(20_000),
         });
       } else {
-        const endpoint = id === "nvidia" ? NIM_ENDPOINT : OPENAI_ENDPOINT;
+        const endpoint = PROVIDER_META[id].endpoint;
         res = await fetch(endpoint, {
           method: "POST",
           headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
@@ -333,15 +435,15 @@ async function callGemini(prompt: string, system?: string): Promise<string | nul
   }
 }
 
-/** OpenAI-compatible chat completion (covers NVIDIA NIM, OpenAI). */
+/** OpenAI-compatible chat completion (Grok, Groq, NVIDIA NIM, OpenAI). */
 async function callOpenAICompatible(
-  id: "nvidia" | "openai",
+  id: "nvidia" | "openai" | "grok" | "groq",
   prompt: string,
   system?: string
 ): Promise<string | null> {
   const { key } = await resolveKey(id);
   if (!key) return null;
-  const endpoint = id === "nvidia" ? NIM_ENDPOINT : OPENAI_ENDPOINT;
+  const endpoint = PROVIDER_META[id].endpoint;
   try {
     const res = await fetch(endpoint, {
       method: "POST",
@@ -369,6 +471,15 @@ async function callOpenAICompatible(
   } catch {
     return null;
   }
+}
+
+async function callProvider(
+  id: KeyedProvider,
+  prompt: string,
+  system?: string
+): Promise<string | null> {
+  if (id === "gemini") return callGemini(prompt, system);
+  return callOpenAICompatible(id, prompt, system);
 }
 
 /**
@@ -404,23 +515,23 @@ async function callPollinations(prompt: string, system?: string): Promise<string
 
 /**
  * Tries every configured provider in quality order:
- *   NVIDIA NIM → Gemini → OpenAI (ChatGPT) → Pollinations (keyless) → null
+ *   preferred (default Gemini) → Grok → Groq → NVIDIA → OpenAI → Pollinations
  */
-export async function generate(prompt: string, system?: string): Promise<string | null> {
+export async function generate(prompt: string, system?: string, force?: KeyedProvider): Promise<string | null> {
   const used = await todayTokens();
   if (used > dailyTokenBudget()) return null;
 
-  // Gemini first: free tier, most reliable in practice. NVIDIA/OpenAI follow.
-  const viaGemini = await callGemini(prompt, system);
-  if (viaGemini) return viaGemini;
+  const instructions = system || (await getAiInstructions());
+  if (force) {
+    return callProvider(force, prompt, instructions);
+  }
 
-  const viaNvidia = await callOpenAICompatible("nvidia", prompt, system);
-  if (viaNvidia) return viaNvidia;
+  for (const id of await providerChain()) {
+    const text = await callProvider(id, prompt, instructions);
+    if (text) return text;
+  }
 
-  const viaOpenai = await callOpenAICompatible("openai", prompt, system);
-  if (viaOpenai) return viaOpenai;
-
-  return callPollinations(prompt, system);
+  return callPollinations(prompt, instructions);
 }
 
 export async function gatherStats() {
@@ -569,6 +680,8 @@ Rules:
       seo_keywords: `Suggest 8 SEO keywords for a video editing studio page about: "${safeInput}". Return one per line.`,
       social_caption: `Write a punchy Instagram caption for a video editing studio about: "${safeInput}". Max 25 words plus 4 hashtags.`,
       content_idea: `Suggest 5 blog post titles for a video editing studio about: "${safeInput}". Return one per line.`,
+      prospect_outreach: `You are writing a first-contact WhatsApp for a video editing studio in Indore, India. Money is in ₹. Do not pitch packages or invent prices. Prospect: "${safeInput}".
+Write: (1) a 60-word WhatsApp, (2) a 1-sentence "why they need us" note, (3) a suggested service. Return JSON: {"whatsapp":"...","why":"...","service":"..."}`,
     };
     const prompt = prompts[kind];
     if (prompt) {
@@ -582,3 +695,161 @@ Rules:
 export async function recentAiUsage() {
   return db.select().from(aiUsage).orderBy(desc(aiUsage.day)).limit(14);
 }
+
+export type ChatTurn = { role: "user" | "assistant" | "system"; content: string };
+
+/**
+ * Studio copilot chat. Persists the thread. Never writes to the live website.
+ */
+export async function studioChat(opts: {
+  staffId: number;
+  conversationId?: number;
+  message: string;
+  provider?: KeyedProvider;
+}): Promise<{
+  conversationId: number;
+  title: string;
+  provider: string;
+  reply: string;
+  source: "ai" | "rules";
+}> {
+  const message = String(opts.message || "").trim().slice(0, 8_000);
+  if (!message) throw new Error("Message is required.");
+
+  let conversationId = Number(opts.conversationId || 0);
+  let title = message.slice(0, 72);
+  if (!conversationId) {
+    const [row] = await db
+      .insert(aiConversations)
+      .values({
+        staffId: opts.staffId,
+        provider: opts.provider || "",
+        title,
+      })
+      .returning();
+    conversationId = row.id;
+  } else {
+    const existing = await db
+      .select()
+      .from(aiConversations)
+      .where(eq(aiConversations.id, conversationId))
+      .limit(1);
+    if (!existing[0]) throw new Error("Conversation not found.");
+    title = existing[0].title;
+  }
+
+  await db.insert(aiMessages).values({
+    conversationId,
+    role: "user",
+    content: message,
+    provider: opts.provider || "",
+  });
+
+  const history = await db
+    .select()
+    .from(aiMessages)
+    .where(eq(aiMessages.conversationId, conversationId))
+    .orderBy(aiMessages.createdAt)
+    .limit(24);
+
+  const instructions = await getAiInstructions();
+  const skills = (await getAiSkills()).filter((s) => s.enabled);
+  const skillBlock = skills.length
+    ? `\nEnabled skills:\n${skills.map((s) => `- ${s.name}: ${s.instructions}`).join("\n")}`
+    : "";
+  const transcript = history
+    .map((m) => `${m.role === "assistant" ? "Assistant" : "Staff"}: ${m.content}`)
+    .join("\n");
+  const prompt = `${transcript}\n\nReply to the latest staff message. Remember: you do not manage or change the website.`;
+
+  const reply =
+    (await generate(prompt, `${instructions}${skillBlock}`, opts.provider)) ||
+    "I couldn't reach an AI provider just now. Check Automations → AI providers, or try again. I still won't change the live site — that's always a human action.";
+
+  const tokens = estimateTokens(prompt, reply);
+  await db.insert(aiMessages).values({
+    conversationId,
+    role: "assistant",
+    content: reply,
+    provider: opts.provider || "",
+    tokens,
+  });
+  await db
+    .update(aiConversations)
+    .set({ updatedAt: new Date(), provider: opts.provider || "" })
+    .where(eq(aiConversations.id, conversationId));
+
+  const { provider } = await activeProvider();
+  return {
+    conversationId,
+    title,
+    provider: opts.provider || provider,
+    reply,
+    source: reply.startsWith("I couldn't reach") ? "rules" : "ai",
+  };
+}
+
+export async function listConversations(staffId: number, limit = 30) {
+  return db
+    .select()
+    .from(aiConversations)
+    .where(eq(aiConversations.staffId, staffId))
+    .orderBy(desc(aiConversations.updatedAt))
+    .limit(limit);
+}
+
+export async function getConversation(id: number) {
+  const [convo] = await db.select().from(aiConversations).where(eq(aiConversations.id, id)).limit(1);
+  if (!convo) return null;
+  const msgs = await db
+    .select()
+    .from(aiMessages)
+    .where(eq(aiMessages.conversationId, id))
+    .orderBy(aiMessages.createdAt);
+  return { conversation: convo, messages: msgs };
+}
+
+export type ProspectBrief = {
+  whatsapp: string;
+  why: string;
+  service: string;
+};
+
+export async function enrichProspect(input: {
+  name: string;
+  website?: string;
+  phone?: string;
+  types?: string[];
+  address?: string;
+}): Promise<ProspectBrief> {
+  const blob = JSON.stringify(input);
+  const text = await generate(
+    `Prospect JSON: ${blob}. Return ONLY JSON {"whatsapp":"...","why":"...","service":"..."}.`,
+    "You write first-contact notes for an Indore video-editing studio. ₹ only. No invented prices. No website changes."
+  );
+  if (text) {
+    const match = text.match(/\{[\s\S]*\}/);
+    if (match) {
+      try {
+        const parsed = JSON.parse(match[0]);
+        if (parsed.whatsapp && parsed.why) {
+          return {
+            whatsapp: String(parsed.whatsapp).slice(0, 800),
+            why: String(parsed.why).slice(0, 280),
+            service: String(parsed.service || "Video Editing").slice(0, 80),
+          };
+        }
+      } catch {
+        /* fall through */
+      }
+    }
+  }
+  const name = input.name.split(" ")[0] || "there";
+  const niche = (input.types || []).slice(0, 2).join(", ") || "your work";
+  return {
+    whatsapp: `Hi ${name} — saw ${input.name}${input.address ? ` in ${input.address.split(",").slice(-2).join(",").trim()}` : ""}. We edit video for businesses like yours (${niche}). If you have footage sitting around, I can send a 24h plan. What's the next film you need out?`,
+    why: `Local ${niche || "business"} with a public presence — likely needs retention-first edits for ads or Reels.`,
+    service: "Video Editing",
+  };
+}
+

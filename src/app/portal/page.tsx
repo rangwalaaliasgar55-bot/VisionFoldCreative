@@ -17,32 +17,24 @@ import {
 } from "@/components/AdminUI";
 import { fmtDate, fmtMoney, timeAgo } from "@/lib/utils";
 import { BRIEF_FIELDS, validateBrief, type BriefField } from "@/lib/intake";
+import ReviewPlayer from "@/components/Portal/ReviewPlayer";
 import {
-  AlertCircle,
   Activity,
   CheckCircle2,
   Clock,
   CreditCard,
-  DollarSign,
   Download,
   TrendingUp,
   Wallet,
-  Eye,
   Film,
   FolderKanban,
   Link2,
-  Maximize2,
   MessageSquare,
-  Pause,
-  Play,
   Plus,
   RotateCcw,
   Send,
-  Sliders,
-  Sparkles,
   Star,
   User,
-  Zap,
 } from "lucide-react";
 
 type OverviewData = {
@@ -220,11 +212,7 @@ export default function ClientPortalPage() {
 
   // Review Player State
   const [activeReviewProj, setActiveReviewProj] = useState<any | null>(null);
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [playTime, setPlayTime] = useState(38);
-  const [duration] = useState(195);
-  const [splitPosition, setSplitPosition] = useState(50);
-  const [showColorSplit, setShowColorSplit] = useState(true);
+  const [playTime, setPlayTime] = useState(0);
   const [feedbackText, setFeedbackText] = useState("");
   const [submittingFeedback, setSubmittingFeedback] = useState(false);
 
@@ -713,120 +701,14 @@ export default function ClientPortalPage() {
               actions={<Badge tone={activeReviewProj.status}>{activeReviewProj.status}</Badge>}
             >
               <div className="space-y-4">
-                {/* Cinema Canvas Viewport */}
-                <div className="relative aspect-video w-full overflow-hidden rounded-2xl border border-white/10 bg-black shadow-2xl">
-                  {/* Left Side: Cinema Color Grade */}
-                  <img
-                    src="https://images.unsplash.com/photo-1518709268805-4e9042af9f23?q=80&w=1200&auto=format&fit=crop"
-                    alt="Master Color Graded Cut"
-                    className="absolute inset-0 h-full w-full object-cover"
-                    style={{
-                      filter: showColorSplit
-                        ? "contrast(1.15) saturate(1.25) drop-shadow(0 0 10px rgba(115,87,255,0.4))"
-                        : "none",
-                    }}
-                  />
-
-                  {/* Right Side: RAW Log Footage Split (if enabled) */}
-                  {showColorSplit && (
-                    <div
-                      className="absolute inset-y-0 right-0 overflow-hidden border-l-2 border-amber-400"
-                      style={{ width: `${100 - splitPosition}%` }}
-                    >
-                      <img
-                        src="https://images.unsplash.com/photo-1518709268805-4e9042af9f23?q=80&w=1200&auto=format&fit=crop"
-                        alt="Raw Log Sensor Footage"
-                        className="absolute inset-0 h-full w-full object-cover"
-                        style={{
-                          filter: "contrast(0.65) brightness(1.1) saturate(0.4) sepia(0.1)",
-                          width: `${100 / ((100 - splitPosition) / 100)}%`,
-                          maxWidth: "none",
-                          right: 0,
-                        }}
-                      />
-                      <div className="absolute top-3 right-3 rounded-lg bg-black/80 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-300 backdrop-blur-md">
-                        Raw Log Flat
-                      </div>
-                    </div>
-                  )}
-
-                  {showColorSplit && (
-                    <div className="absolute top-3 left-3 rounded-lg bg-black/80 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-cyan-300 backdrop-blur-md">
-                      Cinema Grade & VFX
-                    </div>
-                  )}
-
-                  {/* Center Split Slider Handle */}
-                  {showColorSplit && (
-                    <div
-                      className="pointer-events-none absolute inset-y-0 flex items-center justify-center"
-                      style={{ left: `${splitPosition}%` }}
-                    >
-                      <div className="h-8 w-8 -translate-x-1/2 rounded-full border-2 border-white bg-brand-600 shadow-xl flex items-center justify-center text-white text-xs">
-                        â†”
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Overlay Controls */}
-                  <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent p-4">
-                    {/* Scrub Bar */}
-                    <div className="flex items-center gap-3">
-                      <button
-                        onClick={() => setIsPlaying(!isPlaying)}
-                        className="grid h-10 w-10 place-items-center rounded-xl bg-brand-600 text-white shadow-lg transition-transform hover:scale-105"
-                      >
-                        {isPlaying ? <Pause size={16} /> : <Play size={16} className="translate-x-0.5" />}
-                      </button>
-
-                      <div className="flex-1">
-                        <input
-                          type="range"
-                          min="0"
-                          max={duration}
-                          value={playTime}
-                          onChange={(e) => setPlayTime(Number(e.target.value))}
-                          className="h-1.5 w-full cursor-pointer appearance-none rounded-full bg-white/20 accent-brand-500"
-                        />
-                      </div>
-
-                      <span className="font-mono text-xs font-semibold text-slate-300">
-                        {Math.floor(playTime / 60)
-                          .toString()
-                          .padStart(2, "0")}
-                        :
-                        {Math.floor(playTime % 60)
-                          .toString()
-                          .padStart(2, "0")}{" "}
-                        / 03:15
-                      </span>
-
-                      <button
-                        onClick={() => setShowColorSplit(!showColorSplit)}
-                        className={`rounded-xl px-3 py-2 text-xs font-semibold transition-all ${
-                          showColorSplit ? "bg-amber-500/20 text-cyan-300 border border-amber-400/30" : "bg-white/10 text-slate-400"
-                        }`}
-                        title="Toggle RAW Log vs Cinema Grade Split Comparison"
-                      >
-                        <Sliders size={13} className="inline mr-1" /> Log vs Grade
-                      </button>
-                    </div>
-
-                    {showColorSplit && (
-                      <div className="mt-2 flex items-center gap-2 text-[11px] text-slate-400">
-                        <span>Split Comparison:</span>
-                        <input
-                          type="range"
-                          min="5"
-                          max="95"
-                          value={splitPosition}
-                          onChange={(e) => setSplitPosition(Number(e.target.value))}
-                          className="h-1 w-36 cursor-pointer rounded-full bg-white/20 accent-amber-400"
-                        />
-                      </div>
-                    )}
-                  </div>
-                </div>
+                <ReviewPlayer
+                  src={
+                    deliverables.find((file) => file.projectId === activeReviewProj.id && /\.(mp4|webm|mov)(\?|$)/i.test(String(file.downloadUrl || "")))?.downloadUrl
+                    || activeReviewProj.videoUrl
+                    || ""
+                  }
+                  onTime={(t) => setPlayTime(t)}
+                />
 
                 {/* Review Actions & Feedback Submission */}
                 <div className="grid gap-4 lg:grid-cols-3">

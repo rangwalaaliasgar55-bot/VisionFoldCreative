@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
+import { usePathname } from "next/navigation";
 
 const SESSION_KEY = "vf_visit_id";
 
@@ -17,39 +18,84 @@ function sessionId(): string {
   }
 }
 
+function utmFromLocation() {
+  try {
+    const q = new URLSearchParams(window.location.search);
+    return {
+      utmSource: q.get("utm_source") || "",
+      utmMedium: q.get("utm_medium") || "",
+      utmCampaign: q.get("utm_campaign") || "",
+    };
+  } catch {
+    return { utmSource: "", utmMedium: "", utmCampaign: "" };
+  }
+}
+
 /**
- * Anonymous heartbeat for the admin's "live visitors" panel.
- * Pings /api/track every 25s with a stable per-device id. No personal data.
+ * Accurate public-site tracker.
+ * - One pageview per path change
+ * - Heartbeats every 25s (do not inflate views)
+ * - Duration on hide/unload
+ * - UTM + referrer captured once per session
  */
 export default function LiveTracker() {
+  const pathname = usePathname() || "/";
+  const started = useRef(0);
+  const lastPath = useRef("");
+
   useEffect(() => {
     const id = sessionId();
     if (!id) return;
-    let stopped = false;
+    if (pathname.startsWith("/admin") || pathname.startsWith("/portal") || pathname.startsWith("/api")) return;
 
-    const ping = () => {
-      if (stopped) return;
+    let stopped = false;
+    const utm = utmFromLocation();
+
+    const send = (kind: "view" | "heartbeat" | "exit") => {
+      if (stopped && kind !== "exit") return;
+      const payload = JSON.stringify({
+        id,
+        path: pathname,
+        referrer: document.referrer || "",
+        title: document.title || "",
+        lang: navigator.language || "",
+        kind,
+        durationMs: Date.now() - started.current,
+        ...utm,
+      });
+      if (kind === "exit" && navigator.sendBeacon) {
+        navigator.sendBeacon("/api/track", new Blob([payload], { type: "application/json" }));
+        return;
+      }
       fetch("/api/track", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id, path: window.location.pathname }),
+        body: payload,
         keepalive: true,
       }).catch(() => {});
     };
 
-    ping();
-    const id1 = setInterval(ping, 25000);
+    const isNewView = lastPath.current !== pathname;
+    lastPath.current = pathname;
+    if (isNewView) started.current = Date.now();
+    send(isNewView ? "view" : "heartbeat");
+
+    const beat = setInterval(() => send("heartbeat"), 25000);
     const onVis = () => {
-      if (document.visibilityState === "visible") ping();
+      if (document.visibilityState === "visible") send("heartbeat");
+      else send("exit");
     };
+    const onHide = () => send("exit");
     document.addEventListener("visibilitychange", onVis);
+    window.addEventListener("pagehide", onHide);
 
     return () => {
       stopped = true;
-      clearInterval(id1);
+      clearInterval(beat);
       document.removeEventListener("visibilitychange", onVis);
+      window.removeEventListener("pagehide", onHide);
     };
-  }, []);
+  }, [pathname]);
 
   return null;
 }

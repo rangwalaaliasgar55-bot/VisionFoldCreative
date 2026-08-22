@@ -1,5 +1,5 @@
 import { bad, ok } from "@/lib/auth";
-import { generate } from "@/lib/ai";
+import { generate, getAiInstructions } from "@/lib/ai";
 import { receiveWhatsAppMessage, sendWhatsAppText, whatsappConfig } from "@/lib/whatsapp";
 import { db } from "@/db";
 import { waMessages } from "@/db/schema";
@@ -24,8 +24,6 @@ export async function GET(req: Request) {
   return new Response("Forbidden", { status: 403 });
 }
 
-const AUTO_REPLY_PROMPT = `You are the WhatsApp assistant for VisionFold Creative, a premium video editing studio in India (Shorts for ₹700, brand films, YouTube editing). Reply to this customer message in a warm, human, professional tone. Be concise (under 60 words), never pushy, ask one clarifying question at most, and sign as "— VisionFold Studio". Do not invent prices unless asked about Shorts (₹700). Message:`;
-
 export async function POST(req: Request) {
   try {
     const body = (await req.json().catch(() => ({}))) as any;
@@ -49,7 +47,11 @@ export async function POST(req: Request) {
 
           // Auto-reply bot (only when explicitly enabled and AI is configured)
           if (whatsappConfig().autoReply) {
-            const reply = await generate(`${AUTO_REPLY_PROMPT}\n"${text.slice(0, 800)}"`);
+            const instructions = await getAiInstructions();
+            const reply = await generate(
+              `Inbound WhatsApp from a customer:\n"${text.slice(0, 800)}"\nWrite one reply under 60 words. One question max. Do not invent prices. Do not change any website.`,
+              instructions
+            );
             if (reply && reply.trim()) {
               const clean = reply.trim().replace(/\n{3,}/g, "\n\n").slice(0, 900);
               const sent = await sendWhatsAppText(from, clean);

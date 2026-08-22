@@ -76,6 +76,8 @@ CREATE TABLE IF NOT EXISTS leads (
   notes TEXT NOT NULL DEFAULT '',
   status TEXT NOT NULL DEFAULT 'new',
   source TEXT NOT NULL DEFAULT 'website',
+  score INTEGER NOT NULL DEFAULT 0,
+  score_reasons TEXT NOT NULL DEFAULT '',
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -97,6 +99,10 @@ CREATE TABLE IF NOT EXISTS invoices (
   project_id INTEGER,
   number TEXT NOT NULL DEFAULT '',
   amount NUMERIC(12, 2) NOT NULL,
+  currency TEXT NOT NULL DEFAULT 'INR',
+  original_amount NUMERIC(12, 2),
+  original_currency TEXT NOT NULL DEFAULT 'INR',
+  fx_rate NUMERIC(12, 4) NOT NULL DEFAULT 1,
   status TEXT NOT NULL DEFAULT 'sent',
   due_date DATE,
   notes TEXT NOT NULL DEFAULT '',
@@ -240,10 +246,33 @@ CREATE TABLE IF NOT EXISTS webhooks (
 CREATE TABLE IF NOT EXISTS visitors (
   id TEXT PRIMARY KEY,
   path TEXT NOT NULL DEFAULT '/',
+  referrer TEXT NOT NULL DEFAULT '',
+  utm_source TEXT NOT NULL DEFAULT '',
+  utm_medium TEXT NOT NULL DEFAULT '',
+  utm_campaign TEXT NOT NULL DEFAULT '',
+  lang TEXT NOT NULL DEFAULT '',
+  duration_ms INTEGER NOT NULL DEFAULT 0,
+  bounced BOOLEAN NOT NULL DEFAULT true,
+  is_bot BOOLEAN NOT NULL DEFAULT false,
   first_seen TIMESTAMPTZ DEFAULT NOW(),
   last_seen TIMESTAMPTZ DEFAULT NOW(),
   page_views INTEGER NOT NULL DEFAULT 1
 );
+CREATE INDEX IF NOT EXISTS visitors_last_seen_idx ON visitors (last_seen);
+
+CREATE TABLE IF NOT EXISTS page_events (
+  id SERIAL PRIMARY KEY,
+  visitor_id TEXT NOT NULL,
+  path TEXT NOT NULL,
+  referrer TEXT NOT NULL DEFAULT '',
+  title TEXT NOT NULL DEFAULT '',
+  kind TEXT NOT NULL DEFAULT 'view',
+  duration_ms INTEGER NOT NULL DEFAULT 0,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS page_events_visitor_idx ON page_events (visitor_id);
+CREATE INDEX IF NOT EXISTS page_events_created_idx ON page_events (created_at);
+CREATE INDEX IF NOT EXISTS page_events_path_idx ON page_events (path);
 
 CREATE TABLE IF NOT EXISTS wa_messages (
   id SERIAL PRIMARY KEY,
@@ -333,6 +362,27 @@ CREATE TABLE IF NOT EXISTS approvals (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 CREATE INDEX IF NOT EXISTS approvals_project_idx ON approvals (project_id);
+
+CREATE TABLE IF NOT EXISTS ai_conversations (
+  id SERIAL PRIMARY KEY,
+  staff_id INTEGER NOT NULL DEFAULT 0,
+  provider TEXT NOT NULL DEFAULT '',
+  title TEXT NOT NULL DEFAULT 'New conversation',
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS ai_conversations_staff_idx ON ai_conversations (staff_id);
+
+CREATE TABLE IF NOT EXISTS ai_messages (
+  id SERIAL PRIMARY KEY,
+  conversation_id INTEGER NOT NULL REFERENCES ai_conversations(id) ON DELETE CASCADE,
+  role TEXT NOT NULL,
+  content TEXT NOT NULL DEFAULT '',
+  provider TEXT NOT NULL DEFAULT '',
+  tokens INTEGER NOT NULL DEFAULT 0,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS ai_messages_conversation_idx ON ai_messages (conversation_id);
 `;
 
 function wrapQuery(origQuery: any) {

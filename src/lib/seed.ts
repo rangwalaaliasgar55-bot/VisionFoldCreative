@@ -24,6 +24,8 @@ import {
 import { count, eq } from "drizzle-orm";
 import { hashPassword, verifyPassword } from "@/lib/auth";
 import { DEFAULT_SETTINGS } from "@/lib/settings";
+import { ensureMigrations } from "@/db/migrate";
+import { hydrateRuntimeKeys } from "@/lib/runtimeKeys";
 
 let seedPromise: Promise<void> | null = null;
 
@@ -69,6 +71,8 @@ export async function ensureSeed() {
     });
   }
   await seedPromise;
+  await ensureMigrations();
+  await hydrateRuntimeKeys();
   await ensureAdmin();
 }
 

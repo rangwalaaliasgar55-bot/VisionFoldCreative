@@ -32,6 +32,8 @@ export default function AdminProspectsPage() {
   const [results, setResults] = useState<Prospect[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [adding, setAdding] = useState<string | null>(null);
+  const [briefs, setBriefs] = useState<Record<string, { whatsapp: string; why: string; service: string }>>({});
+  const [enriching, setEnriching] = useState<string | null>(null);
 
   async function runSearch(e?: React.FormEvent) {
     e?.preventDefault();
@@ -54,21 +56,36 @@ export default function AdminProspectsPage() {
   async function addAsLead(p: Prospect) {
     setAdding(p.id);
     try {
+      const brief = briefs[p.id];
       await api("/api/admin/leads", {
         json: {
           name: p.name,
           phone: p.phone,
-          service: "Video Editing",
-          message: p.website ? `Found via Google Maps. Website: ${p.website}` : "Found via Google Maps prospecting.",
-          notes: `${p.address || ""}${p.rating ? ` · ★ ${p.rating}` : ""}`,
+          service: brief?.service || "Video Editing",
+          message: brief?.whatsapp || (p.website ? `Found via Google Maps. Website: ${p.website}` : "Found via Google Maps prospecting."),
+          notes: `${p.address || ""}${p.rating ? ` · ★ ${p.rating}` : ""}${brief?.why ? ` · ${brief.why}` : ""}`,
           source: "maps",
         },
       });
-      toast(`Added "${p.name}" to leads`);
+      toast(`Added "${p.name}" to leads (scored automatically)`);
     } catch {
       toast("Failed to add lead", "err");
     } finally {
       setAdding(null);
+    }
+  }
+
+  async function enrich(p: Prospect) {
+    setEnriching(p.id);
+    try {
+      const brief = await api<{ whatsapp: string; why: string; service: string }>("/api/admin/prospects/enrich", {
+        json: { name: p.name, website: p.website, phone: p.phone, types: p.types, address: p.address },
+      });
+      setBriefs((b) => ({ ...b, [p.id]: brief }));
+    } catch {
+      toast("Enrichment failed", "err");
+    } finally {
+      setEnriching(null);
     }
   }
 
@@ -159,10 +176,19 @@ export default function AdminProspectsPage() {
                     <Globe size={13} className="text-brand-300" /> Site
                   </a>
                 )}
+                <Button size="sm" variant="outline" onClick={() => enrich(p)} disabled={enriching === p.id}>
+                  {enriching === p.id ? "Drafting…" : "AI first message"}
+                </Button>
                 <Button size="sm" onClick={() => addAsLead(p)} disabled={adding === p.id} className="ml-auto">
                   <Plus size={13} /> {adding === p.id ? "Adding…" : "Add as lead"}
                 </Button>
               </div>
+              {briefs[p.id] && (
+                <div className="mt-3 rounded-xl border border-brand-400/20 bg-brand-500/5 p-3 text-xs text-slate-300">
+                  <p className="font-semibold text-brand-200">{briefs[p.id].service} · {briefs[p.id].why}</p>
+                  <p className="mt-2 whitespace-pre-wrap">{briefs[p.id].whatsapp}</p>
+                </div>
+              )}
             </div>
           ))}
         </div>
