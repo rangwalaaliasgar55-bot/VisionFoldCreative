@@ -27,6 +27,16 @@ type ProviderRow = {
   keyHint?: string;
   freeTierUrl?: string;
 };
+type Diagnosis = {
+  id: string;
+  label: string;
+  configured: boolean;
+  source: string;
+  ok: boolean;
+  httpStatus?: number;
+  errorSnippet?: string;
+  hint?: string;
+};
 type AiStatus = {
   configured: boolean;
   provider: string;
@@ -60,6 +70,8 @@ export default function AdminAutomationsPage() {
   const [saving, setSaving] = useState<string | null>(null);
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState<{ ok: boolean; provider?: string; reply?: string } | null>(null);
+  const [diagnosing, setDiagnosing] = useState(false);
+  const [diagnosis, setDiagnosis] = useState<Diagnosis[] | null>(null);
 
   async function toggle(auto: AutoRow) {
     try {
@@ -106,6 +118,19 @@ export default function AdminAutomationsPage() {
       setTestResult({ ok: false });
     } finally {
       setTesting(false);
+    }
+  }
+
+  async function runDiagnosis() {
+    setDiagnosing(true);
+    try {
+      const res = await api<{ results: Diagnosis[] }>("/api/ai/diagnose", { json: {} });
+      setDiagnosis(res.results);
+      reloadAi();
+    } catch {
+      toast("Diagnostic failed to run", "err");
+    } finally {
+      setDiagnosing(false);
     }
   }
 
@@ -205,9 +230,12 @@ export default function AdminAutomationsPage() {
             title="AI providers"
             desc="ChatGPT, Gemini & more — paste a free key here, no deploy needed. Pollinations works with zero keys."
             actions={
-              <Button size="sm" variant="outline" onClick={testAi} disabled={testing}>
-                {testing ? "Testing…" : "Test connection"}
-              </Button>
+              <div className="flex gap-2">
+                <Button size="sm" variant="outline" onClick={runDiagnosis} disabled={diagnosing}>{diagnosing ? "Diagnosing…" : "Diagnose keys"}</Button>
+                <Button size="sm" variant="outline" onClick={testAi} disabled={testing}>
+                  {testing ? "Testing…" : "Test connection"}
+                </Button>
+              </div>
             }
           >
             {testResult && (
@@ -218,6 +246,25 @@ export default function AdminAutomationsPage() {
               </div>
             )}
             <div className="space-y-3">
+              {diagnosis && (
+                <div className="mb-3 space-y-2 rounded-xl border border-white/10 bg-black/20 p-3">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Key diagnosis</p>
+                  {diagnosis.map((d) => (
+                    <div key={d.id} className="rounded-lg border border-white/8 p-2.5">
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="text-xs font-semibold text-white">{d.label}</p>
+                        <Badge tone={d.ok ? "won" : d.configured ? "overdue" : "draft"}>
+                          {d.ok ? "working" : d.configured ? `fail ${d.httpStatus ?? ""}` : "no key"}
+                        </Badge>
+                      </div>
+                      {!d.ok && d.hint && <p className="mt-1 text-[11px] leading-relaxed text-amber-200/90">{d.hint}</p>}
+                      {!d.ok && d.errorSnippet && (
+                        <p className="mt-1 truncate font-mono text-[10px] text-slate-600">{d.errorSnippet}</p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
               {(aiStatus?.providers ?? []).map((p) => (
                 <div key={p.id} className="rounded-2xl border border-white/8 p-4">
                   <div className="flex flex-wrap items-center justify-between gap-2">

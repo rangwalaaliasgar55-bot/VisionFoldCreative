@@ -167,7 +167,143 @@ async function trackTokens(tokens: number) {
 }
 
 function estimateTokens(...texts: string[]): number {
-  return Math.max(1, Math.ceil(texts.join(" ").length / 4));
+  return Math.max(1, Math.ceil(texts.      join(" ").length / 4));
+}
+
+// ---------------------------------------------------------------------------
+// Diagnostics — test each provider individually and report the REAL reason
+// it failed (status code + body snippet + a human hint), instead of the
+// silent null-swallowing the generation chain uses.
+// ---------------------------------------------------------------------------
+
+export type ProviderDiagnosis = {
+  id: AiProviderId | "pollinations";
+  label: string;
+  configured: boolean;
+  source: "env" | "runtime" | "keyless" | "none";
+  ok: boolean;
+  httpStatus?: number;
+  errorSnippet?: string;
+  hint?: string;
+};
+
+function hintFor(id: string, status: number, body: string): string {
+  const b = body.toLowerCase();
+  if (id === "openai" && status === 401) return "Key is invalid or revoked. Create a new one at platform.openai.com/api-keys.";
+  if (id === "openai" && status === 429 && b.includes("billing")) return "OpenAI requires billing credit. Add a payment method or use the free Gemini/NVIDIA tiers.";
+  if (id === "gemini" && status === 400 && b.includes("api key")) return "Key not valid for this API. Use a key from https://aistudio.google.com/apikey (not Google Cloud/Vertex).";
+  if (id === "gemini" && status === 403) return "Key lacks permission — generate a fresh AI Studio key.";
+  if (id === "gemini" && status === 429) return "Free-tier quota hit. Wait a minute or add a second provider to the chain.";
+  if (id === "nvidia" && (status === 401 || status === 403)) return "NVIDIA key invalid. Regenerate at build.nvidia.com (Personal key, NGC).";
+  if (id === "nvidia" && status === 404) return "Model not available for this NVIDIA account — try meta/llama-3.1-8b-instruct.";
+  if (id === "pollinations" && status === 402) return "Public relay is rate-limited right now — it's only a fallback; add any real provider key.";
+  if (status >= 500) return "Provider had a server error — transient, try again.";
+  if (status === 0) return "Network unreachable from the server (DNS/firewall/timeout).";
+  return `HTTP ${status} — see snippet.`;
+}
+
+export async function diagnoseAllProviders(): Promise<ProviderDiagnosis[]> {
+  const results: ProviderDiagnosis[] = [];
+  const probe = "Reply with the single word: ready.";
+
+  for (const id of ["nvidia", "gemini", "openai"] as const) {
+    const { key, source } = await resolveKey(id);
+    if (!key) {
+      results.push({
+        id,
+        label: PROVIDER_META[id].label,
+        configured: false,
+        source: "none",
+        ok: false,
+        hint: `No ${PROVIDER_META[id].label} key set (${PROVIDER_META[id].envVar} env or saved here). Free key: ${PROVIDER_META[id].freeTierUrl}`,
+      });
+      continue;
+    }
+    let status = 0;
+    let snippet = "";
+    let text: string | null = null;
+    try {
+      let res: Response;
+      if (id === "gemini") {
+        res = await fetch(`${GEMINI_ENDPOINT}/${PROVIDER_META.gemini.defaultModel}:generateContent?key=${key}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ contents: [{ role: "user", parts: [{ text: probe }] }] }),
+          signal: AbortSignal.timeout(20_000),
+        });
+      } else {
+        const endpoint = id === "nvidia" ? NIM_ENDPOINT : OPENAI_ENDPOINT;
+        res = await fetch(endpoint, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
+          body: JSON.stringify({
+            model: PROVIDER_META[id].defaultModel,
+            messages: [{ role: "user", content: probe }],
+            max_tokens: 8,
+            stream: false,
+          }),
+          signal: AbortSignal.timeout(20_000),
+        });
+      }
+      status = res.status;
+      if (!res.ok) {
+        snippet = (await res.text().catch(() => "")).slice(0, 180);
+      } else {
+        const json: any = await res.json().catch(() => null);
+        text =
+          json?.choices?.[0]?.message?.content ??
+          json?.candidates?.[0]?.content?.parts?.map((p: any) => p.text ?? "").join("") ??
+          "";
+      }
+    } catch (err) {
+      snippet = err instanceof Error ? err.message : String(err);
+    }
+    const ok = Boolean(text);
+    results.push({
+      id,
+      label: PROVIDER_META[id].label,
+      configured: true,
+      source,
+      ok,
+      httpStatus: status,
+      errorSnippet: ok ? undefined : snippet,
+      hint: ok ? `Answered correctly.` : hintFor(id, status, snippet),
+    });
+  }
+
+  // Pollinations best-effort check.
+  try {
+    const res = await fetch(POLLINATIONS_ENDPOINT, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ model: "openai", messages: [{ role: "user", content: probe }], referrer: process.env.APP_URL || "" }),
+      signal: AbortSignal.timeout(30_000),
+    });
+    const ok = res.ok;
+    results.push({
+      id: "pollinations",
+      label: "Pollinations (keyless relay)",
+      configured: true,
+      source: "keyless",
+      ok,
+      httpStatus: res.status,
+      errorSnippet: ok ? undefined : (await res.text().catch(() => "")).slice(0, 140),
+      hint: ok ? "Relay answered." : hintFor("pollinations", res.status, ""),
+    });
+  } catch (err) {
+    results.push({
+      id: "pollinations",
+      label: "Pollinations (keyless relay)",
+      configured: true,
+      source: "keyless",
+      ok: false,
+      httpStatus: 0,
+      errorSnippet: err instanceof Error ? err.message : "",
+      hint: hintFor("pollinations", 0, ""),
+    });
+  }
+
+  return results;
 }
 
 async function callGemini(prompt: string, system?: string): Promise<string | null> {

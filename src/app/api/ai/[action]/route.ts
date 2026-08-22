@@ -1,5 +1,5 @@
 import { bad, ok, readBody, requireStaff } from "@/lib/auth";
-import { assist, getAiStatus, getInsights, generate, PROVIDER_META, activeProvider } from "@/lib/ai";
+import { assist, getAiStatus, getInsights, generate, PROVIDER_META, activeProvider, diagnoseAllProviders } from "@/lib/ai";
 import { setSetting } from "@/lib/settings";
 import { originCheck } from "@/lib/security";
 
@@ -51,6 +51,12 @@ export async function POST(
     if (!meta) return bad("Unknown provider.");
     await setSetting(meta.settingKey, "");
     return ok({ ok: true, provider });
+  }
+
+  // Full per-provider diagnostic with real error reasons.
+  if (action === "diagnose") {
+    const results = await diagnoseAllProviders();
+    return ok({ results });
   }
 
   // Live check: asks the current chain a trivial question and reports who answered.
