@@ -99,7 +99,7 @@ async function resolveKey(id: Exclude<AiProviderId, "pollinations">): Promise<{
 /** Full provider matrix — never returns raw keys, only hints. */
 export async function getProviderMatrix(): Promise<ProviderStatus[]> {
   const statuses: ProviderStatus[] = [];
-  for (const id of ["nvidia", "gemini", "openai"] as const) {
+  for (const id of ["gemini", "nvidia", "openai"] as const) {
     const meta = PROVIDER_META[id];
     const { key, source } = await resolveKey(id);
     statuses.push({
@@ -127,7 +127,7 @@ export async function activeProvider(): Promise<{
   provider: AiProvider;
   model: string;
 }> {
-  for (const id of ["nvidia", "gemini", "openai"] as const) {
+  for (const id of ["gemini", "nvidia", "openai"] as const) {
     const { key } = await resolveKey(id);
     if (key) return { provider: id, model: PROVIDER_META[id].defaultModel };
   }
@@ -206,7 +206,7 @@ export async function diagnoseAllProviders(): Promise<ProviderDiagnosis[]> {
   const results: ProviderDiagnosis[] = [];
   const probe = "Reply with the single word: ready.";
 
-  for (const id of ["nvidia", "gemini", "openai"] as const) {
+  for (const id of ["gemini", "nvidia", "openai"] as const) {
     const { key, source } = await resolveKey(id);
     if (!key) {
       results.push({
@@ -410,11 +410,12 @@ export async function generate(prompt: string, system?: string): Promise<string 
   const used = await todayTokens();
   if (used > dailyTokenBudget()) return null;
 
-  const viaNvidia = await callOpenAICompatible("nvidia", prompt, system);
-  if (viaNvidia) return viaNvidia;
-
+  // Gemini first: free tier, most reliable in practice. NVIDIA/OpenAI follow.
   const viaGemini = await callGemini(prompt, system);
   if (viaGemini) return viaGemini;
+
+  const viaNvidia = await callOpenAICompatible("nvidia", prompt, system);
+  if (viaNvidia) return viaNvidia;
 
   const viaOpenai = await callOpenAICompatible("openai", prompt, system);
   if (viaOpenai) return viaOpenai;

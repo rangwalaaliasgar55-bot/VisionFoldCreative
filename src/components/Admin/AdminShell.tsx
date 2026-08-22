@@ -192,6 +192,8 @@ export function AdminShell({ children, name, email, role }: { children: ReactNod
   const [unreadBell, setUnreadBell] = useState(0);
   const seenIds = useRef<Set<number>>(new Set());
   const firstLoad = useRef(true);
+  const bellOpenRef = useRef(false);
+  const [nowTs, setNowTs] = useState(() => Date.now());
 
   useEffect(() => {
     if (staffRole !== "admin") return;
@@ -211,7 +213,7 @@ export function AdminShell({ children, name, email, role }: { children: ReactNod
           const merged = [...rows, ...prev].slice(0, 25);
           return merged.filter((n, i, arr) => arr.findIndex((x) => x.id === n.id) === i);
         });
-        if (!firstLoad.current && !bellOpen) {
+        if (!firstLoad.current && !bellOpenRef.current) {
           setUnreadBell((u) => u + rows.length);
           // Toast only the highest-signal events.
           rows.slice(0, 2).forEach((r) => {
@@ -232,9 +234,9 @@ export function AdminShell({ children, name, email, role }: { children: ReactNod
     };
   }, [staffRole]);
 
-  function timeAgoStr(iso: string | null): string {
+  function timeAgoStr(iso: string | null, nowMs: number): string {
     if (!iso) return "";
-    const secs = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
+    const secs = Math.max(0, Math.floor((nowMs - new Date(iso).getTime()) / 1000));
     if (secs < 60) return "just now";
     if (secs < 3600) return `${Math.floor(secs / 60)}m ago`;
     if (secs < 86400) return `${Math.floor(secs / 3600)}h ago`;
@@ -316,12 +318,12 @@ export function AdminShell({ children, name, email, role }: { children: ReactNod
               redeploy or restart. Add <code className="rounded bg-black/40 px-1">DATABASE_URL</code> (Supabase) in
               Vercel settings, then run <code className="rounded bg-black/40 px-1">supabase/COMPLETE_SCHEMA.sql</code>.
             </p>
-            <a
-              href="/api/admin/export"
+            <button
+              onClick={() => window.location.assign("/api/admin/export")}
               className="shrink-0 rounded-full bg-red-400/90 px-3 py-1 font-bold text-ink transition hover:bg-red-300"
             >
               Download backup now
-            </a>
+            </button>
           </div>
         )}
         <header className="sticky top-0 z-30 flex h-[72px] items-center gap-3 border-b border-white/[0.07] bg-ink/85 px-4 backdrop-blur-2xl sm:px-6">
@@ -374,8 +376,10 @@ export function AdminShell({ children, name, email, role }: { children: ReactNod
             <button
               aria-label="Notifications"
               onClick={() => {
-                setBellOpen((v) => !v);
-                if (!bellOpen) setUnreadBell(0);
+                const next = !bellOpen;
+                setBellOpen(next);
+                bellOpenRef.current = next;
+                if (next) setUnreadBell(0);
               }}
               className={`relative grid h-9 w-9 place-items-center rounded-xl border transition ${bellOpen ? "border-brand-400/40 bg-white/5 text-white" : "border-white/[0.08] text-slate-400 hover:bg-white/5 hover:text-white"}`}
             >
@@ -404,7 +408,7 @@ export function AdminShell({ children, name, email, role }: { children: ReactNod
                         <div key={n.id} className="rounded-xl px-3 py-2.5 hover:bg-white/[0.04]">
                           <p className="text-[11px] font-semibold uppercase tracking-wider text-brand-300">{n.action}</p>
                           <p className="mt-0.5 line-clamp-2 text-xs text-slate-300">{n.details}</p>
-                          <p className="mt-0.5 text-[10px] text-slate-600">{timeAgoStr(n.createdAt)}</p>
+                          <p className="mt-0.5 text-[10px] text-slate-600">{timeAgoStr(n.createdAt, nowTs)}</p>
                         </div>
                       ))
                     )}

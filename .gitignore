@@ -11,3 +11,5 @@ coverage/
 !.env.example
 
 scripts/.*
+
+scripts/.local-keys.json

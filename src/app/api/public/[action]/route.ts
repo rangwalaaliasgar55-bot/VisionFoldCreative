@@ -1,5 +1,6 @@
 import { db } from "@/db";
 import { leads, newsletter } from "@/db/schema";
+import { eq } from "drizzle-orm";
 import { bad, ok, readBody, requestIp } from "@/lib/auth";
 import { throttled } from "@/lib/ratelimit";
 import { originCheck } from "@/lib/security";
@@ -55,6 +56,27 @@ export async function POST(
       service: row[0].service,
       budget: row[0].budget,
     });
+
+    // AI does real work: draft the perfect WhatsApp opener NOW so it's
+    // waiting on the lead record before anyone opens the admin. Never blocks
+    // or fails the request.
+    void (async () => {
+      try {
+        const { assist } = await import("@/lib/ai");
+        const res = await assist(
+          "whatsapp_intro",
+          JSON.stringify({ name, email, service: row[0].service, budget: row[0].budget, message })
+        );
+        await db
+          .update(leads)
+          .set({
+            notes: `[AI DRAFT — ready to send]\n${res.text}\n${row[0].notes ? `\n${row[0].notes}` : ""}`,
+          })
+          .where(eq(leads.id, row[0].id));
+      } catch {
+        /* enrichment is best-effort */
+      }
+    })();
 
     // Instant studio alert (only when Resend is configured).
     if (emailConfigured()) {
