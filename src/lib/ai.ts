@@ -356,6 +356,40 @@ export async function getInsights(): Promise<{ source: "ai" | "rules"; items: st
 }
 
 const TEMPLATES: Record<string, (input: string) => string> = {
+  whatsapp_intro: (i) => {
+    // input = JSON string of lead context; graceful parse for safety.
+    let lead: any = {};
+    try {
+      lead = JSON.parse(i || "{}");
+    } catch {
+      /* plain input */
+    }
+    const name = String(lead.name || "").trim();
+    const firstName = name.split(" ")[0] || "there";
+    const service = String(lead.service || "your project").replace(/inquiry|enquiry/i, "").trim() || "your project";
+    const budget = String(lead.budget || "").trim();
+    const budgetLine = budget
+      ? `Saw you're thinking around ${budget.startsWith("$") || budget.startsWith("₹") ? budget : `₹${budget}`} — we can work with that.`
+      : "";
+    return [
+      `Hi ${firstName}! Aliasgar this side 👋`,
+      ``,
+      `I run VisionFold Creative — a video editing studio. We make brand films, YouTube edits and ads that people actually finish watching.`,
+      ``,
+      `Just read your inquiry about ${service}. Honestly? Exactly the kind of project we love.`,
+      budgetLine,
+      ``,
+      `Super simple next step:`,
+      `→ Drop your footage link + deadline`,
+      `→ You get a plan and timeline back within 24 hours`,
+      `→ First cut lands fast, revisions till it feels inevitable 🎬`,
+      ``,
+      `One quick question before we dive in — what's the ONE feeling you want viewers walking away with?`,
+      ``,
+      `— Aliasgar`,
+      `VisionFold Creative`,
+    ].filter(Boolean).join("\n");
+  },
   reply_lead: (i) =>
     `Hi there — thanks so much for reaching out about ${i || "your project"}! We'd love to learn more about your footage, timeline and goals. Could you share a few details (duration, style references, deadline)? We'll come back with a plan and a quote within 24 hours. — The VisionFold team`,
   cold_email: (i) =>
@@ -383,6 +417,14 @@ export async function assist(
   const fallback = template ? template(safeInput) : `No template for "${kind}".`;
   {
     const prompts: Record<string, string> = {
+      whatsapp_intro: `You are Aliasgar, founder of VisionFold Creative — a premium video editing studio in Indore, India (brand films, YouTube edits, ads; Shorts from ₹700). Write ONE first-contact WhatsApp message to a new lead. Lead context: "${safeInput}".
+Rules:
+- Sound like a real, warm, confident human founder texting from his phone — NOT a corporate bot. No "Dear Sir", no buzzwords.
+- Open with the lead's first name + a light hook (reference their service/goal specifically).
+- Briefly introduce VisionFold Creative + yourself by name, once.
+- Make the value obvious fast: retention-first edits, 24h plan turnaround, revisions until it feels right.
+- End with ONE easy question that gets them replying (deadline, footage location, or the feeling they want viewers to have).
+- WhatsApp length: max ~110 words. Line breaks between thoughts. At most one emoji. No bullet spam, no links unless they asked.`,
       reply_lead: `You are a senior producer at VisionFold Creative, a premium video editing studio (Shorts ₹700 flat, brand films, YouTube editing; based in Indore, India). Write ONE email reply to this lead's inquiry. Rules: sound like a real, experienced human (no corporate fluff, no "leverage/synergy"), be warm and specific, reference their actual service/budget/brief, ask 1–2 concrete questions (footage length, deadline, style references), keep it under 110 words, and end with a clear next step. Do NOT use emojis or bullet spam. Lead context: "${safeInput}"`,
       cold_email: `You are a senior producer at VisionFold Creative, a premium video editing studio. Write a short COLD outreach email (not a reply) to this prospect. Rules: authentic and human (as if written by a real editor, not a template), first line references something about THEM, one honest value point (attention-holding edits, ₹700 Shorts, fast turnaround), zero hype or spam words, under 80 words, close with one soft question. Prospect context: "${safeInput}"`,
       update_copy: `Write a short client-facing project progress update for a video editing studio. Friendly, concrete, bullet points. Topic: "${safeInput}"`,

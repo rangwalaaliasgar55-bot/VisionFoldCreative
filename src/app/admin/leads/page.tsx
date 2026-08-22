@@ -28,6 +28,7 @@ import {
   FileSpreadsheet,
   Mail,
   MessageSquare,
+  Copy as CopyIcon,
   Phone,
   Plus,
   Search,
@@ -60,6 +61,9 @@ export default function AdminLeadsPage() {
   const [importing, setImporting] = useState(false);
   const [importText, setImportText] = useState<string>("");
   const [importResult, setImportResult] = useState<{ inserted: number; skipped: number } | null>(null);
+  const [waLead, setWaLead] = useState<LeadRow | null>(null);
+  const [waText, setWaText] = useState("");
+  const [waBusy, setWaBusy] = useState(false);
   const [editingLead, setEditingLead] = useState<LeadRow | null>(null);
   const [converting, setConverting] = useState<number | null>(null);
   const [aiProposalLead, setAiProposalLead] = useState<LeadRow | null>(null);
@@ -241,6 +245,39 @@ export default function AdminLeadsPage() {
     }
   }
 
+  async function openWhatsApp(lead: LeadRow) {
+    setWaLead(lead);
+    setWaText("");
+    setWaBusy(true);
+    try {
+      const context = JSON.stringify({
+        name: lead.name,
+        service: lead.service,
+        budget: lead.budget,
+        message: (lead.message || "").slice(0, 300),
+      });
+      const res = await api<{ text: string; source: string }>("/api/ai/assist", {
+        json: { kind: "whatsapp_intro", input: context },
+      });
+      setWaText(res.text);
+      if (res.source === "ai") toast("Personalised opener ready ✨");
+    } catch {
+      toast("Could not generate — using the classic opener", "err");
+      const { text } = await api<{ text: string }>("/api/ai/assist", {
+        json: { kind: "whatsapp_intro", input: "" },
+      }).catch(() => ({ text: "Hi! Aliasgar here from VisionFold Creative 👋 Saw your inquiry — got a minute to talk video?" }));
+      setWaText(text);
+    } finally {
+      setWaBusy(false);
+    }
+  }
+
+  function openWaLink() {
+    if (!waLead) return;
+    const phone = waLead.phone.replace(/[^0-9]/g, "");
+    const intl = phone.length === 10 ? "91" + phone : phone;
+    window.open(`https://wa.me/${intl}?text=${encodeURIComponent(waText)}`, "_blank");
+  }
   function getScore(l: LeadRow): { label: string; tone: "won" | "contacted" | "new" } {
     const b = l.budget.toLowerCase();
     if (b.includes("5,000") || b.includes("6,000") || b.includes("10,000") || b.includes("+")) {
@@ -661,6 +698,38 @@ export default function AdminLeadsPage() {
         </Modal>
       )}
 
+      {/* WhatsApp Opener Modal */}
+      <Modal open={Boolean(waLead)} onClose={() => setWaLead(null)} title={waLead ? `WhatsApp opener — ${waLead.name}` : "WhatsApp opener"}>
+        <div className="space-y-4">
+          {waBusy ? (
+            <div className="flex items-center gap-2 py-8 text-sm text-slate-400">
+              <Sparkles size={14} className="animate-pulse text-brand-300" /> Crafting a personalised opener…
+            </div>
+          ) : (
+            <>
+              <Textarea rows={12} value={waText} onChange={(e) => setWaText(e.target.value)} />
+              <p className="text-[11px] text-slate-600">
+                Feels off? Edit any line before sending — it&apos;s your voice, the AI just drafts it.
+              </p>
+              <div className="flex flex-wrap justify-end gap-2">
+                <Button variant="ghost" onClick={() => setWaLead(null)}>Close</Button>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    navigator.clipboard.writeText(waText);
+                    toast("Message copied");
+                  }}
+                >
+                  <CopyIcon size={13} /> Copy
+                </Button>
+                <Button onClick={openWaLink}>
+                  <MessageSquare size={13} className="text-emerald-300" /> Open in WhatsApp
+                </Button>
+              </div>
+            </>
+          )}
+        </div>
+      </Modal>
       {/* Import Spreadsheet Modal */}
       <Modal open={showImport} onClose={() => setShowImport(false)} title="Import Leads from Spreadsheet" wide>
         <div className="space-y-4">
