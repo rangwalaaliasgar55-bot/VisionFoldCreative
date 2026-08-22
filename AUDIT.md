@@ -339,7 +339,26 @@ path signs+completes+invoices atomically · double-approval blocked).
 E2E verified live: wrong name → 400 · correct signature → completed +
 timeline update · replay blocked · analytics endpoint responds.
 
-## 13. Recommended next steps
+## 13. AI access for everyone — runtime keys + keyless relay
+
+**Reality check:** ChatGPT/Gemini APIs require API keys by design — no
+legitimate keyless path exists. Delivered instead:
+
+1. **Runtime key management (no deploys)** — Admin → Automations & AI → "AI
+   providers": paste a free OpenAI / Gemini / NVIDIA key once, stored in the
+   settings table, live immediately. Owner-only (`403` for editors), keys are
+   never echoed back (masked `••••1234`), env vars still win if present.
+2. **Provider chain upgrade**: NVIDIA NIM → Gemini → **OpenAI (ChatGPT,
+   new)** → Pollinations relay (keyless, best-effort) → rules engine.
+3. **Live test button** hits the chain and reports exactly which provider answered.
+4. Free-key signup links inlined per provider (Google AI Studio's Gemini tier
+   is genuinely free).
+
+Honest note: Pollinations now returns 402 for some anonymous traffic; the app
+treats it as best-effort and the deterministic rules engine remains the final
+fallback, so nothing breaks without any keys.
+
+## 14. Recommended next steps
 - Add `next.config.ts` `images.remotePatterns` if you want `next/image` everywhere.
 - LinkedIn native video upload requires the partner video API — current build
   attaches the video as a rich link post (documented in `linkedin.ts`).

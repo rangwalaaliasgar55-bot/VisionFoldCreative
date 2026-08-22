@@ -7,6 +7,7 @@ import {
   Button,
   Card,
   Field,
+  Input,
   Select,
   Spinner,
   Textarea,
@@ -17,7 +18,24 @@ import { fmtDate } from "@/lib/utils";
 import { Brain, Copy, Play, Sparkles, Wand2, Zap } from "lucide-react";
 
 type AutoRow = { id: number; name: string; trigger: string; description: string; enabled: boolean; lastRunAt: string | null };
-type AiStatus = { configured: boolean; provider: string; model: string; dailyBudget: number; usedToday: number; phase: string };
+type ProviderRow = {
+  id: "nvidia" | "gemini" | "openai" | "pollinations";
+  label: string;
+  model: string;
+  configured: boolean;
+  source: "env" | "runtime" | "keyless" | "none";
+  keyHint?: string;
+  freeTierUrl?: string;
+};
+type AiStatus = {
+  configured: boolean;
+  provider: string;
+  model: string;
+  dailyBudget: number;
+  usedToday: number;
+  phase: string;
+  providers?: ProviderRow[];
+};
 
 const TOOLS = [
   { key: "reply_lead", label: "Reply to a lead", placeholder: "Paste the lead's inquiry here…" },
@@ -30,12 +48,18 @@ const TOOLS = [
 
 export default function AdminAutomationsPage() {
   const { data: automations, loading, reload } = useApi<AutoRow[]>("/api/admin/automations");
-  const { data: aiStatus } = useApi<AiStatus>("/api/ai/status");
+  const { data: aiStatus, reload: reloadAi } = useApi<AiStatus>("/api/ai/status");
+  const { data: me } = useApi<{ user: { role: string } | null }>("/api/auth/me");
+  const isAdmin = me?.user?.role === "admin";
   const [running, setRunning] = useState<string | null>(null);
   const [tool, setTool] = useState(TOOLS[0].key);
   const [input, setInput] = useState("");
   const [output, setOutput] = useState<{ text: string; source: string } | null>(null);
   const [generating, setGenerating] = useState(false);
+  const [keyDrafts, setKeyDrafts] = useState<Record<string, string>>({});
+  const [saving, setSaving] = useState<string | null>(null);
+  const [testing, setTesting] = useState(false);
+  const [testResult, setTestResult] = useState<{ ok: boolean; provider?: string; reply?: string } | null>(null);
 
   async function toggle(auto: AutoRow) {
     try {
@@ -44,6 +68,44 @@ export default function AdminAutomationsPage() {
       reload();
     } catch {
       toast("Failed", "err");
+    }
+  }
+
+  async function saveKey(provider: string) {
+    try {
+      setSaving(provider);
+      await api("/api/ai/save-key", { json: { provider, key: keyDrafts[provider] } });
+      toast("Key saved — live immediately, no deploy needed");
+      setKeyDrafts((d) => ({ ...d, [provider]: "" }));
+      reloadAi();
+    } catch (err) {
+      toast(err instanceof Error ? err.message : "Save failed", "err");
+    } finally {
+      setSaving(null);
+    }
+  }
+
+  async function clearKey(provider: string) {
+    try {
+      await api("/api/ai/clear-key", { json: { provider } });
+      toast("Key removed");
+      reloadAi();
+    } catch {
+      toast("Failed", "err");
+    }
+  }
+
+  async function testAi() {
+    setTesting(true);
+    setTestResult(null);
+    try {
+      const res = await api<{ ok: boolean; provider?: string; reply?: string }>("/api/ai/test", { json: {} });
+      setTestResult(res);
+      if (res.ok) reloadAi();
+    } catch {
+      setTestResult({ ok: false });
+    } finally {
+      setTesting(false);
     }
   }
 
@@ -139,33 +201,90 @@ export default function AdminAutomationsPage() {
             )}
           </Card>
 
-          <Card title="AI status" desc="Gemini integration — degrades to rules/templates without a key">
-            {aiStatus ? (
-              <div className="grid grid-cols-2 gap-3 text-sm">
-                <div className="rounded-xl border border-white/8 p-3">
-                  <p className="text-[11px] uppercase tracking-widest text-slate-500">Provider</p>
-                  <p className="mt-1 font-semibold text-white">{aiStatus.configured ? "Google Gemini" : "Rules engine (no key)"}</p>
+          <Card
+            title="AI providers"
+            desc="ChatGPT, Gemini & more — paste a free key here, no deploy needed. Pollinations works with zero keys."
+            actions={
+              <Button size="sm" variant="outline" onClick={testAi} disabled={testing}>
+                {testing ? "Testing…" : "Test connection"}
+              </Button>
+            }
+          >
+            {testResult && (
+              <div className={`mb-3 rounded-xl border p-3 text-xs ${testResult.ok ? "border-emerald-400/25 bg-emerald-400/[0.06] text-emerald-200" : "border-red-400/25 bg-red-400/[0.06] text-red-200"}`}>
+                {testResult.ok
+                  ? `Connected via ${testResult.provider} — replied “${testResult.reply}”`
+                  : "No provider answered (network or all relays down) — rules engine still covers you."}
+              </div>
+            )}
+            <div className="space-y-3">
+              {(aiStatus?.providers ?? []).map((p) => (
+                <div key={p.id} className="rounded-2xl border border-white/8 p-4">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-white">{p.label}</p>
+                      <p className="mt-0.5 truncate text-[11px] text-slate-500">
+                        model: {p.model}
+                        {p.source === "runtime" && p.keyHint ? ` · saved key ${p.keyHint}` : ""}
+                      </p>
+                    </div>
+                    <Badge tone={p.configured ? "won" : "draft"}>
+                      {p.source === "keyless" ? "free · no key" : p.source === "env" ? "env key" : p.source === "runtime" ? "saved" : "not set"}
+                    </Badge>
+                  </div>
+
+                  {isAdmin && p.id !== "pollinations" && (
+                    <div className="mt-3 flex flex-wrap items-center gap-2">
+                      <Input
+                        type="password"
+                        placeholder={`Paste ${p.label} API key…`}
+                        value={keyDrafts[p.id] ?? ""}
+                        onChange={(e) => setKeyDrafts((d) => ({ ...d, [p.id]: e.target.value }))}
+                        className="min-w-0 flex-1"
+                      />
+                      <Button
+                        size="sm"
+                        onClick={() => saveKey(p.id)}
+                        disabled={!keyDrafts[p.id]?.trim() || saving === p.id}
+                      >
+                        {saving === p.id ? "Saving…" : "Save"}
+                      </Button>
+                      {p.source === "runtime" && (
+                        <Button size="sm" variant="ghost" onClick={() => clearKey(p.id)}>
+                          Clear
+                        </Button>
+                      )}
+                      {p.freeTierUrl && (
+                        <a href={p.freeTierUrl} target="_blank" rel="noreferrer" className="text-[11px] font-semibold text-brand-300 underline">
+                          Get a free key ↗
+                        </a>
+                      )}
+                    </div>
+                  )}
+
+                  {!isAdmin && p.freeTierUrl && (
+                    <a href={p.freeTierUrl} target="_blank" rel="noreferrer" className="mt-2 inline-block text-[11px] font-semibold text-brand-300 underline">
+                      Get a free key ↗
+                    </a>
+                  )}
                 </div>
-                <div className="rounded-xl border border-white/8 p-3">
-                  <p className="text-[11px] uppercase tracking-widest text-slate-500">Model</p>
-                  <p className="mt-1 font-semibold text-white">{aiStatus.model}</p>
+              ))}
+            </div>
+
+            {aiStatus && (
+              <div className="mt-4 grid grid-cols-2 gap-3 border-t border-white/8 pt-4 text-sm">
+                <div>
+                  <p className="text-[11px] uppercase tracking-widest text-slate-500">Active chain head</p>
+                  <p className="mt-1 font-semibold text-white">{aiStatus.provider}</p>
                 </div>
-                <div className="rounded-xl border border-white/8 p-3">
-                  <p className="text-[11px] uppercase tracking-widest text-slate-500">Tokens used today</p>
-                  <p className="mt-1 font-semibold text-white">{aiStatus.usedToday.toLocaleString()}</p>
-                </div>
-                <div className="rounded-xl border border-white/8 p-3">
-                  <p className="text-[11px] uppercase tracking-widest text-slate-500">Daily budget</p>
-                  <p className="mt-1 font-semibold text-white">{aiStatus.dailyBudget.toLocaleString()}</p>
+                <div>
+                  <p className="text-[11px] uppercase tracking-widest text-slate-500">Tokens today / budget</p>
+                  <p className="mt-1 font-semibold text-white">
+                    {aiStatus.usedToday.toLocaleString()} / {aiStatus.dailyBudget.toLocaleString()}
+                  </p>
                 </div>
               </div>
-            ) : (
-              <Spinner />
             )}
-            <p className="mt-3 text-xs text-slate-600">
-              Set <code>GEMINI_API_KEY</code> to activate live AI. Insights and assist fall back to
-              deterministic rules/templates — never fake AI text.
-            </p>
           </Card>
         </div>
 

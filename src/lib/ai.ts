@@ -8,8 +8,20 @@ import {
   ratings,
 } from "@/db/schema";
 import { and, desc, eq, gte, lt, sql } from "drizzle-orm";
+import { getSetting } from "@/lib/settings";
 
-export type AiProvider = "nvidia" | "gemini" | "none";
+export type AiProviderId = "nvidia" | "gemini" | "openai" | "pollinations";
+export type AiProvider = AiProviderId | "none";
+
+export type ProviderStatus = {
+  id: AiProviderId;
+  label: string;
+  model: string;
+  configured: boolean;
+  source: "env" | "runtime" | "keyless" | "none";
+  keyHint?: string; // last 4 chars of a runtime-stored key
+  freeTierUrl?: string;
+};
 
 export type AiStatus = {
   configured: boolean;
@@ -18,17 +30,41 @@ export type AiStatus = {
   phase: string;
   dailyBudget: number;
   usedToday: number;
+  providers: ProviderStatus[];
 };
 
-/**
- * AI providers, in preference order:
- *   1. NVIDIA NIM (free tier) — NVIDIA_API_KEY, OpenAI-compatible endpoint
- *   2. Google Gemini          — GEMINI_API_KEY
- * Budget: AI_DAILY_TOKEN_BUDGET (fallback: GEMINI_DAILY_TOKEN_BUDGET for
- * backwards compatibility with older env setups).
- */
 const GEMINI_ENDPOINT = "https://generativelanguage.googleapis.com/v1beta/models";
 const NIM_ENDPOINT = "https://integrate.api.nvidia.com/v1/chat/completions";
+const OPENAI_ENDPOINT = "https://api.openai.com/v1/chat/completions";
+/** Keyless public endpoint — zero signup, used as the always-on fallback. */
+const POLLINATIONS_ENDPOINT = "https://text.pollinations.ai/";
+
+export const PROVIDER_META: Record<
+  Exclude<AiProviderId, "pollinations">,
+  { label: string; defaultModel: string; envVar: string; settingKey: string; freeTierUrl: string }
+> = {
+  nvidia: {
+    label: "NVIDIA NIM",
+    defaultModel: process.env.NVIDIA_MODEL || "meta/llama-3.1-8b-instruct",
+    envVar: "NVIDIA_API_KEY",
+    settingKey: "ai_key_nvidia",
+    freeTierUrl: "https://build.nvidia.com",
+  },
+  gemini: {
+    label: "Google Gemini",
+    defaultModel: process.env.GEMINI_MODEL || "gemini-2.0-flash",
+    envVar: "GEMINI_API_KEY",
+    settingKey: "ai_key_gemini",
+    freeTierUrl: "https://aistudio.google.com/apikey",
+  },
+  openai: {
+    label: "OpenAI · ChatGPT",
+    defaultModel: process.env.OPENAI_MODEL || "gpt-4o-mini",
+    envVar: "OPENAI_API_KEY",
+    settingKey: "ai_key_openai",
+    freeTierUrl: "https://platform.openai.com/api-keys",
+  },
+} as const;
 
 export function dailyTokenBudget(): number {
   return Number(
@@ -38,20 +74,65 @@ export function dailyTokenBudget(): number {
   );
 }
 
-export function activeProvider(): { provider: AiProvider; model: string } {
-  if (process.env.NVIDIA_API_KEY) {
-    return {
-      provider: "nvidia",
-      model: process.env.NVIDIA_MODEL || "meta/llama-3.1-8b-instruct",
-    };
+async function resolveKey(id: Exclude<AiProviderId, "pollinations">): Promise<{
+  key: string;
+  source: "env" | "runtime" | "none";
+}> {
+  const envKey =
+    id === "nvidia"
+      ? process.env.NVIDIA_API_KEY
+      : id === "gemini"
+        ? process.env.GEMINI_API_KEY
+        : process.env.OPENAI_API_KEY;
+  if (envKey) return { key: envKey, source: "env" };
+  try {
+    const runtimeKey = await getSetting(PROVIDER_META[id].settingKey);
+    if (typeof runtimeKey === "string" && runtimeKey.trim()) {
+      return { key: runtimeKey.trim(), source: "runtime" };
+    }
+  } catch {
+    /* DB not ready */
   }
-  if (process.env.GEMINI_API_KEY) {
-    return {
-      provider: "gemini",
-      model: process.env.GEMINI_MODEL || "gemini-2.0-flash",
-    };
+  return { key: "", source: "none" };
+}
+
+/** Full provider matrix — never returns raw keys, only hints. */
+export async function getProviderMatrix(): Promise<ProviderStatus[]> {
+  const statuses: ProviderStatus[] = [];
+  for (const id of ["nvidia", "gemini", "openai"] as const) {
+    const meta = PROVIDER_META[id];
+    const { key, source } = await resolveKey(id);
+    statuses.push({
+      id,
+      label: meta.label,
+      model: meta.defaultModel,
+      configured: Boolean(key),
+      source: source === "none" ? "none" : source,
+      keyHint: source === "runtime" ? `••••${key.slice(-4)}` : undefined,
+      freeTierUrl: meta.freeTierUrl,
+    });
   }
-  return { provider: "none", model: "none" };
+  statuses.push({
+    id: "pollinations",
+    label: "Pollinations",
+    model: "openai (free relay)",
+    configured: true,
+    source: "keyless",
+    freeTierUrl: "https://pollinations.ai",
+  });
+  return statuses;
+}
+
+export async function activeProvider(): Promise<{
+  provider: AiProvider;
+  model: string;
+}> {
+  for (const id of ["nvidia", "gemini", "openai"] as const) {
+    const { key } = await resolveKey(id);
+    if (key) return { provider: id, model: PROVIDER_META[id].defaultModel };
+  }
+  // Pollinations needs no key — it is always a candidate.
+  return { provider: "pollinations", model: "openai (free relay)" };
 }
 
 export async function todayTokens(): Promise<number> {
@@ -61,14 +142,16 @@ export async function todayTokens(): Promise<number> {
 }
 
 export async function getAiStatus(): Promise<AiStatus> {
-  const { provider, model } = activeProvider();
+  const { provider, model } = await activeProvider();
+  const providers = await getProviderMatrix();
   return {
-    configured: provider !== "none",
+    configured: true, // pollinations is always available
     provider,
     model,
-    phase: "D",
+    phase: "E",
     dailyBudget: dailyTokenBudget(),
     usedToday: await todayTokens(),
+    providers,
   };
 }
 
@@ -83,10 +166,14 @@ async function trackTokens(tokens: number) {
     });
 }
 
+function estimateTokens(...texts: string[]): number {
+  return Math.max(1, Math.ceil(texts.join(" ").length / 4));
+}
+
 async function callGemini(prompt: string, system?: string): Promise<string | null> {
-  const key = process.env.GEMINI_API_KEY;
+  const { key } = await resolveKey("gemini");
   if (!key) return null;
-  const model = process.env.GEMINI_MODEL || "gemini-2.0-flash";
+  const model = PROVIDER_META.gemini.defaultModel;
   try {
     const res = await fetch(`${GEMINI_ENDPOINT}/${model}:generateContent?key=${key}`, {
       method: "POST",
@@ -103,27 +190,31 @@ async function callGemini(prompt: string, system?: string): Promise<string | nul
     const json: any = await res.json();
     const text: string =
       json?.candidates?.[0]?.content?.parts?.map((p: any) => p.text ?? "").join("") ?? "";
-    const tokens: number = json?.usageMetadata?.totalTokenCount ?? 400;
-    if (text) await trackTokens(tokens);
+    if (text) await trackTokens(json?.usageMetadata?.totalTokenCount ?? estimateTokens(prompt, text));
     return text || null;
   } catch {
     return null;
   }
 }
 
-async function callNvidia(prompt: string, system?: string): Promise<string | null> {
-  const key = process.env.NVIDIA_API_KEY;
+/** OpenAI-compatible chat completion (covers NVIDIA NIM, OpenAI). */
+async function callOpenAICompatible(
+  id: "nvidia" | "openai",
+  prompt: string,
+  system?: string
+): Promise<string | null> {
+  const { key } = await resolveKey(id);
   if (!key) return null;
-  const model = process.env.NVIDIA_MODEL || "meta/llama-3.1-8b-instruct";
+  const endpoint = id === "nvidia" ? NIM_ENDPOINT : OPENAI_ENDPOINT;
   try {
-    const res = await fetch(NIM_ENDPOINT, {
+    const res = await fetch(endpoint, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${key}`,
       },
       body: JSON.stringify({
-        model,
+        model: PROVIDER_META[id].defaultModel,
         messages: [
           ...(system ? [{ role: "system", content: system }] : []),
           { role: "user", content: prompt },
@@ -137,28 +228,62 @@ async function callNvidia(prompt: string, system?: string): Promise<string | nul
     if (!res.ok) return null;
     const json: any = await res.json();
     const text: string = json?.choices?.[0]?.message?.content ?? "";
-    const tokens: number = json?.usage?.total_tokens ?? 400;
-    if (text) await trackTokens(tokens);
+    if (text) await trackTokens(json?.usage?.total_tokens ?? estimateTokens(prompt, text));
     return text || null;
   } catch {
     return null;
   }
 }
 
+/**
+ * Pollinations — public AI relay. Historically keyless; some deployments now
+ * rate-limit or gate anonymous traffic (HTTP 402), so this is a best-effort
+ * LAST resort before the rules engine takes over. The app never depends on it.
+ */
+async function callPollinations(prompt: string, system?: string): Promise<string | null> {
+  const referer = process.env.APP_URL || "https://visionfoldcreative.vercel.app";
+  try {
+    const res = await fetch(POLLINATIONS_ENDPOINT, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Referer: referer },
+      body: JSON.stringify({
+        model: "openai",
+        messages: [
+          ...(system ? [{ role: "system", content: system }] : []),
+          { role: "user", content: prompt },
+        ],
+        referrer: referer,
+      }),
+      signal: AbortSignal.timeout(45_000),
+    });
+    if (!res.ok) return null;
+    let text = (await res.text()).trim();
+    if (text.startsWith("{") && text.includes("\"error\"")) return null;
+    if (text) await trackTokens(estimateTokens(prompt, text));
+    return text || null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Tries every configured provider in quality order:
+ *   NVIDIA NIM → Gemini → OpenAI (ChatGPT) → Pollinations (keyless) → null
+ */
 export async function generate(prompt: string, system?: string): Promise<string | null> {
   const used = await todayTokens();
   if (used > dailyTokenBudget()) return null;
 
-  const { provider } = activeProvider();
-  if (provider === "nvidia") {
-    const text = await callNvidia(prompt, system);
-    if (text) return text;
-    // Fall through to Gemini if NIM fails but a Gemini key exists.
-    if (process.env.GEMINI_API_KEY) return callGemini(prompt, system);
-    return null;
-  }
-  if (provider === "gemini") return callGemini(prompt, system);
-  return null;
+  const viaNvidia = await callOpenAICompatible("nvidia", prompt, system);
+  if (viaNvidia) return viaNvidia;
+
+  const viaGemini = await callGemini(prompt, system);
+  if (viaGemini) return viaGemini;
+
+  const viaOpenai = await callOpenAICompatible("openai", prompt, system);
+  if (viaOpenai) return viaOpenai;
+
+  return callPollinations(prompt, system);
 }
 
 export async function gatherStats() {
@@ -209,25 +334,23 @@ export async function rulesInsights(): Promise<string[]> {
 }
 
 export async function getInsights(): Promise<{ source: "ai" | "rules"; items: string[] }> {
-  if (activeProvider().provider !== "none") {
-    try {
-      const stats = await gatherStats();
-      const text = await generate(
-        `Studio data: ${JSON.stringify(stats)}. Return exactly 4 short actionable insights for a video editing studio owner, each max 14 words, as a JSON array of strings only.`,
-        "You are the operations brain of a premium video editing studio. Be specific and punchy."
-      );
-      if (text) {
-        const match = text.match(/\[[\s\S]*\]/);
-        if (match) {
-          const parsed = JSON.parse(match[0]);
-          if (Array.isArray(parsed) && parsed.every((x) => typeof x === "string")) {
-            return { source: "ai", items: parsed.slice(0, 4) };
-          }
+  try {
+    const stats = await gatherStats();
+    const text = await generate(
+      `Studio data: ${JSON.stringify(stats)}. Return exactly 4 short actionable insights for a video editing studio owner, each max 14 words, as a JSON array of strings only.`,
+      "You are the operations brain of a premium video editing studio. Be specific and punchy."
+    );
+    if (text) {
+      const match = text.match(/\[[\s\S]*\]/);
+      if (match) {
+        const parsed = JSON.parse(match[0]);
+        if (Array.isArray(parsed) && parsed.every((x) => typeof x === "string")) {
+          return { source: "ai", items: parsed.slice(0, 4) };
         }
       }
-    } catch {
-      /* fall through to rules */
     }
+  } catch {
+    /* fall through to rules */
   }
   return { source: "rules", items: await rulesInsights() };
 }
@@ -258,7 +381,7 @@ export async function assist(
   const safeInput = String(input || "").slice(0, MAX_ASSIST_INPUT);
   const template = TEMPLATES[kind];
   const fallback = template ? template(safeInput) : `No template for "${kind}".`;
-  if (activeProvider().provider !== "none") {
+  {
     const prompts: Record<string, string> = {
       reply_lead: `You are a senior producer at VisionFold Creative, a premium video editing studio (Shorts ₹700 flat, brand films, YouTube editing; based in Indore, India). Write ONE email reply to this lead's inquiry. Rules: sound like a real, experienced human (no corporate fluff, no "leverage/synergy"), be warm and specific, reference their actual service/budget/brief, ask 1–2 concrete questions (footage length, deadline, style references), keep it under 110 words, and end with a clear next step. Do NOT use emojis or bullet spam. Lead context: "${safeInput}"`,
       cold_email: `You are a senior producer at VisionFold Creative, a premium video editing studio. Write a short COLD outreach email (not a reply) to this prospect. Rules: authentic and human (as if written by a real editor, not a template), first line references something about THEM, one honest value point (attention-holding edits, ₹700 Shorts, fast turnaround), zero hype or spam words, under 80 words, close with one soft question. Prospect context: "${safeInput}"`,

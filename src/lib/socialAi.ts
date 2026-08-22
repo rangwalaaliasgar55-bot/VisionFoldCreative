@@ -1,4 +1,4 @@
-import { generate, activeProvider } from "@/lib/ai";
+import { generate } from "@/lib/ai";
 import type { ReviewPayload } from "@/lib/social";
 import type { socialPosts, socialMetrics } from "@/db/schema";
 
@@ -114,7 +114,6 @@ export async function generateSeoPack(opts: {
   extra?: string;
 }): Promise<SeoPack> {
   const fallback = ruleSeoPack(opts.platform, opts.topic);
-  if (activeProvider().provider === "none") return fallback;
 
   try {
     const text = await generate(
@@ -206,7 +205,7 @@ export async function buildReviewPayload(
   };
 
   // Enrich the narrative with AI when available (never blocks the review).
-  if (activeProvider().provider !== "none") {
+  {
     try {
       const text = await generate(
         `A ${post.platform} video titled "${post.title}" reached ${JSON.stringify(

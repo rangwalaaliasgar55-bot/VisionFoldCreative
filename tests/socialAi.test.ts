@@ -1,5 +1,12 @@
-import { describe, expect, it } from "vitest";
+import { afterAll, describe, expect, it, vi } from "vitest";
 import { generateSeoPack } from "@/lib/socialAi";
+
+// Keep this suite hermetic: force every AI provider call (including the
+// keyless relay) to fail so we exercise the deterministic rules fallback.
+vi.stubGlobal("fetch", () => Promise.reject(new Error("offline-test-mode")));
+afterAll(() => {
+  vi.unstubAllGlobals();
+});
 
 // No AI keys in the test environment → exercises the offline rules engine.
 describe("generateSeoPack (rule-based fallback)", () => {
