@@ -344,6 +344,9 @@ timeline update · replay blocked · analytics endpoint responds.
 **Reality check:** ChatGPT/Gemini APIs require API keys by design — no
 legitimate keyless path exists. Delivered instead:
 
+**Reality check:** ChatGPT/Gemini APIs require API keys by design — no
+legitimate keyless path exists. Delivered instead:
+
 1. **Runtime key management (no deploys)** — Admin → Automations & AI → "AI
    providers": paste a free OpenAI / Gemini / NVIDIA key once, stored in the
    settings table, live immediately. Owner-only (`403` for editors), keys are
@@ -358,6 +361,26 @@ Honest note: Pollinations now returns 402 for some anonymous traffic; the app
 treats it as best-effort and the deterministic rules engine remains the final
 fallback, so nothing breaks without any keys.
 
+
+## 15. Platform 5.0 — the best of PR #27, ported onto main
+
+Branch `arena/01a00a18-visionfoldcreative` (20 commits ahead) was reviewed file-by-file. Overlapping duplicates (their social/email/error-page/sitemap implementations) were skipped — main's versions are stronger (real platform APIs vs offline-only). The genuinely new, high-value pieces were ported and adapted:
+
+| Ported | What it does |
+|---|---|
+| **Attention queue** (`/admin/attention` + `attention-rules.ts`) | Pure-rule engine flags unanswered leads past SLA, overdue/due-soon invoices, silent approvals, stalled & late projects — sorted by severity, with a "Run now" that flips overdue invoices and nudges clients (72h per-entity cooldowns). Wired into cron + sidebar top slot. |
+| **Activity log** (`/admin/activity`) | Full searchable audit trail with severity colouring. |
+| **Auto status announcements** (`statusUpdates.ts`) | Project PATCH writes plain-language timeline updates + portal messages on stage changes (review handoff, revisions, delivered…) and 50%/100% milestones — ends "any update?" messages. `silent: true` opts out. |
+| **Structured intake** (`intake.ts` + portal modal rebuild) | One complete brief: deadline, footage link, runtime, aspect ratios (chip multi-select), captions, music, brand kit, references — with live completeness meter and quality warnings. Server validates; legacy requests still accepted. |
+| **OG image generation** (`opengraph-image.tsx` ×2) | Dynamic 1200×630 branded social cards for every blog post and case study (Next 16 serves them at hashed paths; meta tags auto-wired). |
+| **FAQ + JSON-LD** | `<Faq>` on the contact funnel; BlogPosting structured data on posts. |
+| **Docs** | `docs/IDEAS.md` (100-item backlog), `docs/ROADMAP.md`, `docs/SOCIAL_PUBLISHING.md`. |
+
+**Suite: 37 tests green** (+8: attention rules, announcement copy map, silence-on-typo-edits, intake completeness/formatting).
+
+E2E verified live: attention flags+run · project progress → halfway announcement · structured brief → formatted into project record with due date · incomplete brief rejected listing missing fields · OG PNGs served.
+
+Deliberately not ported: their motion/Three.js overhaul (subjective, heavy conflicts), their ci.yml removal (ours runs the test suite), their offline-only social/email engines (superseded).
 ## 14. Recommended next steps
 - Add `next.config.ts` `images.remotePatterns` if you want `next/image` everywhere.
 - LinkedIn native video upload requires the partner video API — current build

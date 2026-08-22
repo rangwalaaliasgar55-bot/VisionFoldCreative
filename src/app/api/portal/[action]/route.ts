@@ -4,6 +4,7 @@ import { and, eq, inArray, isNull, sql } from "drizzle-orm";
 import { bad, hashPassword, ok, readBody, requireClient, requestIp, verifyPassword } from "@/lib/auth";
 import { originCheck } from "@/lib/security";
 import { payLink } from "@/lib/paytoken";
+import { formatBrief, validateBrief, type BriefAnswers } from "@/lib/intake";
 import { clients } from "@/db/schema";
 
 export const dynamic = "force-dynamic";
@@ -217,10 +218,27 @@ export async function POST(
     }
 
     if (action === "request-project") {
-      const title = String(body.title || "").trim();
-      const service = String(body.service || "Video Editing");
+      const structured = body.answers && typeof body.answers === "object" ? (body.answers as BriefAnswers) : null;
+      const title = String(body.title || structured?.title || "").trim();
+      const service = String(body.service || structured?.service || "Video Editing");
       const description = String(body.description || "").trim();
-      const budget = String(body.budget || "1500.00");
+
+      // Structured intake: one complete brief instead of three days of chasing.
+      // `answers` is the new format; legacy single-field requests still work.
+      let briefText = description;
+      let deadline: string | null = null;
+      if (structured) {
+        const validation = validateBrief(structured);
+        if (!validation.complete) {
+          return bad(`Almost there — still needed: ${validation.missing.map((m) => m.label).join(", ")}.`);
+        }
+        briefText = [description, formatBrief(structured)].filter(Boolean).join("\n\n");
+        const parsedDeadline = new Date(String(structured.deadline));
+        if (!Number.isNaN(parsedDeadline.getTime())) {
+          deadline = parsedDeadline.toISOString().slice(0, 10);
+        }
+      }
+
       if (!title) return bad("Project title is required.");
 
       const [newProj] = await db
@@ -229,10 +247,11 @@ export async function POST(
           clientId: client.id,
           title,
           service,
-          description,
+          description: briefText,
           status: "intake",
           progress: 5,
-          budget: budget.replace(/[^0-9.]/g, "") || "1500.00",
+          dueDate: deadline,
+          budget: String(body.budget || "1500.00").replace(/[^0-9.]/g, "") || "1500.00",
         })
         .returning();
 

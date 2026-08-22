@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
+  AlertTriangle,
   Bell,
   Bot,
   ChevronRight,
@@ -14,6 +15,7 @@ import {
   FileText,
   FolderKanban,
   Globe,
+  History,
   Image as ImageIcon,
   LayoutDashboard,
   MapPin,
@@ -44,6 +46,7 @@ const NAV: NavGroup[] = [
   {
     label: "Workspace",
     items: [
+      { href: "/admin/attention", label: "Needs you", description: "Everything waiting on a human", Icon: AlertTriangle, roles: ["admin", "editor"] },
       { href: "/admin", label: "Dashboard", description: "Studio overview and activity", Icon: LayoutDashboard },
       { href: "/admin/leads", label: "Leads", description: "Pipeline, proposals and follow-ups", Icon: Target, roles: ["admin", "editor"] },
       { href: "/admin/prospects", label: "Find businesses", description: "Google Maps prospecting", Icon: MapPin, roles: ["admin", "editor"] },
@@ -69,6 +72,7 @@ const NAV: NavGroup[] = [
     label: "Intelligence",
     items: [
       { href: "/admin/analytics", label: "Traffic analytics", description: "Visitors, views and top pages", Icon: TrendingUp, roles: ["admin", "editor"] },
+      { href: "/admin/activity", label: "Activity log", description: "Full audit trail of studio actions", Icon: History, roles: ["admin", "editor"] },
       { href: "/admin/automations", label: "Automations & AI", description: "Workflows and creative copilot", Icon: Zap, roles: ["admin", "editor"] },
     ],
   },

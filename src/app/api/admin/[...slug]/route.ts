@@ -37,6 +37,8 @@ import { emitEvent } from "@/lib/events";
 import { originCheck } from "@/lib/security";
 import { payLink } from "@/lib/paytoken";
 import { emailConfigured, emailShell, sendEmail } from "@/lib/email";
+import { getAttention, runAttentionEffects } from "@/lib/automations";
+import { announcementFor } from "@/lib/statusUpdates";
 
 function fmtMoneyStr(value: unknown): string {
   return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(Number(value || 0));
@@ -92,6 +94,12 @@ export async function GET(
     const path = slug.join("/");
     const url = new URL(req.url);
     if (!canAccess(admin.role, path)) return bad("Your role does not have access to this area.", 403);
+
+    // Attention queue — everything that needs a human, in one place.
+    if (path === "attention") {
+      const evaluation = await getAttention();
+      return ok({ items: evaluation.items, counts: evaluation.counts });
+    }
 
     // 1. Dashboard
     if (path === "dashboard") {
@@ -1020,6 +1028,12 @@ export async function POST(
       return ok(newCat);
     }
 
+    // Run the attention effects on demand (the cron does this daily).
+    if (path === "attention/run") {
+      const summary = await runAttentionEffects(true);
+      return ok({ flagged: summary.flagged, applied: summary.applied });
+    }
+
     // Automations Run — executes real workflows via src/lib/automations.ts
     if (path === "automations/run") {
       const ran = await runAutomations({ force: true });
@@ -1189,7 +1203,32 @@ export async function PATCH(
       if (body.dueDate !== undefined) updateData.dueDate = body.dueDate ? String(body.dueDate) : null;
       updateData.updatedAt = new Date();
 
+      const [before] = await db.select().from(projects).where(eq(projects.id, id)).limit(1);
       const [updated] = await db.update(projects).set(updateData).where(eq(projects.id, id)).returning();
+
+      // Tell the client what changed, so they never have to ask. `silent: true`
+      // opts out for corrections and typo fixes.
+      if (before && updated && body.silent !== true) {
+        const announcement = announcementFor({
+          previous: { status: before.status, progress: before.progress },
+          next: { status: updateData.status, progress: updateData.progress },
+          projectTitle: updated.title,
+        });
+        if (announcement) {
+          try {
+            await db.insert(updates).values({ projectId: id, title: announcement.title, body: announcement.body });
+            await db.insert(messages).values({
+              clientId: updated.clientId,
+              sender: "admin",
+              body: announcement.body,
+              read: false,
+            });
+          } catch {
+            /* never fail the save because an announcement couldn't be written */
+          }
+        }
+      }
+
       if (updated && updated.status === "completed") {
         await emitEvent("project.completed", {
           id: updated.id,

@@ -3,6 +3,7 @@ import { getSettings } from "@/lib/settings";
 import { ContactForm } from "@/components/Forms";
 import { Reveal } from "@/components/Fx";
 import { Accordion } from "@/components/Fx";
+import { Faq } from "@/components/Faq";
 import { Clock, Mail, MapPin, Phone } from "lucide-react";
 
 export const dynamic = "force-dynamic";
@@ -91,6 +92,9 @@ export default async function ContactPage() {
             </p>
           </div>
         </div>
+        <Reveal>
+          <Faq />
+        </Reveal>
       </section>
     </div>
   );

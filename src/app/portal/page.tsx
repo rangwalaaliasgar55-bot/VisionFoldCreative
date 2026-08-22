@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
@@ -16,6 +16,7 @@ import {
   toast,
 } from "@/components/AdminUI";
 import { fmtDate, fmtMoney, timeAgo } from "@/lib/utils";
+import { BRIEF_FIELDS, validateBrief, type BriefField } from "@/lib/intake";
 import {
   AlertCircle,
   Activity,
@@ -63,6 +64,84 @@ type OverviewData = {
   unread: number;
 };
 
+const EMPTY_INTAKE: Record<string, string | string[]> = {
+  title: "",
+  service: "Brand film",
+  deadline: "",
+  footageUrl: "",
+  runtime: "1â€“3 minutes",
+  aspectRatios: ["16:9 landscape"],
+  captions: "Burned-in captions",
+  music: "You choose a licensed track",
+  brandKit: "",
+  references: "",
+  notes: "",
+  budget: "1500.00",
+};
+
+function IntakeField({
+  field,
+  value,
+  onChange,
+}: {
+  field: BriefField;
+  value: string | string[] | undefined;
+  onChange: (next: string | string[]) => void;
+}) {
+  if (field.type === "multiselect") {
+    const selected = Array.isArray(value) ? value : [];
+    return (
+      <Field label={`${field.label}${field.required ? " *" : ""}`} hint={field.help}>
+        <div className="flex flex-wrap gap-2">
+          {(field.options ?? []).map((option) => {
+            const active = selected.includes(option);
+            return (
+              <button
+                key={option}
+                type="button"
+                onClick={() =>
+                  onChange(active ? selected.filter((s) => s !== option) : [...selected, option])
+                }
+                className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition ${
+                  active
+                    ? "border-brand-400/60 bg-brand-500/15 text-white"
+                    : "border-white/10 bg-white/[0.03] text-slate-400 hover:text-white"
+                }`}
+              >
+                {option}
+              </button>
+            );
+          })}
+        </div>
+      </Field>
+    );
+  }
+
+  const label = `${field.label}${field.required ? " *" : ""}`;
+  if (field.type === "select") {
+    return (
+      <Field label={label} hint={field.help}>
+        <Select required={field.required} value={String(value ?? "")} onChange={(e) => onChange(e.target.value)}>
+          {(field.options ?? []).map((option) => (
+            <option key={option} value={option}>{option}</option>
+          ))}
+        </Select>
+      </Field>
+    );
+  }
+  return (
+    <Field label={label} hint={field.help}>
+      <Input
+        type={field.type === "date" ? "date" : field.type === "url" ? "url" : "text"}
+        required={field.required}
+        value={String(value ?? "")}
+        placeholder={field.placeholder}
+        onChange={(e) => onChange(e.target.value)}
+      />
+    </Field>
+  );
+}
+
 export default function ClientPortalPage() {
   const [data, setData] = useState<OverviewData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -83,15 +162,9 @@ export default function ClientPortalPage() {
   const [sendingMsg, setSendingMsg] = useState(false);
   const chatScrollRef = useRef<HTMLDivElement>(null);
 
-  // New Project Intake Modal
+  // New Project Intake Modal â€” structured brief (deadline, formats, captionsâ€¦)
   const [showIntake, setShowIntake] = useState(false);
-  const [intakeForm, setIntakeForm] = useState({
-    title: "",
-    service: "Brand Films",
-    description: "",
-    budget: "$2,500",
-    footageUrl: "",
-  });
+  const [intakeForm, setIntakeForm] = useState<Record<string, string | string[]>>({ ...EMPTY_INTAKE });
 
   // Approval ("e-signature") Modal
   const [approvingProj, setApprovingProj] = useState<any>(null);
@@ -227,25 +300,21 @@ export default function ClientPortalPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          title: intakeForm.title,
-          service: intakeForm.service,
-          description: `${intakeForm.description}\n\nFootage Link: ${intakeForm.footageUrl}`,
+          title: String(intakeForm.title || ""),
+          service: String(intakeForm.service || "Video Editing"),
+          description: String(intakeForm.notes || intakeForm.description || ""),
           budget: intakeForm.budget,
+          answers: intakeForm,
         }),
       });
+      const result = await res.json().catch(() => ({}));
       if (res.ok) {
-        toast("Project request submitted to the studio!");
+        toast("Brief received â€” the studio will confirm your schedule shortly!");
         setShowIntake(false);
-        setIntakeForm({
-          title: "",
-          service: "Brand Films",
-          description: "",
-          budget: "$2,500",
-          footageUrl: "",
-        });
+        setIntakeForm({ ...EMPTY_INTAKE });
         await loadData();
       } else {
-        toast("Submission failed", "err");
+        toast(result.error || "Submission failed", "err");
       }
     } catch {
       toast("Network error", "err");
@@ -273,8 +342,8 @@ export default function ClientPortalPage() {
       }
       toast(
         result.invoiceCreated
-          ? "Approved & signed — final invoice generated 🎉"
-          : "Approved & signed — thank you! 🎉"
+          ? "Approved & signed â€” final invoice generated ðŸŽ‰"
+          : "Approved & signed â€” thank you! ðŸŽ‰"
       );
       setApprovingProj(null);
       setSignName("");
@@ -297,7 +366,7 @@ export default function ClientPortalPage() {
       if (!res.ok) return toast(result.error || "Could not create link", "err");
       const absolute = result.url.startsWith("http") ? result.url : `${window.location.origin}${result.url}`;
       await navigator.clipboard.writeText(absolute);
-      toast("Payment link copied — share it with your finance team");
+      toast("Payment link copied â€” share it with your finance team");
     } catch {
       toast("Network error", "err");
     }
@@ -313,7 +382,7 @@ export default function ClientPortalPage() {
       });
       const result = await res.json().catch(() => ({}));
       if (res.ok && result.checkoutUrl) {
-        toast("Opening secure checkout…");
+        toast("Opening secure checkoutâ€¦");
         window.location.assign(result.checkoutUrl);
       } else {
         toast(result.error || "Secure payment is not available yet", "err");
@@ -415,7 +484,7 @@ export default function ClientPortalPage() {
               <Badge tone="active">{client.status}</Badge>
             </div>
             <p className="mt-0.5 text-xs text-slate-400">
-              {avgProgress > 0 ? `${activeProjects.length} active project${activeProjects.length === 1 ? "" : "s"} · ${avgProgress}% complete overall · ` : ""}
+              {avgProgress > 0 ? `${activeProjects.length} active project${activeProjects.length === 1 ? "" : "s"} Â· ${avgProgress}% complete overall Â· ` : ""}
               Client ID #{client.id}
             </p>
           </div>
@@ -529,7 +598,7 @@ export default function ClientPortalPage() {
                           setWithInvoice(true);
                         }}
                       >
-                        ✒ Approve final cut
+                        âœ’ Approve final cut
                       </Button>
                     </div>
                   )}
@@ -610,7 +679,7 @@ export default function ClientPortalPage() {
                       style={{ left: `${splitPosition}%` }}
                     >
                       <div className="h-8 w-8 -translate-x-1/2 rounded-full border-2 border-white bg-brand-600 shadow-xl flex items-center justify-center text-white text-xs">
-                        ↔
+                        â†”
                       </div>
                     </div>
                   )}
@@ -722,7 +791,7 @@ export default function ClientPortalPage() {
                             className="flex items-center justify-between gap-3 rounded-xl border border-amber-400/15 bg-amber-500/[0.05] px-3 py-2 text-xs transition hover:border-amber-400/35 hover:bg-amber-500/10"
                           >
                             <span className="flex min-w-0 items-center gap-2 text-amber-200"><Download size={13} /><span className="truncate font-semibold">{file.name}</span></span>
-                            <span className="shrink-0 text-[9px] uppercase tracking-wider text-slate-500">{file.format} · {file.resolution}</span>
+                            <span className="shrink-0 text-[9px] uppercase tracking-wider text-slate-500">{file.format} Â· {file.resolution}</span>
                           </a>
                         ))}
                         {!deliverables.some((file) => file.projectId === activeReviewProj.id) && (
@@ -770,7 +839,7 @@ export default function ClientPortalPage() {
               <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-60" />
               <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-400" />
             </span>
-            Live · auto-updating every 3s
+            Live Â· auto-updating every 3s
           </div>
           <div className="flex h-[480px] flex-col justify-between rounded-2xl border border-white/8 bg-ink/50 p-4">
             <div ref={chatScrollRef} className="scrollbar-thin flex-1 space-y-3 overflow-y-auto pr-2">
@@ -783,7 +852,7 @@ export default function ClientPortalPage() {
                   >
                     <div className="flex items-center gap-1.5 text-[10px] text-slate-500 mb-1">
                       <span className="font-semibold">{isAdmin ? "VisionFold Studio" : client.name}</span>
-                      <span>·</span>
+                      <span>Â·</span>
                       <span>{timeAgo(msg.createdAt)}</span>
                     </div>
                     <div
@@ -809,7 +878,7 @@ export default function ClientPortalPage() {
               <Input
                 value={chatDraft}
                 onChange={(e) => setChatDraft(e.target.value)}
-                placeholder="Type your message or footage note…"
+                placeholder="Type your message or footage noteâ€¦"
                 className="text-xs"
               />
               <Button type="submit" disabled={sendingMsg || !chatDraft.trim()}>
@@ -835,7 +904,7 @@ export default function ClientPortalPage() {
                     <Badge tone={inv.status}>{inv.status}</Badge>
                   </div>
                   <p className="mt-1 text-xs text-slate-400">
-                    Due Date: {inv.dueDate || "Immediate"} {inv.notes ? `· ${inv.notes}` : ""}
+                    Due Date: {inv.dueDate || "Immediate"} {inv.notes ? `Â· ${inv.notes}` : ""}
                   </p>
                 </div>
 
@@ -884,14 +953,14 @@ export default function ClientPortalPage() {
                 tone: "green" as const,
                 title: "New deliverable ready",
                 detail: d.name,
-                meta: `${d.format} · ${d.resolution}`,
+                meta: `${d.format} Â· ${d.resolution}`,
               })),
               ...invoices.map((inv) => ({
                 id: `i${inv.id}`,
                 ts: inv.createdAt,
                 tone: (inv.status === "paid" ? "green" : "amber") as "green" | "amber",
                 title: inv.status === "paid" ? "Invoice paid" : "Invoice issued",
-                detail: `${inv.number} — ${fmtMoney(inv.amount)}`,
+                detail: `${inv.number} â€” ${fmtMoney(inv.amount)}`,
                 meta: inv.status === "paid" ? "Settled" : `Due ${inv.dueDate || "immediately"}`,
               })),
             ]
@@ -944,7 +1013,7 @@ export default function ClientPortalPage() {
           </Card>
 
           <div className="md:col-span-2">
-            <Card title="My public review" desc={existingRating?.visible === false ? "Submitted — waiting for studio approval before it goes live." : "This is what visitors see on the studio website."}>
+            <Card title="My public review" desc={existingRating?.visible === false ? "Submitted â€” waiting for studio approval before it goes live." : "This is what visitors see on the studio website."}>
               {existingRating ? (
                 <div className="flex items-start gap-4 rounded-2xl border border-white/8 bg-white/[0.03] p-4">
                   <div className="flex gap-0.5 pt-0.5">
@@ -953,8 +1022,8 @@ export default function ClientPortalPage() {
                     ))}
                   </div>
                   <div className="flex-1">
-                    <p className="text-sm leading-relaxed text-slate-200">“{existingRating.comment}”</p>
-                    <button onClick={openRatingModal} className="mt-2 text-xs font-semibold text-brand-300 transition-colors hover:text-white">Edit review →</button>
+                    <p className="text-sm leading-relaxed text-slate-200">â€œ{existingRating.comment}â€</p>
+                    <button onClick={openRatingModal} className="mt-2 text-xs font-semibold text-brand-300 transition-colors hover:text-white">Edit review â†’</button>
                   </div>
                 </div>
               ) : (
@@ -974,7 +1043,7 @@ export default function ClientPortalPage() {
           <form onSubmit={handleApprove} className="space-y-4">
             <div className="rounded-xl border border-brand-400/25 bg-brand-500/[0.06] p-4 text-xs leading-relaxed text-slate-300">
               <p>
-                You&apos;re approving <span className="font-semibold text-white">“{approvingProj.title}”</span> as the
+                You&apos;re approving <span className="font-semibold text-white">â€œ{approvingProj.title}â€</span> as the
                 final delivered cut. Your typed full name below acts as an electronic signature and is stored with a
                 timestamp.
               </p>
@@ -1004,7 +1073,7 @@ export default function ClientPortalPage() {
                 Not yet
               </Button>
               <Button type="submit" disabled={signing || signName.trim().toLowerCase() !== (client?.name ?? "").trim().toLowerCase()}>
-                {signing ? "Signing…" : "✒ Sign & approve"}
+                {signing ? "Signingâ€¦" : "âœ’ Sign & approve"}
               </Button>
             </div>
           </form>
@@ -1012,65 +1081,58 @@ export default function ClientPortalPage() {
       )}
 
       {showIntake && (
-        <Modal open={showIntake} onClose={() => setShowIntake(false)} title="Submit New Project Brief">
+        <Modal open={showIntake} onClose={() => setShowIntake(false)} title="New project brief">
           <form onSubmit={handleIntakeSubmit} className="space-y-4">
-            <Field label="Project Title">
-              <Input
-                required
-                value={intakeForm.title}
-                onChange={(e) => setIntakeForm({ ...intakeForm, title: e.target.value })}
-                placeholder="e.g. Autumn Brand Launch Film 4K"
-              />
-            </Field>
+            {(() => {
+              const validation = validateBrief(intakeForm);
+              return (
+                <div className="rounded-xl border border-white/8 bg-white/[0.02] p-3">
+                  <div className="flex items-center justify-between text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+                    <span>Brief completeness</span>
+                    <span className={validation.complete ? "text-emerald-300" : "text-amber-300"}>
+                      {validation.completeness}%
+                    </span>
+                  </div>
+                  <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-white/[0.06]">
+                    <div
+                      className={`h-full rounded-full transition-all ${validation.complete ? "bg-emerald-400" : "bg-amber"}`}
+                      style={{ width: `${validation.completeness}%` }}
+                    />
+                  </div>
+                  {validation.warnings.length > 0 && (
+                    <ul className="mt-2 space-y-1 text-[10px] leading-relaxed text-slate-500">
+                      {validation.warnings.slice(0, 3).map((warning, i) => (
+                        <li key={i}>• {warning}</li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              );
+            })()}
 
-            <div className="grid grid-cols-2 gap-3">
-              <Field label="Service">
-                <Select
-                  value={intakeForm.service}
-                  onChange={(e) => setIntakeForm({ ...intakeForm, service: e.target.value })}
-                >
-                  <option value="Brand Films">Brand Films</option>
-                  <option value="YouTube Editing">YouTube Editing</option>
-                  <option value="Commercials & Ads">Commercials & Ads</option>
-                  <option value="Music Video">Music Video</option>
-                  <option value="Podcast Editing">Podcast Editing</option>
-                  <option value="Wedding Cinema">Wedding Cinema</option>
-                </Select>
-              </Field>
-              <Field label="Budget Range">
+            <div className="scrollbar-thin max-h-[52vh] space-y-4 overflow-y-auto pr-1">
+              {BRIEF_FIELDS.map((field) => (
+                <IntakeField
+                  key={field.id}
+                  field={field}
+                  value={intakeForm[field.id]}
+                  onChange={(next) => setIntakeForm((f) => ({ ...f, [field.id]: next }))}
+                />
+              ))}
+              <Field label="Budget range (USD)">
                 <Input
-                  value={intakeForm.budget}
-                  onChange={(e) => setIntakeForm({ ...intakeForm, budget: e.target.value })}
-                  placeholder="e.g. $2,500"
+                  value={String(intakeForm.budget ?? "")}
+                  onChange={(e) => setIntakeForm((f) => ({ ...f, budget: e.target.value }))}
+                  placeholder="1500.00"
                 />
               </Field>
             </div>
-
-            <Field label="Raw Footage Link (Google Drive / Dropbox / Frame.io)">
-              <Input
-                required
-                type="url"
-                value={intakeForm.footageUrl}
-                onChange={(e) => setIntakeForm({ ...intakeForm, footageUrl: e.target.value })}
-                placeholder="https://drive.google.com/..."
-              />
-            </Field>
-
-            <Field label="Creative Brief & References">
-              <Textarea
-                rows={4}
-                required
-                value={intakeForm.description}
-                onChange={(e) => setIntakeForm({ ...intakeForm, description: e.target.value })}
-                placeholder="Pacing requirements, target video duration, music preferences, mood references…"
-              />
-            </Field>
 
             <div className="flex justify-end gap-2 pt-2 border-t border-white/8">
               <Button variant="ghost" onClick={() => setShowIntake(false)}>
                 Cancel
               </Button>
-              <Button type="submit">Submit Brief to Suite</Button>
+              <Button type="submit">Send brief to the studio</Button>
             </div>
           </form>
         </Modal>
@@ -1104,7 +1166,7 @@ export default function ClientPortalPage() {
                 disabled={processingPay}
                 className="bg-emerald-600 hover:bg-emerald-500 shadow-emerald-500/30"
               >
-                <CreditCard size={14} /> {processingPay ? "Processing…" : `Confirm & Pay ${fmtMoney(payingInvoice.amount)}`}
+                <CreditCard size={14} /> {processingPay ? "Processingâ€¦" : `Confirm & Pay ${fmtMoney(payingInvoice.amount)}`}
               </Button>
             </div>
           </div>
@@ -1154,7 +1216,7 @@ export default function ClientPortalPage() {
               <Button variant="ghost" onClick={() => setShowRatingModal(false)}>
                 Cancel
               </Button>
-              <Button type="submit">Submit {ratingStars}★ Review</Button>
+              <Button type="submit">Submit {ratingStars}â˜… Review</Button>
             </div>
           </form>
         </Modal>

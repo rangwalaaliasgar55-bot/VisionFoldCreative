@@ -2,7 +2,7 @@ import { bad } from "@/lib/auth";
 import type { CmsPage, CmsStore } from "@/lib/cmsTypes";
 import { getSetting, setSetting } from "@/lib/settings";
 import { captureSnapshots, generateDueInsights, publishDueScheduledPosts } from "@/lib/social";
-import { runAutomations } from "@/lib/automations";
+import { runAutomations, runAttentionEffects } from "@/lib/automations";
 import { NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic";
@@ -88,6 +88,13 @@ async function runScheduled(request: Request) {
     const ran = await runAutomations({ force: false });
     automationsRan = ran.filter((r) => r.effects > 0).map((r) => `${r.name} (${r.effects})`);
     automationEffects = ran.reduce((sum, r) => sum + r.effects, 0);
+    // Attention queue: SLA nudges, overdue flips, approval chases (72h cooldowns).
+    const attention = await runAttentionEffects(false);
+    if (attention.applied.clientMessages || attention.applied.invoicesMarkedOverdue) {
+      automationsRan.push(
+        `Needs-you chase (${attention.applied.clientMessages} nudges, ${attention.applied.invoicesMarkedOverdue} overdue flips)`
+      );
+    }
   } catch {
     /* ditto */
   }

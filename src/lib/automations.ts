@@ -8,13 +8,20 @@ import {
   messages,
   projects,
   ratings,
+  updates,
   type Automation,
 } from "@/db/schema";
-import { and, eq, gte, ne, sql } from "drizzle-orm";
+import { and, desc, eq, gte, ne, sql } from "drizzle-orm";
 import { gatherStats, rulesInsights } from "@/lib/ai";
 import { automationsEnabled } from "@/lib/settings";
 import { captureSnapshots, generateDueInsights } from "@/lib/social";
 import { emailConfigured, emailShell, sendEmail } from "@/lib/email";
+import {
+  evaluate,
+  type Effect,
+  type Evaluation,
+  type RuleConfig,
+} from "@/lib/attention-rules";
 
 export type AutomationRunResult = { name: string; trigger: string; effects: number };
 
@@ -404,4 +411,132 @@ export async function automationStats() {
     .from(automations)
     .where(and(eq(automations.enabled, true)));
   return { total, enabled: live };
+}
+
+// ---------------------------------------------------------------------------
+// Attention queue — "everything that needs a human, in one place"
+// (pure rules in src/lib/attention-rules.ts; effects applied here with
+// per-entity cooldowns so a client is never nudged twice for one thing)
+// ---------------------------------------------------------------------------
+
+const NUDGE_STATE_KEY = "automationState";
+
+type NudgeState = { nudges: Record<string, string> };
+
+async function loadNudgeState(): Promise<NudgeState> {
+  const raw = (await getSettingValue(NUDGE_STATE_KEY)) as NudgeState | null;
+  return raw && typeof raw === "object" && raw.nudges ? raw : { nudges: {} };
+}
+
+async function saveNudgeState(state: NudgeState) {
+  const { setSetting } = await import("@/lib/settings");
+  await setSetting(NUDGE_STATE_KEY, state);
+}
+
+/** Read-only evaluation for the admin queue. */
+export async function getAttention(config?: Partial<RuleConfig>): Promise<Evaluation> {
+  const [leadRows, projectRows, invoiceRows, state] = await Promise.all([
+    db
+      .select({ id: leads.id, name: leads.name, email: leads.email, status: leads.status, createdAt: leads.createdAt })
+      .from(leads)
+      .orderBy(desc(leads.createdAt))
+      .limit(200),
+    db
+      .select({
+        id: projects.id,
+        clientId: projects.clientId,
+        title: projects.title,
+        status: projects.status,
+        progress: projects.progress,
+        dueDate: projects.dueDate,
+        updatedAt: projects.updatedAt,
+      })
+      .from(projects)
+      .limit(300),
+    db
+      .select({
+        id: invoices.id,
+        clientId: invoices.clientId,
+        number: invoices.number,
+        amount: invoices.amount,
+        status: invoices.status,
+        dueDate: invoices.dueDate,
+      })
+      .from(invoices)
+      .limit(300),
+    loadNudgeState(),
+  ]);
+  void emailConfigured;
+  return evaluate({ now: new Date(), leads: leadRows, projects: projectRows, invoices: invoiceRows, state, config });
+}
+
+export type AttentionRunSummary = {
+  flagged: number;
+  applied: { invoicesMarkedOverdue: number; clientMessages: number; projectUpdates: number };
+};
+
+/** Applies the pure rules' effects with cooldown bookkeeping. */
+export async function runAttentionEffects(force = false): Promise<AttentionRunSummary> {
+  if (!(await automationsEnabled())) {
+    return { flagged: 0, applied: { invoicesMarkedOverdue: 0, clientMessages: 0, projectUpdates: 0 } };
+  }
+  const state = await loadNudgeState();
+  const evaluation = await getAttention();
+  const applied = { invoicesMarkedOverdue: 0, clientMessages: 0, projectUpdates: 0 };
+  const now = new Date();
+  const cooldownMs = force ? 0 : 72 * 3_600_000;
+
+  const canNudge = (key: string) => {
+    const last = state.nudges[key];
+    return !last || now.getTime() - new Date(last).getTime() >= cooldownMs;
+  };
+  const markNudged = (key: string) => {
+    state.nudges[key] = now.toISOString();
+  };
+
+  for (const effect of evaluation.effects as Effect[]) {
+    try {
+      if (effect.type === "invoice_mark_overdue") {
+        await db.update(invoices).set({ status: "overdue" }).where(eq(invoices.id, effect.invoiceId));
+        applied.invoicesMarkedOverdue += 1;
+      } else if (effect.type === "client_message") {
+        if (!canNudge(effect.nudgeKey)) continue;
+        const [client] = await db
+          .select({ name: clients.name })
+          .from(clients)
+          .where(eq(clients.id, effect.clientId))
+          .limit(1);
+        await db.insert(messages).values({
+          clientId: effect.clientId,
+          sender: "admin",
+          body: effect.body.replace("Hi there —", `Hi ${client?.name?.split(" ")[0] || "there"} —`),
+          read: false,
+        });
+        markNudged(effect.nudgeKey);
+        applied.clientMessages += 1;
+      } else if (effect.type === "project_update") {
+        if (!canNudge(effect.nudgeKey)) continue;
+        await db.insert(updates).values({
+          projectId: effect.projectId,
+          title: effect.title,
+          body: effect.body,
+        });
+        markNudged(effect.nudgeKey);
+        applied.projectUpdates += 1;
+      }
+    } catch (err) {
+      console.error("[attention-effect]", err);
+    }
+  }
+
+  if (
+    applied.clientMessages > 0 ||
+    applied.invoicesMarkedOverdue > 0 ||
+    applied.projectUpdates > 0 ||
+    Object.keys(state.nudges).length
+  ) {
+    await saveNudgeState(state);
+  }
+
+  return { flagged: evaluation.items.length, applied };
 }

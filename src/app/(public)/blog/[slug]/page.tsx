@@ -8,6 +8,7 @@ import { Reveal } from "@/components/Fx";
 import { fmtDate } from "@/lib/utils";
 import { ArrowLeft } from "lucide-react";
 import { ensureSeed } from "@/lib/seed";
+import { JsonLd } from "@/components/Seo";
 
 export const dynamic = "force-dynamic";
 
@@ -32,6 +33,14 @@ export default async function PostPage({ params }: { params: Promise<{ slug: str
   const { slug } = await params;
   const row = (await db.select().from(posts).where(eq(posts.slug, slug)).limit(1))[0];
   if (!row || row.status !== "published") notFound();
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "BlogPosting",
+    headline: row.title,
+    description: row.seoDescription || row.excerpt,
+    datePublished: row.publishedAt ? new Date(row.publishedAt).toISOString() : undefined,
+    author: { "@type": "Organization", name: "VisionFold Creative" },
+  };
 
   await db.update(posts).set({ views: sql`${posts.views} + 1` }).where(eq(posts.id, row.id));
 
@@ -53,6 +62,7 @@ export default async function PostPage({ params }: { params: Promise<{ slug: str
 
   return (
     <div className="bg-aurora">
+      <JsonLd data={jsonLd} />
       <article className="mx-auto max-w-3xl px-5 pb-20 pt-20 sm:px-8">
         <Reveal>
           <Link
