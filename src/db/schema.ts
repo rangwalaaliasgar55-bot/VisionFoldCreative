@@ -453,3 +453,24 @@ export const rateLimits = pgTable("rate_limits", {
 });
 
 export type RateLimitRow = typeof rateLimits.$inferSelect;
+
+/** Client approvals ("e-signature") — legal-ish proof of delivery. */
+export const approvals = pgTable(
+  "approvals",
+  {
+    id: serial("id").primaryKey(),
+    projectId: integer("project_id")
+      .notNull()
+      .references(() => projects.id, { onDelete: "cascade" }),
+    clientId: integer("client_id")
+      .notNull()
+      .references(() => clients.id, { onDelete: "cascade" }),
+    signedName: text("signed_name").notNull(), // exactly what the client typed
+    ip: text("ip").notNull().default(""),
+    userAgent: text("user_agent").notNull().default(""),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  },
+  (t) => [index("approvals_project_idx").on(t.projectId)]
+);
+
+export type Approval = typeof approvals.$inferSelect;

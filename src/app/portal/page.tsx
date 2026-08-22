@@ -93,6 +93,12 @@ export default function ClientPortalPage() {
     footageUrl: "",
   });
 
+  // Approval ("e-signature") Modal
+  const [approvingProj, setApprovingProj] = useState<any>(null);
+  const [signName, setSignName] = useState("");
+  const [withInvoice, setWithInvoice] = useState(false);
+  const [signing, setSigning] = useState(false);
+
   // Rating Modal
   const [ratingStars, setRatingStars] = useState(5);
   const [ratingComment, setRatingComment] = useState("");
@@ -246,8 +252,42 @@ export default function ClientPortalPage() {
     }
   }
 
-  async function copyPayLink(invoiceId: number) {
+  async function handleApprove(e: React.FormEvent) {
+    e.preventDefault();
+    if (!approvingProj) return;
+    setSigning(true);
     try {
+      const res = await fetch("/api/portal/approve-project", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          projectId: approvingProj.id,
+          signedName: signName,
+          createInvoice: withInvoice,
+        }),
+      });
+      const result = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast(result.error || "Approval failed", "err");
+        return;
+      }
+      toast(
+        result.invoiceCreated
+          ? "Approved & signed — final invoice generated 🎉"
+          : "Approved & signed — thank you! 🎉"
+      );
+      setApprovingProj(null);
+      setSignName("");
+      setWithInvoice(false);
+      await loadData();
+    } catch {
+      toast("Network error", "err");
+    } finally {
+      setSigning(false);
+    }
+  }
+
+  async function copyPayLink(invoiceId: number) {    try {
       const res = await fetch("/api/portal/paylink", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -477,6 +517,22 @@ export default function ClientPortalPage() {
                     <span>Due: {proj.dueDate || "Flexible"}</span>
                     <span className="font-semibold text-emerald-300">{fmtMoney(proj.budget)}</span>
                   </div>
+
+                  {proj.status !== "completed" && proj.progress >= 80 && (
+                    <div className="mt-3 flex justify-end" onClick={(e) => e.stopPropagation()}>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          setApprovingProj(proj);
+                          setSignName("");
+                          setWithInvoice(true);
+                        }}
+                      >
+                        ✒ Approve final cut
+                      </Button>
+                    </div>
+                  )}
                 </div>
               );
             })}
@@ -913,6 +969,48 @@ export default function ClientPortalPage() {
       )}
 
       {/* New Project Intake Modal */}
+      {approvingProj && (
+        <Modal open={Boolean(approvingProj)} onClose={() => setApprovingProj(null)} title="Approve master cut">
+          <form onSubmit={handleApprove} className="space-y-4">
+            <div className="rounded-xl border border-brand-400/25 bg-brand-500/[0.06] p-4 text-xs leading-relaxed text-slate-300">
+              <p>
+                You&apos;re approving <span className="font-semibold text-white">“{approvingProj.title}”</span> as the
+                final delivered cut. Your typed full name below acts as an electronic signature and is stored with a
+                timestamp.
+              </p>
+            </div>
+            <Field label={`Type your full name to sign: ${client?.name ?? ""}`}>
+              <Input
+                required
+                value={signName}
+                onChange={(e) => setSignName(e.target.value)}
+                placeholder={client?.name ?? "Your full name"}
+                autoComplete="off"
+              />
+            </Field>
+            <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-white/8 bg-white/[0.02] p-3">
+              <input
+                type="checkbox"
+                checked={withInvoice}
+                onChange={(e) => setWithInvoice(e.target.checked)}
+                className="mt-0.5 h-4 w-4 accent-[#7357FF]"
+              />
+              <span className="text-xs leading-relaxed text-slate-300">
+                Also generate the final invoice from this project&apos;s budget ({fmtMoney(approvingProj.budget)})
+              </span>
+            </label>
+            <div className="flex justify-end gap-2">
+              <Button type="button" variant="ghost" onClick={() => setApprovingProj(null)}>
+                Not yet
+              </Button>
+              <Button type="submit" disabled={signing || signName.trim().toLowerCase() !== (client?.name ?? "").trim().toLowerCase()}>
+                {signing ? "Signing…" : "✒ Sign & approve"}
+              </Button>
+            </div>
+          </form>
+        </Modal>
+      )}
+
       {showIntake && (
         <Modal open={showIntake} onClose={() => setShowIntake(false)} title="Submit New Project Brief">
           <form onSubmit={handleIntakeSubmit} className="space-y-4">

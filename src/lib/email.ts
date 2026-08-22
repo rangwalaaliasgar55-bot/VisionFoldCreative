@@ -16,6 +16,7 @@ export async function sendEmail(opts: {
   to: string;
   subject: string;
   html: string;
+  attachments?: { filename: string; content: string }[]; // content = base64
 }): Promise<boolean> {
   if (!emailConfigured()) return false;
   try {
@@ -30,6 +31,7 @@ export async function sendEmail(opts: {
         to: [opts.to],
         subject: opts.subject.slice(0, 200),
         html: opts.html,
+        ...(opts.attachments?.length ? { attachments: opts.attachments } : {}),
       }),
       signal: AbortSignal.timeout(15_000),
     });

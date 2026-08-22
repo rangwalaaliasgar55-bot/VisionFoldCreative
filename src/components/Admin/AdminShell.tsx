@@ -27,6 +27,7 @@ import {
   Share2,
   ShieldCheck,
   Target,
+  TrendingUp,
   Users,
   X,
   Zap,
@@ -67,6 +68,7 @@ const NAV: NavGroup[] = [
   {
     label: "Intelligence",
     items: [
+      { href: "/admin/analytics", label: "Traffic analytics", description: "Visitors, views and top pages", Icon: TrendingUp, roles: ["admin", "editor"] },
       { href: "/admin/automations", label: "Automations & AI", description: "Workflows and creative copilot", Icon: Zap, roles: ["admin", "editor"] },
     ],
   },

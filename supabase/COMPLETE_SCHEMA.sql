@@ -497,6 +497,17 @@ create table if not exists public.rate_limits (
   reset_at timestamptz not null
 );
 
+create table if not exists public.approvals (
+  id serial primary key,
+  project_id integer not null references public.projects(id) on delete cascade,
+  client_id integer not null references public.clients(id) on delete cascade,
+  signed_name text not null,
+  ip text not null default '',
+  user_agent text not null default '',
+  created_at timestamptz default now()
+);
+create index if not exists approvals_project_idx on public.approvals (project_id);
+
 alter table public.visitors    enable row level security;
 alter table public.wa_messages enable row level security;
 alter table public.social_accounts enable row level security;
@@ -504,6 +515,7 @@ alter table public.social_posts     enable row level security;
 alter table public.social_metrics   enable row level security;
 alter table public.social_insights  enable row level security;
 alter table public.rate_limits      enable row level security;
+alter table public.approvals        enable row level security;
 
 commit;
 

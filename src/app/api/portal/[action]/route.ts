@@ -1,7 +1,7 @@
 import { db } from "@/db";
-import { deliverables, invoices, messages, projects, ratings, updates } from "@/db/schema";
+import { activity, approvals, deliverables, invoices, messages, projects, ratings, updates } from "@/db/schema";
 import { and, eq, inArray, isNull, sql } from "drizzle-orm";
-import { bad, hashPassword, ok, readBody, requireClient, verifyPassword } from "@/lib/auth";
+import { bad, hashPassword, ok, readBody, requireClient, requestIp, verifyPassword } from "@/lib/auth";
 import { originCheck } from "@/lib/security";
 import { payLink } from "@/lib/paytoken";
 import { clients } from "@/db/schema";
@@ -250,6 +250,97 @@ export async function POST(
       });
 
       return ok(newProj);
+    }
+
+    // Formal approval ("e-signature") of a finished project.
+    if (action === "approve-project") {
+      const projectId = Number(body.projectId || 0);
+      const signedName = String(body.signedName || "").trim().slice(0, 120);
+      const createInvoice = Boolean(body.createInvoice);
+      if (!projectId || !signedName) return bad("Project and typed signature are required.");
+      if (signedName.toLowerCase() !== client.name.trim().toLowerCase()) {
+        return bad('Type your full name exactly as shown to sign.');
+      }
+
+      const [project] = await db
+        .select()
+        .from(projects)
+        .where(sql`${projects.id} = ${projectId} and ${projects.clientId} = ${client.id}`)
+        .limit(1);
+      if (!project) return bad("Project not found.", 404);
+
+      const [alreadyApproved] = await db
+        .select({ id: approvals.id })
+        .from(approvals)
+        .where(eq(approvals.projectId, projectId))
+        .limit(1);
+      if (alreadyApproved || project.status === "completed") {
+        return bad("This project is already approved.");
+      }
+
+      const ip = requestIp(req);
+      const userAgent = (req.headers.get("user-agent") || "").slice(0, 250);
+
+      // One transaction: approval record + completion + optional invoice.
+      const result = await db.transaction(async (tx) => {
+        await tx.insert(approvals).values({ projectId, clientId: client.id, signedName, ip, userAgent });
+        await tx
+          .update(projects)
+          .set({ status: "completed", progress: 100, updatedAt: new Date() })
+          .where(eq(projects.id, projectId));
+
+        let invoiceCreated = false;
+        if (createInvoice) {
+          const existingForProject = await tx
+            .select({ id: invoices.id })
+            .from(invoices)
+            .where(eq(invoices.projectId, projectId))
+            .limit(1);
+          if (!existingForProject[0]) {
+            const amountNum = Number(project.budget || "1500.00") || 1500;
+            await tx.insert(invoices).values({
+              clientId: client.id,
+              projectId,
+              number: `VF-${new Date().getFullYear()}-${Math.floor(100 + Math.random() * 900)}`,
+              amount: amountNum.toFixed(2),
+              status: "sent",
+              dueDate: new Date(Date.now() + 14 * 86_400_000).toISOString().slice(0, 10),
+              notes: `Final invoice for "${project.title}" — auto-generated on approval.`,
+            });
+            invoiceCreated = true;
+          }
+        }
+
+        await tx.insert(updates).values({
+          projectId,
+          title: "Master cut approved",
+          body: `Digitally approved by ${signedName} on ${new Date().toDateString()}.`,
+        });
+        await tx.insert(messages).values({
+          clientId: client.id,
+          sender: "admin",
+          body: `"${project.title}" is officially approved 🎉 Thank you! Your feedback means the world — a quick rating in the Activity tab would help us a lot.`,
+          read: false,
+        });
+        return { invoiceCreated };
+      });
+
+      await db.insert(activity).values({
+        actor: client.name,
+        action: "project.approved",
+        details: `"${project.title}" signed off by ${signedName} (${ip})`,
+      });
+
+      // Fan out: review-request automation keys off completed projects.
+      const { emitEvent } = await import("@/lib/events");
+      await emitEvent("project.completed", {
+        id: project.id,
+        title: project.title,
+        clientId: client.id,
+        via: "portal-approval",
+      });
+
+      return ok({ ok: true, invoiceCreated: result.invoiceCreated, signedAt: new Date().toISOString() });
     }
 
     if (action === "project-feedback") {

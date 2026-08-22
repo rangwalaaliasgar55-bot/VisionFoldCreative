@@ -102,14 +102,54 @@ async function runScheduled(request: Request) {
     /* ditto */
   }
 
+  // Job 6 — weekly backup email (Mondays, when Resend is configured).
+  let backupEmailed = false;
+  try {
+    if (new Date().getUTCDay() === 1) {
+      backupEmailed = await emailWeeklyBackup();
+    }
+  } catch {
+    /* ditto */
+  }
+
   return NextResponse.json({
     ok: true,
     published: 0,
     social: { published: socialPublished, snapshotsCaptured, insightsGenerated },
     automations: { effects: automationEffects, ran: automationsRan },
     pruned,
+    backupEmailed,
     checkedAt: nowIso,
   });
+}
+
+import { buildBackup } from "@/lib/exportData";
+import { emailConfigured, emailShell, sendEmail } from "@/lib/email";
+
+/** Emails the owner a full JSON backup every Monday. */
+async function emailWeeklyBackup(): Promise<boolean> {
+  if (!emailConfigured()) return false;
+  const to = process.env.NOTIFICATION_EMAIL || "";
+  if (!to) return false;
+
+  const alreadyKey = "lastBackupEmailAt";
+  const { getSetting, setSetting } = await import("@/lib/settings");
+  const last = String((await getSetting(alreadyKey)) || "");
+  const today = new Date().toISOString().slice(0, 10);
+  if (last === today) return false; // idempotent per day
+
+  const json = await buildBackup();
+  const sent = await sendEmail({
+    to,
+    subject: `VisionFold weekly backup — ${today}`,
+    html: emailShell(
+      "Weekly backup attached",
+      `<p>The full studio database export (${Math.round(json.length / 1024)} KB) is attached as JSON. Keep it somewhere safe.</p>`
+    ),
+    attachments: [{ filename: `visionfold-backup-${today}.json`, content: Buffer.from(json).toString("base64") }],
+  });
+  if (sent) await setSetting(alreadyKey, today);
+  return sent;
 }
 
 import { db } from "@/db";

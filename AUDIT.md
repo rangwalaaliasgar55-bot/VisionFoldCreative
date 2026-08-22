@@ -308,7 +308,38 @@ mocked request-scoped cookie store:
 E2E verified live: send invoice → link minted · signed webhook flips status →
 replay dedupes · cross-origin mutation blocked (403) while same-origin passes.
 
-## 12. Recommended next steps
+## 12. Platform 4.0 — proof of delivery, traffic intelligence, automated backups
+
+### Client approvals with e-signature (closes the delivery loop)
+- New `approvals` table: who signed (typed full name), when, IP + user-agent.
+- Portal action `approve-project`: signature must match the account name;
+  **one transaction** records the approval, flips the project to
+  `completed/100%`, writes a timeline update + thank-you message, and can
+  auto-generate the final invoice from the project budget (deduped per project).
+- Fires `project.completed` → the existing review-request automation and any
+  subscribed webhooks run automatically. Double approval blocked.
+- Portal UI: "✒ Approve final cut" appears on projects ≥80% progress; modal
+  explains the legal-style signature before signing.
+
+### Traffic intelligence (`/admin/analytics`)
+- New SQL-aggregated analytics API: daily views/visitors (30d), unique
+  visitors, live-now count, top pages — surfaced in a new admin page with the
+  brand chart kit and bar-style page rankings. The visitor tracker finally has
+  a face.
+
+### Automated weekly backups
+- Export logic extracted to `src/lib/exportData.ts` (shared by the admin
+  download route).
+- Every Monday the cron emails the owner a full JSON backup as an attachment
+  (Resend-gated, idempotent per day via a settings marker).
+
+**Suite total: 29 tests green** (3 new: signature mismatch rejected · happy
+path signs+completes+invoices atomically · double-approval blocked).
+
+E2E verified live: wrong name → 400 · correct signature → completed +
+timeline update · replay blocked · analytics endpoint responds.
+
+## 13. Recommended next steps
 - Add `next.config.ts` `images.remotePatterns` if you want `next/image` everywhere.
 - LinkedIn native video upload requires the partner video API — current build
   attaches the video as a rich link post (documented in `linkedin.ts`).
