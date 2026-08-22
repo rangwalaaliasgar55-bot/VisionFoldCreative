@@ -101,6 +101,31 @@ export async function GET(
       return ok({ items: evaluation.items, counts: evaluation.counts });
     }
 
+    // Live notifications for the admin bell — recent signal events only.
+    if (path === "notifications") {
+      const url = new URL(req.url);
+      const since = url.searchParams.get("since");
+      const cutoff = since ? new Date(since) : new Date(Date.now() - 24 * 3600_000);
+      const rows = await db
+        .select()
+        .from(activity)
+        .where(
+          and(
+            gte(activity.createdAt, Number.isNaN(cutoff.getTime()) ? new Date(Date.now() - 24 * 3600_000) : cutoff),
+            sql`(
+              ${activity.action} like 'event.%'
+              or ${activity.action} = 'invoice.paid'
+              or ${activity.action} = 'Lead import'
+              or ${activity.action} = 'project.approved'
+              or ${activity.action} = 'social.published'
+            )`
+          )
+        )
+        .orderBy(desc(activity.createdAt))
+        .limit(25);
+      return ok({ notifications: rows });
+    }
+
     // 1. Dashboard
     if (path === "dashboard") {
       const now = new Date();

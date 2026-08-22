@@ -37,12 +37,13 @@ export async function GET(
         db.select().from(ratings).where(eq(ratings.clientId, client.id)).orderBy(sql`${ratings.createdAt} desc`),
       ]);
       const projectIds = clientProjects.map((project) => project.id);
-      const [updateRows, deliverableRows] = projectIds.length
+      const [updateRows, deliverableRows, approvalRows] = projectIds.length
         ? await Promise.all([
             db.select().from(updates).where(inArray(updates.projectId, projectIds)).orderBy(sql`${updates.createdAt} desc`),
             db.select().from(deliverables).where(inArray(deliverables.projectId, projectIds)).orderBy(sql`${deliverables.createdAt} desc`),
+            db.select().from(approvals).where(inArray(approvals.projectId, projectIds)).orderBy(sql`${approvals.createdAt} desc`),
           ])
-        : [[], []];
+        : [[], [], []];
       const unread = clientMessages.filter((m) => m.sender === "admin" && !m.read).length;
       return ok({
         client: {
@@ -57,6 +58,7 @@ export async function GET(
         projects: clientProjects,
         updates: updateRows,
         deliverables: deliverableRows,
+        approvals: approvalRows,
         messages: clientMessages,
         invoices: clientInvoices,
         ratings: clientRatings,

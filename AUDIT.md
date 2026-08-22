@@ -426,3 +426,18 @@ the last good state.
 - Consider Instagram/TikTok adapters: the platform registry
   (`SOCIAL_PLATFORMS`) + `publishLive()` dispatch make adding a third platform
   a single-file change plus schema reuse.
+
+## 20. Live notifications + client project timelines
+
+### Real-time admin notifications
+- New `/api/admin/notifications` endpoint: recent signal events (leads,
+  payments, approvals, social posts) from the activity feed.
+- AdminShell bell is now live: polls every 20s (paused on hidden tabs),
+  badge count for unread, dropdown with the last 24h of studio events,
+  toasts for high-signal moments (new lead / invoice paid / project approved).
+
+### Client-facing project timelines
+- Portal overview now exposes approval records.
+- Selecting a project in the portal reveals a chronological timeline merging
+  stage announcements (auto-generated), the e-signature approval and
+  deliverable drops — the full story of a project in one view.

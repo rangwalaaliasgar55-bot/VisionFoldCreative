@@ -58,14 +58,85 @@ type OverviewData = {
   projects: any[];
   updates: any[];
   deliverables: any[];
+  approvals: any[];
   messages: any[];
   invoices: any[];
   ratings: any[];
   unread: number;
 };
 
-const EMPTY_INTAKE: Record<string, string | string[]> = {
-  title: "",
+type TimelineEvent = { ts: string | null; icon: "note" | "sign" | "file"; title: string; detail: string };
+
+const TIMELINE_ICON = {
+  note: { Icon: MessageSquare, tone: "bg-brand-500/15 text-brand-300" },
+  sign: { Icon: CheckCircle2, tone: "bg-emerald-500/15 text-emerald-300" },
+  file: { Icon: Download, tone: "bg-cyan-500/15 text-cyan-300" },
+};
+
+/** Chronological per-project history: stage updates, approvals, deliverables. */
+function ProjectTimeline({
+  updates,
+  approvals,
+  deliverables,
+}: {
+  projectId: number;
+  updates: any[];
+  approvals: any[];
+  deliverables: any[];
+}) {
+  const events: TimelineEvent[] = [
+    ...updates.map((u) => ({
+      ts: u.createdAt,
+      icon: "note" as const,
+      title: u.title,
+      detail: u.body,
+    })),
+    ...approvals.map((a) => ({
+      ts: a.createdAt,
+      icon: "sign" as const,
+      title: "Approved & signed",
+      detail: `Digitally signed by ${a.signedName}`,
+    })),
+    ...deliverables.map((d) => ({
+      ts: d.createdAt,
+      icon: "file" as const,
+      title: `Delivered: ${d.name}`,
+      detail: `${d.format} · ${d.resolution}`,
+    })),
+  ]
+    .sort((a, b) => new Date(b.ts || 0).getTime() - new Date(a.ts || 0).getTime())
+    .slice(0, 12);
+
+  if (events.length === 0) return null;
+
+  return (
+    <div className="mt-4 rounded-xl border border-white/8 bg-ink/40 p-4" onClick={(e) => e.stopPropagation()}>
+      <p className="mb-3 text-[10px] font-bold uppercase tracking-widest text-slate-500">Project timeline</p>
+      <div className="space-y-3">
+        {events.map((event, i) => {
+          const meta = TIMELINE_ICON[event.icon];
+          return (
+            <div key={i} className="flex gap-3">
+              <div className="flex flex-col items-center">
+                <span className={`grid h-6 w-6 shrink-0 place-items-center rounded-full ${meta.tone}`}>
+                  <meta.Icon size={12} />
+                </span>
+                {i < events.length - 1 && <span className="w-px flex-1 bg-white/8" />}
+              </div>
+              <div className="min-w-0 flex-1 pb-1">
+                <p className="text-xs font-semibold text-white">{event.title}</p>
+                {event.detail && <p className="line-clamp-2 text-[11px] leading-relaxed text-slate-400">{event.detail}</p>}
+                <p className="mt-0.5 text-[10px] text-slate-600">{fmtDate(event.ts)}</p>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+const EMPTY_INTAKE: Record<string, string | string[]> = {  title: "",
   service: "Brand film",
   deadline: "",
   footageUrl: "",
@@ -606,6 +677,14 @@ export default function ClientPortalPage() {
                         âœ’ Approve final cut
                       </Button>
                     </div>
+                  )}
+                  {isSelected && (
+                    <ProjectTimeline
+                      projectId={proj.id}
+                      updates={updates.filter((u) => u.projectId === proj.id)}
+                      approvals={(data?.approvals ?? []).filter((a: any) => a.projectId === proj.id)}
+                      deliverables={deliverables.filter((d) => d.projectId === proj.id)}
+                    />
                   )}
                 </div>
               );
