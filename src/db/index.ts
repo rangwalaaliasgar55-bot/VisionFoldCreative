@@ -31,6 +31,9 @@ CREATE TABLE IF NOT EXISTS clients (
   password_hash TEXT NOT NULL,
   status TEXT NOT NULL DEFAULT 'active',
   notes TEXT NOT NULL DEFAULT '',
+  health_score INTEGER NOT NULL DEFAULT 80,
+  deleted_at TIMESTAMPTZ,
+  deleted_by TEXT NOT NULL DEFAULT '',
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -44,6 +47,9 @@ CREATE TABLE IF NOT EXISTS projects (
   progress INTEGER NOT NULL DEFAULT 0,
   due_date DATE,
   budget NUMERIC(12, 2),
+  effort_hours INTEGER NOT NULL DEFAULT 8,
+  deleted_at TIMESTAMPTZ,
+  deleted_by TEXT NOT NULL DEFAULT '',
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -78,6 +84,9 @@ CREATE TABLE IF NOT EXISTS leads (
   source TEXT NOT NULL DEFAULT 'website',
   score INTEGER NOT NULL DEFAULT 0,
   score_reasons TEXT NOT NULL DEFAULT '',
+  outreach_draft TEXT NOT NULL DEFAULT '',
+  deleted_at TIMESTAMPTZ,
+  deleted_by TEXT NOT NULL DEFAULT '',
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -106,6 +115,8 @@ CREATE TABLE IF NOT EXISTS invoices (
   status TEXT NOT NULL DEFAULT 'sent',
   due_date DATE,
   notes TEXT NOT NULL DEFAULT '',
+  deleted_at TIMESTAMPTZ,
+  deleted_by TEXT NOT NULL DEFAULT '',
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -148,6 +159,8 @@ CREATE TABLE IF NOT EXISTS posts (
   seo_description TEXT NOT NULL DEFAULT '',
   views INTEGER NOT NULL DEFAULT 0,
   published_at TIMESTAMPTZ,
+  deleted_at TIMESTAMPTZ,
+  deleted_by TEXT NOT NULL DEFAULT '',
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -158,6 +171,8 @@ CREATE TABLE IF NOT EXISTS media (
   url TEXT NOT NULL,
   type TEXT NOT NULL DEFAULT 'image',
   size INTEGER NOT NULL DEFAULT 0,
+  deleted_at TIMESTAMPTZ,
+  deleted_by TEXT NOT NULL DEFAULT '',
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -383,6 +398,14 @@ CREATE TABLE IF NOT EXISTS ai_messages (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 CREATE INDEX IF NOT EXISTS ai_messages_conversation_idx ON ai_messages (conversation_id);
+
+CREATE TABLE IF NOT EXISTS reply_snippets (
+  id SERIAL PRIMARY KEY,
+  name TEXT NOT NULL,
+  body TEXT NOT NULL DEFAULT '',
+  channel TEXT NOT NULL DEFAULT 'whatsapp',
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
 `;
 
 function wrapQuery(origQuery: any) {
