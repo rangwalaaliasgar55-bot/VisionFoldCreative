@@ -235,7 +235,7 @@ export default function AdminSitePage() {
                   <Input value={hero.heroCta} onChange={(e) => set("heroCta", e.target.value)} />
                 </Field>
                 <div className="grid grid-cols-2 gap-3">
-                  {(["statsYears", "statsRating", "statsCountries", "statsTurnaround"] as const).map((k) => (
+                  {(["statsVideos", "statsClients", "statsRating", "statsTurnaround", "statsYears", "statsCountries"] as const).map((k) => (
                     <Field key={k} label={k.replace("stats", "")}>
                       <Input type="number" step={k === "statsRating" ? "0.1" : "1"} value={hero[k]} onChange={(e) => set(k, Number(e.target.value))} />
                     </Field>
@@ -290,9 +290,9 @@ export default function AdminSitePage() {
                 </div>
                 <div className="mt-8 grid grid-cols-4 gap-3">
                   {[
-                    [hero.statsYears, "Years"],
+                    [hero.statsVideos, "Videos"],
+                    [hero.statsClients, "Clients"],
                     [`${hero.statsRating}/5`, "Rating"],
-                    [hero.statsCountries, "Countries"],
                     [`${hero.statsTurnaround}h`, "Turnaround"],
                   ].map(([v, l]) => (
                     <div key={String(l)} className="glass rounded-xl py-3">

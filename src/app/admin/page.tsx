@@ -6,6 +6,19 @@ import { api, Button, Card, PageSkeleton, toast, useApi } from "@/components/Adm
 import { Bars, Funnel } from "@/components/Charts";
 import { fmtDate, fmtMoney, timeAgo } from "@/lib/utils";
 import {
+  ACTIVE_CLIENTS,
+  AI_MONTHLY,
+  AI_SUBSCRIPTIONS,
+  DEMAND,
+  LONGFORM_DELIVERED,
+  MONTHLY_BURN,
+  PAYROLL_MONTHLY,
+  SHORTS_DELIVERED,
+  TEAM,
+  VIDEOS_DELIVERED,
+  inr,
+} from "@/lib/studioOps";
+import {
   AlertTriangle,
   ArrowUpRight,
   Brain,
@@ -111,6 +124,30 @@ export default function AdminDashboardPage() {
           </div>
         ))}
       </div>
+
+      {data.viewer.role !== "editor" && (
+        <div className="grid gap-3 lg:grid-cols-3">
+          <Link href="/admin/subscriptions" className="glass card-glow rounded-2xl p-4 transition-colors hover:border-white/20">
+            <p className="text-[11px] uppercase tracking-widest text-slate-500">Delivered · 6 months</p>
+            <p className="font-display mt-1 text-2xl font-bold text-white">{VIDEOS_DELIVERED} videos</p>
+            <p className="text-[11px] text-slate-600">{SHORTS_DELIVERED} shorts · {LONGFORM_DELIVERED} long-form · {ACTIVE_CLIENTS} clients</p>
+          </Link>
+          <Link href="/admin/subscriptions" className="glass card-glow rounded-2xl p-4 transition-colors hover:border-white/20">
+            <p className="text-[11px] uppercase tracking-widest text-slate-500">Monthly run cost</p>
+            <p className="font-display mt-1 text-2xl font-bold text-amber-300">{inr(MONTHLY_BURN)}</p>
+            <p className="text-[11px] text-slate-600">
+              {inr(PAYROLL_MONTHLY)} crew · {inr(AI_MONTHLY)} AI ({AI_SUBSCRIPTIONS.map((a) => a.name).join(", ")})
+            </p>
+          </Link>
+          <Link href="/admin/leads" className="rounded-2xl border border-amber-400/20 bg-amber-400/[0.05] p-4 transition-colors hover:border-amber-400/40">
+            <p className="text-[11px] uppercase tracking-widest text-amber-200/80">Demand vs capacity</p>
+            <p className="font-display mt-1 text-2xl font-bold text-amber-300">{DEMAND.inbound30d} enquiries · 30d</p>
+            <p className="text-[11px] text-slate-500">
+              {DEMAND.waitlisted} waitlisted · {DEMAND.bookedPercent}% of {TEAM.length}-person capacity booked
+            </p>
+          </Link>
+        </div>
+      )}
 
       {data.kpis && (
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">

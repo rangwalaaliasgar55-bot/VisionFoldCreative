@@ -26,6 +26,17 @@ import { hashPassword, verifyPassword } from "@/lib/auth";
 import { DEFAULT_SETTINGS } from "@/lib/settings";
 import { ensureMigrations } from "@/db/migrate";
 import { hydrateRuntimeKeys } from "@/lib/runtimeKeys";
+import { AI_SUBSCRIPTIONS, TEAM, TOOL_COSTS, TOTAL_REVENUE } from "@/lib/studioOps";
+
+/** Date N months back from today (negative N = future), clamped to a safe day. */
+function monthAgo(months: number, day = 12): Date {
+  const now = new Date();
+  return new Date(now.getFullYear(), now.getMonth() - months, Math.min(Math.max(day, 1), 28), 10, 30, 0);
+}
+
+function isoDate(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
 
 let seedPromise: Promise<void> | null = null;
 
@@ -49,13 +60,13 @@ export async function ensureAdmin() {
   if (!admin) {
     await db
       .insert(users)
-      .values({ email, name: "VisionFold Studio", passwordHash: hashPassword(password), role: "admin" });
+      .values({ email, name: "Aliasgar Rangwala", passwordHash: hashPassword(password), role: "admin" });
     return;
   }
   if (password !== "demo1234" && verifyPassword("demo1234", admin.passwordHash)) {
     await db
       .update(users)
-      .set({ passwordHash: hashPassword(password), name: admin.name || "VisionFold Studio" })
+      .set({ passwordHash: hashPassword(password), name: admin.name || "Aliasgar Rangwala" })
       .where(eq(users.id, admin.id));
   }
 }
@@ -134,21 +145,32 @@ async function runSeed(force: boolean) {
       );
     }
     const adminHash = hashPassword(adminPassword);
+    // 2b. Staff accounts — Yusuf and Aliasgar are the studio heads, Rahul and
+    // Pankaj are the editors on the timeline. Seeded in every environment so
+    // /admin/team reflects the real roster.
+    const staffPassword = process.env.STAFF_DEFAULT_PASSWORD || "visionfold@2026";
+    const staffHash = hashPassword(staffPassword);
     await db.insert(users).values([
       {
         email: adminEmail,
-        name: "VisionFold Studio",
+        name: "Aliasgar Rangwala",
         passwordHash: adminHash,
         role: "admin",
       },
+      ...TEAM.filter((m) => m.email.toLowerCase() !== adminEmail).map((m) => ({
+        email: m.email.toLowerCase(),
+        name: m.name,
+        passwordHash: staffHash,
+        role: m.role,
+      })),
     ]);
 
     // Hoisted ids — referenced by later demo sections (ratings, activity, annotations, deliverables)
-    let c1 = 1, c2 = 2, c3 = 3, c4 = 4;
+    let c1 = 1, c2 = 2, c3 = 3, c4 = 4, c5 = 5, c6 = 6, c7 = 7, c8 = 8, c9 = 9;
     let p1 = 1, p2 = 2, p3 = 3, p4 = 4;
 
     if (seedDemo) {
-    // 3. Clients (demo accounts — override-able via CLIENT_DEMO_PASSWORD)
+    // 3. Clients — 9 active accounts (override password via CLIENT_DEMO_PASSWORD)
     const clientHash = hashPassword(process.env.CLIENT_DEMO_PASSWORD || "demo1234");
     const clientRows = await db
       .insert(clients)
@@ -160,7 +182,7 @@ async function runSeed(force: boolean) {
           company: "Nova Sound Records",
           passwordHash: clientHash,
           status: "active",
-          notes: "VIP Client. Multi-track electronic music videos and festival recaps.",
+          notes: "VIP retainer. Music videos + festival recaps. 14 shorts and 3 long-form delivered.",
         },
         {
           name: "Marcus Vance",
@@ -169,7 +191,7 @@ async function runSeed(force: boolean) {
           company: "Lumina Robotics",
           passwordHash: clientHash,
           status: "active",
-          notes: "Hardware launch video campaigns and tech explainers.",
+          notes: "Hardware launch films and tech explainers. 8 shorts + 5 long-form delivered.",
         },
         {
           name: "Elena Rostova",
@@ -178,7 +200,7 @@ async function runSeed(force: boolean) {
           company: "Vela Waves Activewear",
           passwordHash: clientHash,
           status: "active",
-          notes: "High-volume short-form Instagram & TikTok edits.",
+          notes: "High-volume 9:16 performance ads. 22 shorts delivered, 6 in the queue.",
         },
         {
           name: "Kai Takahashi",
@@ -187,7 +209,52 @@ async function runSeed(force: boolean) {
           company: "Apex Creators YouTube",
           passwordHash: clientHash,
           status: "active",
-          notes: "Weekly YouTube series (1.2M subs). Fast 48h turnaround.",
+          notes: "Weekly YouTube series (1.2M subs). 9 long-form episodes + 12 shorts.",
+        },
+        {
+          name: "Ananya Iyer",
+          email: "ananya@kesarandco.in",
+          phone: "+91 98204 41127",
+          company: "Kesar & Co. Jewellery",
+          passwordHash: clientHash,
+          status: "active",
+          notes: "D2C festive campaigns, Mumbai. Monthly retainer — 10 reels/month.",
+        },
+        {
+          name: "Rohit Malhotra",
+          email: "rohit@finlyticspodcast.com",
+          phone: "+91 99303 87720",
+          company: "Finlytics Podcast",
+          passwordHash: clientHash,
+          status: "active",
+          notes: "4 podcast episodes + 20 clipped shorts per month. Auto-subtitled.",
+        },
+        {
+          name: "Zainab Merchant",
+          email: "zainab@merchantrealty.in",
+          phone: "+91 77250 11884",
+          company: "Merchant Realty, Indore",
+          passwordHash: clientHash,
+          status: "active",
+          notes: "Property walkthrough films and broker reels. Local flagship account.",
+        },
+        {
+          name: "Daniel Okoye",
+          email: "daniel@grindsetfitness.com",
+          phone: "+44 7700 900412",
+          company: "GrindSet Fitness",
+          passwordHash: clientHash,
+          status: "active",
+          notes: "Transformation shorts + YouTube long-form. Wants to double volume in Q4.",
+        },
+        {
+          name: "Priya Nair",
+          email: "priya@sattvawellness.in",
+          phone: "+91 90048 22391",
+          company: "Sattva Wellness Studio",
+          passwordHash: clientHash,
+          status: "active",
+          notes: "Calm-aesthetic reels and a yearly brand film. Newest retainer.",
         },
       ])
       .returning();
@@ -196,6 +263,11 @@ async function runSeed(force: boolean) {
     c2 = clientRows[1]?.id ?? 2;
     c3 = clientRows[2]?.id ?? 3;
     c4 = clientRows[3]?.id ?? 4;
+    c5 = clientRows[4]?.id ?? 5;
+    c6 = clientRows[5]?.id ?? 6;
+    c7 = clientRows[6]?.id ?? 7;
+    c8 = clientRows[7]?.id ?? 8;
+    c9 = clientRows[8]?.id ?? 9;
 
     // 4. Projects
     const projectRows = await db
@@ -205,50 +277,100 @@ async function runSeed(force: boolean) {
           clientId: c1,
           title: "Cyberpunk Neon Beat — Official 4K Music Video",
           service: "Music Video",
-          description: "4K rhythmic music cut with custom speed ramps, neon glow transitions, 35mm grain, and cinematic halation.",
+          description: "4K rhythmic music cut with custom speed ramps, neon glow transitions, 35mm grain, and cinematic halation. Editor: Aliasgar.",
           status: "review",
           progress: 85,
-          dueDate: "2026-08-25",
+          dueDate: isoDate(monthAgo(-1, 4)),
           budget: "230000.00",
         },
         {
           clientId: c2,
           title: "Lumina Gen-2 AI Robot Launch Film",
           service: "Brand Films",
-          description: "60-second cinema spot for hardware launch, multi-cam assembly, sound design, and 3D motion tracking.",
+          description: "60-second cinema spot for hardware launch, multi-cam assembly, sound design, and 3D motion tracking. Editor: Rahul.",
           status: "in_progress",
           progress: 60,
-          dueDate: "2026-09-02",
+          dueDate: isoDate(monthAgo(-1, 12)),
           budget: "375000.00",
         },
         {
           clientId: c3,
           title: "Summer Drop 2026 — 9:16 Viral Ad Suite",
           service: "Commercials & Ads",
-          description: "Pack of 5 high-converting Reels with kinetic typography, hooks, and trending audio mix.",
+          description: "Pack of 6 high-converting Reels with kinetic typography, hooks, and trending audio mix. Editor: Pankaj.",
           status: "revision",
           progress: 90,
-          dueDate: "2026-08-20",
+          dueDate: isoDate(monthAgo(0, 30)),
           budget: "135000.00",
         },
         {
           clientId: c4,
-          title: "The $100M AI Economy — Episode 42",
+          title: "The ₹100Cr AI Economy — Episode 42",
           service: "YouTube Editing",
-          description: "22-minute documentary-style YouTube video with dynamic B-roll storytelling, soundscapes, and custom motion charts.",
+          description: "22-minute documentary-style YouTube video with dynamic B-roll storytelling, soundscapes, and custom motion charts. Editor: Rahul.",
           status: "completed",
           progress: 100,
-          dueDate: "2026-08-10",
+          dueDate: isoDate(monthAgo(1, 10)),
           budget: "70000.00",
+        },
+        {
+          clientId: c5,
+          title: "Kesar & Co. — Festive Gold Campaign (10 Reels)",
+          service: "Commercials & Ads",
+          description: "Diwali campaign: 10 vertical reels, macro product beauty shots, gold-warm grade. Editor: Pankaj.",
+          status: "in_progress",
+          progress: 55,
+          dueDate: isoDate(monthAgo(-1, 8)),
+          budget: "148000.00",
+        },
+        {
+          clientId: c6,
+          title: "Finlytics Podcast — September Pack (4 eps + 20 shorts)",
+          service: "Podcast Editing",
+          description: "Multi-cam podcast assembly, noise repair, auto-subtitled shorts with hook-first captions. Editors: Rahul + Pankaj.",
+          status: "in_progress",
+          progress: 70,
+          dueDate: isoDate(monthAgo(0, 28)),
+          budget: "96000.00",
+        },
+        {
+          clientId: c7,
+          title: "Merchant Realty — Sky Residences Walkthrough Film",
+          service: "Brand Films",
+          description: "4-min cinematic property film plus 6 broker reels shot on gimbal and FPV. Editor: Aliasgar.",
+          status: "review",
+          progress: 80,
+          dueDate: isoDate(monthAgo(0, 26)),
+          budget: "84000.00",
+        },
+        {
+          clientId: c8,
+          title: "GrindSet — 12 Transformation Shorts + Ep. 07",
+          service: "YouTube Editing",
+          description: "Retention-first long-form episode with 12 derived shorts. Editor: Pankaj.",
+          status: "in_progress",
+          progress: 45,
+          dueDate: isoDate(monthAgo(-1, 2)),
+          budget: "112000.00",
+        },
+        {
+          clientId: c9,
+          title: "Sattva Wellness — Brand Film & Calm Reels",
+          service: "Brand Films",
+          description: "Slow-cinema brand film with ambient sound design plus 8 calm-aesthetic reels. Editor: Aliasgar.",
+          status: "intake",
+          progress: 15,
+          dueDate: isoDate(monthAgo(-2, 6)),
+          budget: "126000.00",
         },
         {
           clientId: c1,
           title: "Midnight Tour Aftermovie & Teaser",
           service: "Music Video",
-          description: "Festival tour recap with sound design and crowd energy pacing.",
+          description: "Festival tour recap with sound design and crowd energy pacing. Editor: Rahul.",
           status: "intake",
           progress: 20,
-          dueDate: "2026-09-15",
+          dueDate: isoDate(monthAgo(-1, 20)),
           budget: "180000.00",
         },
       ])
@@ -279,7 +401,7 @@ async function runSeed(force: boolean) {
       {
         projectId: p2,
         title: "Story Beat Sheet Approved",
-        body: "Footage ingested from RED V-Raptor 8K. Rough assembly begun.",
+        body: "Footage ingested from RED V-Raptor 8K. Rough assembly begun by Rahul.",
       },
       {
         projectId: p2,
@@ -289,7 +411,7 @@ async function runSeed(force: boolean) {
       {
         projectId: p3,
         title: "Hook Iterations V1 Delivered",
-        body: "Rendered 3 distinct opening hook variations for A/B testing on Meta & TikTok.",
+        body: "Pankaj rendered 3 distinct opening hook variations for A/B testing on Meta & TikTok.",
       },
       {
         projectId: p4,
@@ -298,7 +420,7 @@ async function runSeed(force: boolean) {
       },
     ]);
 
-    // 6. Messages
+    // 6. Messages — inbound demand is outrunning capacity
     await db.insert(messages).values([
       {
         clientId: c1,
@@ -327,123 +449,219 @@ async function runSeed(force: boolean) {
       {
         clientId: c2,
         sender: "admin",
-        body: "Ingested! Cutting them into the assembly today. Will post a preview link tomorrow.",
+        body: "Ingested! Rahul is cutting them into the assembly today. Preview link tomorrow.",
+        read: true,
+      },
+      {
+        clientId: c5,
+        sender: "client",
+        body: "Aliasgar bhai, can we add 4 more reels to the Diwali pack? Budget is approved on our side.",
+        read: false,
+      },
+      {
+        clientId: c6,
+        sender: "client",
+        body: "Shorts from Ep. 118 did 410K views. Can we move from 20 to 30 shorts a month starting October?",
+        read: false,
+      },
+      {
+        clientId: c8,
+        sender: "client",
+        body: "We want to double output to 24 shorts/month. Do you have the editor bandwidth? Happy to pay a rush retainer.",
+        read: false,
+      },
+      {
+        clientId: c9,
+        sender: "admin",
+        body: "Welcome aboard Priya! Yusuf will run your kickoff call and Aliasgar will own the creative direction.",
         read: true,
       },
     ]);
 
-    // 7. Invoices & Expenses
+    // 7. Invoices — collected revenue ledger (₹6,70,320 paid across 6 months)
+    const paidLedger: { monthsAgo: number; day: number; clientId: number; projectId: number | null; number: string; amount: number; notes: string }[] = [
+      { monthsAgo: 5, day: 9, clientId: c3, projectId: null, number: "VF-2026-041", amount: 24_000, notes: "10 vertical shorts — April performance pack." },
+      { monthsAgo: 5, day: 22, clientId: c4, projectId: null, number: "VF-2026-042", amount: 38_400, notes: "2 long-form YouTube episodes + 4 derived shorts." },
+      { monthsAgo: 4, day: 7, clientId: c2, projectId: null, number: "VF-2026-047", amount: 42_000, notes: "Brand film re-cut + 3 social edits." },
+      { monthsAgo: 4, day: 19, clientId: c5, projectId: null, number: "VF-2026-048", amount: 36_500, notes: "Kesar & Co. monthly reel retainer (10 shorts)." },
+      { monthsAgo: 3, day: 6, clientId: c1, projectId: null, number: "VF-2026-053", amount: 55_200, notes: "Music video milestone 1 + tour teaser." },
+      { monthsAgo: 3, day: 21, clientId: c6, projectId: null, number: "VF-2026-054", amount: 36_000, notes: "Finlytics: 4 podcast episodes + 20 shorts." },
+      { monthsAgo: 2, day: 5, clientId: c7, projectId: null, number: "VF-2026-061", amount: 64_800, notes: "Sky Residences walkthrough film + 6 broker reels." },
+      { monthsAgo: 2, day: 18, clientId: c3, projectId: null, number: "VF-2026-062", amount: 47_500, notes: "Vela Waves 9:16 ad suite — 14 shorts." },
+      { monthsAgo: 1, day: 4, clientId: c2, projectId: null, number: "VF-2026-070", amount: 72_000, notes: "Lumina Gen-2 launch film — 50% milestone." },
+      { monthsAgo: 1, day: 16, clientId: c8, projectId: null, number: "VF-2026-071", amount: 45_920, notes: "GrindSet: Ep. 06 long-form + 12 transformation shorts." },
+      { monthsAgo: 1, day: 27, clientId: c9, projectId: null, number: "VF-2026-072", amount: 31_500, notes: "Sattva Wellness onboarding — 8 calm reels." },
+      { monthsAgo: 0, day: 3, clientId: c1, projectId: null, number: "VF-2026-080", amount: 88_000, notes: "Cyberpunk Neon Beat 4K master — milestone 2." },
+      { monthsAgo: 0, day: 11, clientId: c4, projectId: null, number: "VF-2026-081", amount: 52_500, notes: "Apex Creators: Episode 42 + 8 shorts." },
+      { monthsAgo: 0, day: 19, clientId: c6, projectId: null, number: "VF-2026-082", amount: 36_000, notes: "Finlytics September pack — paid on delivery." },
+    ];
+
+    const paidTotal = paidLedger.reduce((sum, row) => sum + row.amount, 0);
+    if (paidTotal !== TOTAL_REVENUE) {
+      console.warn(`[seed] Revenue ledger mismatch: ${paidTotal} vs published ${TOTAL_REVENUE}`);
+    }
+
     await db.insert(invoices).values([
-      {
-        clientId: c1,
-        projectId: p1,
-        number: "VF-2026-001",
-        amount: "2800.00",
-        status: "sent",
-        dueDate: "2026-08-30",
-        notes: "Cyberpunk Neon Beat 4K Music Video - Milestone 2 final render.",
-      },
-      {
-        clientId: c2,
-        projectId: p2,
-        number: "VF-2026-002",
-        amount: "4500.00",
-        status: "sent",
-        dueDate: "2026-09-05",
-        notes: "Lumina Gen-2 AI Robot Launch Film — 50% deposit paid, remaining upon delivery.",
-      },
-      {
-        clientId: c3,
-        projectId: p3,
-        number: "VF-2026-003",
-        amount: "1650.00",
+      ...paidLedger.map((row) => ({
+        clientId: row.clientId,
+        projectId: row.projectId,
+        number: row.number,
+        amount: row.amount.toFixed(2),
         status: "paid",
-        dueDate: "2026-08-18",
-        notes: "Summer Drop 2026 Reel Suite (5 videos). Paid via Stripe.",
+        dueDate: isoDate(monthAgo(row.monthsAgo, Math.min(row.day + 7, 28))),
+        notes: row.notes,
+        createdAt: monthAgo(row.monthsAgo, row.day),
+      })),
+      // Outstanding (not counted in the ₹6,70,320 collected figure)
+      {
+        clientId: c5,
+        projectId: null,
+        number: "VF-2026-083",
+        amount: "64000.00",
+        status: "sent",
+        dueDate: isoDate(monthAgo(-1, 5)),
+        notes: "Festive Gold Campaign — balance on delivery of 10 reels.",
+        createdAt: monthAgo(0, 22),
       },
       {
-        clientId: c4,
-        projectId: p4,
-        number: "VF-2026-004",
-        amount: "850.00",
-        status: "paid",
-        dueDate: "2026-08-10",
-        notes: "Episode 42 YouTube post-production package.",
+        clientId: c8,
+        projectId: null,
+        number: "VF-2026-084",
+        amount: "28500.00",
+        status: "sent",
+        dueDate: isoDate(monthAgo(-1, 1)),
+        notes: "GrindSet Ep. 07 advance — rush turnaround add-on.",
+        createdAt: monthAgo(0, 24),
+      },
+      {
+        clientId: c7,
+        projectId: null,
+        number: "VF-2026-085",
+        amount: "19800.00",
+        status: "overdue",
+        dueDate: isoDate(monthAgo(1, 25)),
+        notes: "Broker reels batch 2 — payment reminder sent twice.",
+        createdAt: monthAgo(1, 12),
       },
     ]);
 
-    await db.insert(expenses).values([
-      {
-        category: "Software",
-        description: "DaVinci Resolve Studio & Boris FX Continuum Licenses",
-        amount: "595.00",
-        date: "2026-08-01",
-      },
-      {
-        category: "Audio",
-        description: "Epidemic Sound & Artlist Annual Studio Commercial License",
-        amount: "299.00",
-        date: "2026-08-03",
-      },
-      {
-        category: "Infrastructure",
-        description: "10GbE NAS Cloud Backup & Frame.io Storage Cluster",
-        amount: "185.00",
-        date: "2026-08-05",
-      },
-      {
-        category: "Hardware",
-        description: "Blackmagic UltraStudio 4K Mini I/O Monitor Unit",
-        amount: "995.00",
-        date: "2026-07-28",
-      },
-    ]);
+    // 7b. Expenses — the ₹1,20,455/month run cost, booked for the last 3 months.
+    // Payroll (₹90,000) + AI subscriptions (₹15,480) + tools & studio (₹14,975).
+    const expenseRows: { category: string; description: string; amount: string; date: string }[] = [];
+    for (const m of [2, 1, 0]) {
+      const payDate = isoDate(monthAgo(m, 1));
+      for (const member of TEAM) {
+        expenseRows.push({
+          category: member.head ? "Payroll — Heads" : "Payroll — Editors",
+          description: `${member.name} — ${member.title} (monthly)`,
+          amount: member.monthlyPay.toFixed(2),
+          date: payDate,
+        });
+      }
+      for (const sub of AI_SUBSCRIPTIONS) {
+        expenseRows.push({
+          category: "AI Subscriptions",
+          description: `${sub.name} (${sub.plan}) — ${sub.vendor}`,
+          amount: sub.monthlyCost.toFixed(2),
+          date: isoDate(monthAgo(m, 3)),
+        });
+      }
+      for (const tool of TOOL_COSTS) {
+        expenseRows.push({
+          category: tool.category,
+          description: tool.name,
+          amount: tool.monthlyCost.toFixed(2),
+          date: isoDate(monthAgo(m, 5)),
+        });
+      }
+    }
+    await db.insert(expenses).values(expenseRows);
 
-    // 8. Leads
+    // 8. Leads — inbound demand is far past capacity (34 enquiries in 30 days)
     await db.insert(leads).values([
       {
-        name: "David Chen",
-        email: "david@vertexgames.com",
-        phone: "+1 (555) 620-1192",
-        service: "Commercials & Ads",
-        budget: "₹2,50,000 - ₹4,00,000",
-        message: "We need a cinematic gameplay trailer for our upcoming Unreal Engine 5 sci-fi RPG launch.",
-        notes: "High potential. Sent preliminary brief questionnaire.",
-        status: "contacted",
-        source: "website",
+        name: "David Chen", email: "david@vertexgames.com", phone: "+1 (555) 620-1192",
+        service: "Commercials & Ads", budget: "₹2,50,000 - ₹4,00,000",
+        message: "We need a cinematic gameplay trailer for our Unreal Engine 5 sci-fi RPG launch.",
+        notes: "High potential. Sent preliminary brief questionnaire.", status: "contacted", source: "website", score: 88,
       },
       {
-        name: "Amara Okafor",
-        email: "amara@soundscapemedia.co",
-        phone: "+1 (555) 819-4402",
-        service: "Music Video",
-        budget: "₹1,60,000 - ₹2,80,000",
-        message: "Shooting a high-fashion Afro-fusion music video in London next month. Looking for rhythmic editing and film color.",
-        notes: "Followed up with showreel link.",
-        status: "new",
-        source: "website",
+        name: "Amara Okafor", email: "amara@soundscapemedia.co", phone: "+1 (555) 819-4402",
+        service: "Music Video", budget: "₹1,60,000 - ₹2,80,000",
+        message: "High-fashion Afro-fusion music video in London next month. Rhythmic editing and film color.",
+        notes: "Followed up with showreel link.", status: "new", source: "website", score: 74,
       },
       {
-        name: "Liam O'Connor",
-        email: "liam@techstackpod.io",
-        phone: "+1 (555) 304-9912",
-        service: "Podcast Editing",
-        budget: "₹1,20,000 / month",
-        message: "Need 4 full podcast episodes per month plus 20 viral Shorts/Reels extracted with burned-in subtitles.",
-        notes: "Quote accepted, converting to client soon.",
-        status: "won",
-        source: "referral",
+        name: "Liam O'Connor", email: "liam@techstackpod.io", phone: "+1 (555) 304-9912",
+        service: "Podcast Editing", budget: "₹1,20,000 / month",
+        message: "4 full podcast episodes per month plus 20 viral Shorts with burned-in subtitles.",
+        notes: "Quote accepted — waiting on an editor slot to free up.", status: "won", source: "referral", score: 92,
       },
       {
-        name: "Chloe Dubois",
-        email: "chloe@luxemaison.fr",
-        phone: "+33 6 12 34 56 78",
-        service: "Brand Films",
-        budget: "₹5,00,000+",
-        message: "Paris Fashion Week recap film and 10 social teasers for luxury perfume brand.",
-        notes: "Call scheduled for Thursday.",
-        status: "contacted",
-        source: "website",
+        name: "Chloe Dubois", email: "chloe@luxemaison.fr", phone: "+33 6 12 34 56 78",
+        service: "Brand Films", budget: "₹5,00,000+",
+        message: "Paris Fashion Week recap film and 10 social teasers for a luxury perfume brand.",
+        notes: "Call scheduled for Thursday with Yusuf.", status: "contacted", source: "website", score: 95,
+      },
+      {
+        name: "Vikram Deshpande", email: "vikram@nexafintech.in", phone: "+91 98191 22014",
+        service: "YouTube Editing", budget: "₹90,000 / month",
+        message: "Need 8 long-form finance explainers a month. Can you start next week?",
+        notes: "Waitlisted — capacity full until 21 Oct.", status: "new", source: "instagram", score: 81,
+      },
+      {
+        name: "Fatima Sheikh", email: "fatima@bakedbyfatima.in", phone: "+91 88888 40192",
+        service: "Commercials & Ads", budget: "₹45,000 / month",
+        message: "Cloud kitchen brand — 15 reels a month, food macro shots. Urgent, festive season.",
+        notes: "Wants to start immediately. Pankaj is at 94% capacity.", status: "new", source: "whatsapp", score: 69,
+      },
+      {
+        name: "Arjun Kapoor", email: "arjun@hypecartel.co", phone: "+91 90219 77341",
+        service: "Commercials & Ads", budget: "₹2,00,000",
+        message: "Sneaker drop campaign — 20 shorts in 10 days. Can VisionFold handle the volume?",
+        notes: "Rush job — quoted a 25% express surcharge.", status: "contacted", source: "referral", score: 86,
+      },
+      {
+        name: "Meghna Rao", email: "meghna@theslowbrandco.in", phone: "+91 96322 10887",
+        service: "Brand Films", budget: "₹3,20,000",
+        message: "Founder story film + 12 cutdowns for a sustainable skincare launch.",
+        notes: "Sent proposal. Very likely to close.", status: "proposal", source: "website", score: 90,
+      },
+      {
+        name: "Tobias Weber", email: "tobias@northline.de", phone: "+49 151 2345 6789",
+        service: "YouTube Editing", budget: "₹1,40,000 / month",
+        message: "German automotive channel, 4 long-form + 16 shorts monthly. Need a dedicated editor.",
+        notes: "Needs a dedicated editor — hiring gate.", status: "new", source: "youtube", score: 84,
+      },
+      {
+        name: "Sneha Gupta", email: "sneha@auravedaskin.in", phone: "+91 99205 33418",
+        service: "Commercials & Ads", budget: "₹60,000 / month",
+        message: "Performance creatives for Meta ads — at least 12 hooks a month.",
+        notes: "Waitlisted.", status: "new", source: "website", score: 72,
+      },
+      {
+        name: "Imran Qureshi", email: "imran@qspacestudio.in", phone: "+91 76543 22190",
+        service: "Wedding Cinema", budget: "₹1,80,000",
+        message: "Destination wedding film in Udaipur, 3-camera footage, need a 6-minute cinematic cut.",
+        notes: "Peak season — offered a November slot.", status: "contacted", source: "referral", score: 77,
+      },
+      {
+        name: "Grace Wanjiru", email: "grace@safirimedia.co.ke", phone: "+254 712 004 118",
+        service: "Brand Films", budget: "₹2,10,000",
+        message: "Travel brand docu-series, 3 episodes, cinematic grade and sound design.",
+        notes: "Time-zone friendly. Awaiting footage.", status: "proposal", source: "website", score: 79,
+      },
+      {
+        name: "Nikhil Jain", email: "nikhil@stackcrafthq.com", phone: "+91 80107 55283",
+        service: "Podcast Editing", budget: "₹75,000 / month",
+        message: "SaaS podcast — 8 episodes/month plus clip factory. Referred by Finlytics.",
+        notes: "Warm referral from Rohit Malhotra.", status: "new", source: "referral", score: 83,
+      },
+      {
+        name: "Ritika Shah", email: "ritika@glowhouse.in", phone: "+91 98333 71920",
+        service: "Commercials & Ads", budget: "₹1,10,000 / month",
+        message: "Beauty brand — 18 reels a month. We tried 3 agencies, none can keep the pace.",
+        notes: "Would need a 4th editor to service properly.", status: "new", source: "instagram", score: 87,
       },
     ]);
 
@@ -536,6 +754,36 @@ async function runSeed(force: boolean) {
         projectId: p4,
         stars: 5,
         comment: "Average watch-time on our YouTube channel jumped from 38% to 64% after switching to VisionFold edits. Highly recommend!",
+        visible: false,
+      },
+      {
+        clientId: c5,
+        stars: 5,
+        comment: "Pankaj turned around 10 festive reels in a week and every single one beat our old creatives on CTR.",
+        visible: false,
+      },
+      {
+        clientId: c6,
+        stars: 5,
+        comment: "The clip factory is the reason our podcast grew 4x. Rahul understands where the hook lives.",
+        visible: false,
+      },
+      {
+        clientId: c7,
+        stars: 5,
+        comment: "Aliasgar personally graded our walkthrough film. Two flats sold off the video alone.",
+        visible: false,
+      },
+      {
+        clientId: c8,
+        stars: 4,
+        comment: "Quality is elite. Only ask is more capacity — we want double the shorts per month.",
+        visible: false,
+      },
+      {
+        clientId: c9,
+        stars: 5,
+        comment: "Yusuf scoped the whole brand film in one call. Calm, clear, and the cut felt exactly like us.",
         visible: false,
       },
     ]);
@@ -740,37 +988,29 @@ Eliminate 50-email revision chains. Time-stamped pinpoint feedback keeps the ent
     if (seedDemo) {
     // 14. Activity Log
     await db.insert(activity).values([
-      {
-        actor: "Studio",
-        action: "Exported Render",
-        details: "Rendered 4K ProRes master for Cyberpunk Neon Beat (v2).",
-      },
-      {
-        actor: "System Automation",
-        action: "Lead Processed",
-        details: "Auto-qualified lead from David Chen (Vertex Games).",
-      },
-      {
-        actor: "Sarah Jenkins",
-        action: "Portal Feedback",
-        details: "Added timestamp comment on Cyberpunk Neon Beat at 01:14.",
-      },
-      {
-        actor: "System",
-        action: "Invoice Paid",
-        details: "Invoice VF-2026-003 marked paid (₹1,35,000).",
-      },
+      { actor: "Aliasgar Rangwala", action: "Exported Render", details: "Rendered 4K ProRes master for Cyberpunk Neon Beat (v2)." },
+      { actor: "Pankaj Sahu", action: "Delivery", details: "Delivered 6 vertical shorts for Vela Waves — 22 shorts this month." },
+      { actor: "Rahul Verma", action: "Delivery", details: "Delivered Finlytics Ep. 118 long-form (42 min) + 5 clipped shorts." },
+      { actor: "System Automation", action: "Lead Processed", details: "Auto-qualified lead from Ritika Shah (GlowHouse) — score 87." },
+      { actor: "System Automation", action: "Capacity Alert", details: "Editor capacity at 89% — 23 enquiries moved to the waitlist." },
+      { actor: "Sarah Jenkins", action: "Portal Feedback", details: "Added timestamp comment on Cyberpunk Neon Beat at 01:14." },
+      { actor: "System", action: "invoice.paid", details: "Invoice VF-2026-082 marked paid (₹36,000)." },
+      { actor: "Yusuf Rangwala", action: "Client Onboarded", details: "Sattva Wellness Studio signed — 9th active retainer client." },
+      { actor: "System", action: "Subscription Renewed", details: "Claude Team (3 seats) renewed — ₹8,250 booked to AI Subscriptions." },
+      { actor: "System", action: "Subscription Usage", details: "SuperGrok at 64% of monthly request allowance (1,930 / 3,000)." },
+      { actor: "System", action: "Subscription Usage", details: "OpenAI ChatGPT Business at 65% of token allowance (1.62M / 2.5M)." },
+      { actor: "Aliasgar Rangwala", action: "Payroll Run", details: "Monthly payroll released — ₹90,000 across 4 staff." },
     ]);
 
     }
 
     // 15. Quotas & Limits
     await db.insert(quotas).values({
-      storageUsedBytes: "45800000000",
+      storageUsedBytes: "78400000000",
       storageLimitBytes: "107374182400", // 100 GB
-      aiTokensUsed: 18500,
+      aiTokensUsed: 186_400,
       aiTokensLimit: 250000,
-      renderHoursUsed: "18.5",
+      renderHoursUsed: "41.5",
       renderHoursLimit: "50.0",
       activeProjectsLimit: 20,
       alertThresholdPercent: 80,
