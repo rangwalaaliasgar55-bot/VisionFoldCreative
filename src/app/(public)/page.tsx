@@ -112,9 +112,9 @@ export default async function HomePage() {
           <Reveal delay={280}>
             <div className="mx-auto mt-14 grid max-w-3xl grid-cols-2 gap-4 sm:grid-cols-4">
               {[
-                { value: Number(settings.statsYears || 2), suffix: "", label: "Years editing" },
+                { value: Number(settings.statsVideos || 128), suffix: "", label: "Videos delivered" },
+                { value: Number(settings.statsClients || 9), suffix: "", label: "Clients served" },
                 { value: Number(settings.statsRating || 4.9), suffix: "/5", label: "Client rating", decimals: 1 },
-                { value: Number(settings.statsCountries || 12), suffix: "", label: "Countries served" },
                 { value: Number(settings.statsTurnaround || 24), suffix: "h", label: "Turnaround time" },
               ].map((s) => (
                 <div key={s.label} className="glass rounded-2xl px-4 py-5">

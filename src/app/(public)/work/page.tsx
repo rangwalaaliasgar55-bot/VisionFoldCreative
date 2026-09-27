@@ -38,8 +38,8 @@ export default async function WorkPage() {
         <Reveal delay={150}>
           <div className="mx-auto grid max-w-3xl grid-cols-3 gap-4">
             {[
-              { v: Number(settings.statsYears || 2), s: "", l: "Years editing", d: 0 },
-              { v: Number(settings.statsCountries || 12), s: "", l: "Countries", d: 0 },
+              { v: Number(settings.statsVideos || 128), s: "", l: "Videos delivered", d: 0 },
+              { v: Number(settings.statsClients || 9), s: "", l: "Clients served", d: 0 },
               { v: Number(settings.statsRating || 4.9), s: "/5", l: "Avg. rating", d: 1 },
             ].map((x) => (
               <div key={x.l} className="glass rounded-2xl py-5 text-center">

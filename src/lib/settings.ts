@@ -17,6 +17,11 @@ export const DEFAULT_SETTINGS: Record<string, unknown> = {
   statsRating: 4.9,
   statsCountries: 12,
   statsTurnaround: 24,
+  // Delivery scoreboard — kept in sync with src/lib/studioOps.ts
+  statsVideos: 128,
+  statsShorts: 92,
+  statsLongForm: 36,
+  statsClients: 9,
   aboutText:
     "For 2 years we have cut for startups, agencies, creators and studios — always chasing the same thing: edits so tight the story feels inevitable.",
   email: "visionfoldcreative@gmail.com",
